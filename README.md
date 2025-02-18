@@ -1,1 +1,1 @@
-# mai-object-recognition
+# Object Recognition - MAI Spring 2025
