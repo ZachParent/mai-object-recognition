@@ -12,7 +12,7 @@ PYTHON_INTERPRETER = python
 
 DATA_DIR = data
 RAW_DATA_DIR = $(DATA_DIR)/00_raw
-RAW_DATA_ZIP_FILE = $(RAW_DATA_DIR)/VOCtrainval_11-May-2012.tar
+RAW_DATA_ZIP_FILE = $(DATA_DIR)/VOCtrainval_11-May-2012.tar
 STAMPS_DIR = $(DATA_DIR)/stamps
 
 #################################################################################
@@ -21,7 +21,18 @@ STAMPS_DIR = $(DATA_DIR)/stamps
 
 ## download, unzip and arrange the raw data
 .PHONY: setup_raw_data
-setup_raw_data: ${STAMPS_DIR}/raw_data_unpacked
+setup_raw_data: clear_raw_data ${STAMPS_DIR}/raw_data_unpacked
+
+## remove all raw data
+.PHONY: clear_raw_data
+clear_raw_data:
+	rm -rf $(RAW_DATA_DIR)
+	rm -f $(STAMPS_DIR)/raw_data_unpacked $(STAMPS_DIR)/raw_data_dir
+
+## remove all stamps
+.PHONY: clear_stamps
+clear_stamps:
+	rm -rf $(STAMPS_DIR)
 
 #################################################################################
 # DATA DEPENDENCIES                                                             #
