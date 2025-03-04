@@ -43,6 +43,8 @@ data_augmentation = True
 # Directories
 PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"
+TRAIN_TXT = DATA_DIR / "train.txt"
+TEST_TXT = DATA_DIR / "test.txt"
 # RAW_DATA_DIR = DATA_DIR / '00_raw'
 HISTORIES_DIR = DATA_DIR / "01_histories"
 MODELS_DIR = PROJECT_DIR / "models"

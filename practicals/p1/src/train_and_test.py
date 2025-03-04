@@ -150,8 +150,8 @@ def save_history(
 
 
 def train_and_test(model, exp):
-    train_list = load_data("train.txt")
-    test_list = load_data("test.txt")
+    train_list = load_data(TRAIN_TXT)
+    test_list = load_data(TEST_TXT)
 
     n_train_steps = 10
     n_test_steps = 10
