@@ -1,11 +1,33 @@
 from pathlib import Path
+
 # Task-specific parameters
 
 img_size = 224
 num_classes = 20
-voc_classes = {'aeroplane': 0, 'bicycle': 1, 'bird': 2, 'boat': 3, 'bottle': 4, 'bus': 5, 'car': 6, 'cat': 7, 'chair': 8, 'cow': 9, 'diningtable': 10, 'dog': 11, 'horse': 12, 'motorbike': 13, 'person': 14, 'pottedplant': 15, 'sheep': 16, 'sofa': 17, 'train': 18, 'tvmonitor': 19}
+voc_classes = {
+    "aeroplane": 0,
+    "bicycle": 1,
+    "bird": 2,
+    "boat": 3,
+    "bottle": 4,
+    "bus": 5,
+    "car": 6,
+    "cat": 7,
+    "chair": 8,
+    "cow": 9,
+    "diningtable": 10,
+    "dog": 11,
+    "horse": 12,
+    "motorbike": 13,
+    "person": 14,
+    "pottedplant": 15,
+    "sheep": 16,
+    "sofa": 17,
+    "train": 18,
+    "tvmonitor": 19,
+}
 test_imagenet = True
-root = './VOCdevkit/VOC2012/'
+RAW_DATA_DIR = Path("./VOCdevkit/VOC2012/")
 per_sample_normalization = True
 data_augmentation = True
 
@@ -19,8 +41,8 @@ data_augmentation = True
 # loss = ['categorical_crossentropy', 'binary_crossentropy', 'mean_squared_error', 'mean_absolute_error'][1]
 
 # Directories
-PROJECT_DIR  = Path(__file__).parent.parent
-DATA_DIR = PROJECT_DIR / 'data'
-RAW_DATA_DIR = DATA_DIR / '00_raw'
-HISTORIES_DIR = DATA_DIR / '01_histories'
-MODELS_DIR = PROJECT_DIR / 'models'
+PROJECT_DIR = Path(__file__).parent.parent
+DATA_DIR = PROJECT_DIR / "data"
+# RAW_DATA_DIR = DATA_DIR / '00_raw'
+HISTORIES_DIR = DATA_DIR / "01_histories"
+MODELS_DIR = PROJECT_DIR / "models"
