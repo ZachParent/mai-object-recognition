@@ -27,7 +27,6 @@ voc_classes = {
     "tvmonitor": 19,
 }
 test_imagenet = True
-RAW_DATA_DIR = Path("./VOCdevkit/VOC2012/")
 per_sample_normalization = True
 data_augmentation = True
 
@@ -45,7 +44,7 @@ PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 TRAIN_TXT = DATA_DIR / "train.txt"
 TEST_TXT = DATA_DIR / "test.txt"
-# RAW_DATA_DIR = DATA_DIR / '00_raw'
+RAW_DATA_DIR = DATA_DIR / '00_raw'
 HISTORIES_DIR = DATA_DIR / "01_histories"
 RESULTS_CSV = DATA_DIR / "results.csv"
 MODELS_DIR = PROJECT_DIR / "models"
