@@ -1,3 +1,4 @@
+from pathlib import Path
 # Task-specific parameters
 
 img_size = 224
@@ -17,3 +18,9 @@ data_augmentation = True
 # last_layer_activation = ['softmax', 'sigmoid', None][1]
 # loss = ['categorical_crossentropy', 'binary_crossentropy', 'mean_squared_error', 'mean_absolute_error'][1]
 
+# Directories
+PROJECT_DIR  = Path(__file__).parent.parent
+DATA_DIR = PROJECT_DIR / 'data'
+RAW_DATA_DIR = DATA_DIR / '00_raw'
+HISTORIES_DIR = DATA_DIR / '01_histories'
+MODELS_DIR = PROJECT_DIR / 'models'

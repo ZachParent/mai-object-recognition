@@ -85,14 +85,14 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
 
 def save_model(model, exp):
     """Save the model weights to disk."""
-    model_filename = f'models/{exp["net_name"][0]}-{exp["id"]}.weights.h5'
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    model_filename = f'{MODELS_DIR}/{exp["net_name"][0]}-{exp["id"]}.weights.h5'
     model.save_weights(model_filename)
     print(f"Model saved to {model_filename}")
 
 def save_history(train_loss_history, train_acc_history, train_f1_history, test_loss_history, test_acc_history, test_f1_history, exp):
     """Save training and testing histories to CSV files."""
-    history_folder = 'histories'
-    os.makedirs(history_folder, exist_ok=True)
+    os.makedirs(HISTORIES_DIR, exist_ok=True)
 
     history_files = {
         "train_loss": train_loss_history,
@@ -104,7 +104,7 @@ def save_history(train_loss_history, train_acc_history, train_f1_history, test_l
     }
 
     for history_type, history_data in history_files.items():
-        history_filename = f'{history_folder}/{exp["net_name"][0]}-{exp["id"]}-{history_type}.csv'
+        history_filename = f'{HISTORIES_DIR}/{exp["net_name"][0]}-{exp["id"]}-{history_type}.csv'
         
         with open(history_filename, mode='w', newline='') as f:
             writer = csv.writer(f)
