@@ -51,7 +51,7 @@ def test_one_epoch(model, test_list, batch_size, n_test_steps, exp):
 
 def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1):
     """Save training and testing results to CSV."""
-    results_file = "results.csv"
+    results_file = RESULTS_CSV
     final_results = [
         exp["id"],
         test_loss,
