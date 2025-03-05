@@ -187,3 +187,5 @@ practicals/p1/indi/CNN_voc_ours.ipynb
 practicals/p1/indi/data_preprocessing.py
 practicals/p1/indi/test.txt
 practicals/p1/indi/train.txt
+
+internal_tests/
