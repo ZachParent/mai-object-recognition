@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 from keras import backend as K
 
@@ -11,6 +10,7 @@ def recall_m(y_true, y_pred):
     recall = true_positives / (possible_positives + tf.keras.backend.epsilon())
     return recall
 
+
 def precision_m(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.cast(y_pred, tf.float32)
@@ -19,7 +19,8 @@ def precision_m(y_true, y_pred):
     precision = true_positives / (predicted_positives + tf.keras.backend.epsilon())
     return precision
 
+
 def f1_metric(y_true, y_pred):
     precision = precision_m(y_true, y_pred)
     recall = recall_m(y_true, y_pred)
-    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
