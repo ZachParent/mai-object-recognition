@@ -7,7 +7,7 @@ class ExperimentConfig(pydantic.BaseModel):
     train_from_scratch: bool
     warm_up: bool
     batch_size: int = 32
-    n_epochs: int = 1
+    n_epochs: int = 12
     last_layer_activation: str = "sigmoid"
     learning_rate: float = 0.001
     loss: str = "binary_crossentropy"

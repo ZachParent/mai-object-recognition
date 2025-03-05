@@ -6,49 +6,22 @@ from config import *
 from load_data import get_file_paths, get_dataset_from_paths
 from augmentation import create_data_pipeline
 from experiment_config import ExperimentConfig
-
-def create_dataset(file_list, batch_size, is_training=True, exp=None):
-    """Create a tf.data.Dataset from a list of file paths."""
-    # Get full paths for images and annotations
-    image_paths, annotation_paths = get_file_paths(file_list)
-
-    # Create base dataset
-    dataset = get_dataset_from_paths(image_paths, annotation_paths)
-
-    # Create and apply the data pipeline
-    data_pipeline = create_data_pipeline(
-        is_training=is_training and exp.get("use_augmentation", True)
-    )
-
-    # Apply the pipeline to the images
-    dataset = dataset.map(
-        lambda x, y: (data_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
-    )
-
-    # Batch and prefetch
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(tf.data.AUTOTUNE)
-
-    return dataset
-
-
-def load_data(file_path):
-    """Load data from a text file."""
-    with open(file_path, "r") as f:
-        return [line.strip() for line in f.readlines()]
+import time
+from itertools import islice
 
 
 def train_one_epoch(model, train_dataset, n_train_steps):
     """Train the model for one epoch."""
-    train_loss, train_acc, train_f1 = 0, 0, 0
-    for step, (X, Y) in enumerate(train_dataset):
-        if step >= n_train_steps:
-            break
-
+    train_loss, train_acc, train_f1 = 0.0, 0.0, 0.0
+    start_time = time.time()
+    for X, Y in islice(train_dataset, n_train_steps):
         loss, acc, f1 = model.train_on_batch(X, Y)
         train_loss += loss
         train_acc += acc
         train_f1 += f1
+
+    elapsed = time.time() - start_time
+    print(f"Time taken for training one epoch: {elapsed:.2f}s")
 
     return (
         train_loss / n_train_steps,
@@ -59,15 +32,16 @@ def train_one_epoch(model, train_dataset, n_train_steps):
 
 def test_one_epoch(model, test_dataset, n_test_steps):
     """Test the model for one epoch."""
-    test_loss, test_acc, test_f1 = 0, 0, 0
-    for step, (X, Y) in enumerate(test_dataset):
-        if step >= n_test_steps:
-            break
-
+    test_loss, test_acc, test_f1 = 0.0, 0.0, 0.0
+    start_time = time.time()
+    for X, Y in islice(test_dataset, n_test_steps):
         loss, acc, f1 = model.evaluate(X, Y, verbose=0)
         test_loss += loss
         test_acc += acc
         test_f1 += f1
+
+    elapsed = time.time() - start_time
+    print(f"Time taken for testing one epoch: {elapsed:.2f}s")
 
     return test_loss / n_test_steps, test_acc / n_test_steps, test_f1 / n_test_steps
 
@@ -91,6 +65,7 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
     updated_rows = []
     found = False
 
+    # start_time = time.time()
     if file_exists:
         with open(results_file, mode="r") as f:
             reader = csv.reader(f)
@@ -99,7 +74,7 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
             except StopIteration:
                 header = []
             for row in reader:
-                print(row)
+                # print(row)
                 if int(row[0]) == int(exp["id"]):
                     updated_rows.append(final_results)
                     found = True
@@ -125,6 +100,7 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
             ]
         )
         writer.writerows(updated_rows)
+    # print(f"Time taken for writing results: {time.time() - start_time:.2f}s")
 
     print(f"Results saved to {results_file}")
 
@@ -133,8 +109,13 @@ def save_model(model, exp: ExperimentConfig):
     """Save the model weights to disk."""
     os.makedirs(MODELS_DIR, exist_ok=True)
     model_filename = f'{MODELS_DIR}/{exp.net_name[0]}-{exp.id}.weights.h5'
+
+    # start_time = time.time()
     model.save_weights(model_filename)
+    # end_time = time.time()
+
     print(f"Model saved to {model_filename}")
+    # print(f"Time taken to save model: {end_time - start_time:.2f}s")
 
 
 def save_history(
@@ -163,34 +144,27 @@ def save_history(
             f'{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv'
         )
 
+        # start_time = time.time()
         with open(history_filename, mode="w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow([history_type])
             for value in history_data:
                 writer.writerow([value])
+        # end_time = time.time()
 
         print(f"History saved to {history_filename}")
+        # print(f"Time taken to save {history_type} history: {end_time - start_time:.2f}s")
 
 
-def train_and_test(model, exp: ExperimentConfig):
-    train_list = load_data(TRAIN_TXT)
-    test_list = load_data(TEST_TXT)
-
-    # Create tf.data.Dataset objects
-    train_dataset = create_dataset(
-        train_list, exp.batch_size, is_training=True, exp=exp
-    )
-    test_dataset = create_dataset(
-        test_list, exp.batch_size, is_training=False, exp=exp
-    )
-
-    n_train_steps = 10
-    n_test_steps = 10
+def train_and_test(model, exp: ExperimentConfig, train_dataset, test_dataset, train_list, test_list):
+    n_train_steps = len(train_list) // exp.batch_size
+    n_test_steps = len(test_list) // exp.batch_size
 
     train_loss_history, train_acc_history, train_f1_history = [], [], []
     test_loss_history, test_acc_history, test_f1_history = [], [], []
 
     print(f"In training loop: {exp.title}")
+    start_time = time.time()
     for epoch in range(exp.n_epochs):
         random.shuffle(train_list)
 
@@ -213,6 +187,9 @@ def train_and_test(model, exp: ExperimentConfig):
         print(
             f"Epoch {epoch} test loss: {test_loss:.2f}, acc: {test_acc:.2f}, f1: {test_f1:.2f}"
         )
+
+    elapsed_time = time.time() - start_time
+    print(f"Training ({exp['title']}) finished in: {elapsed_time}")
 
     save_results(
         exp,
