@@ -46,9 +46,10 @@ def test_one_epoch(model, test_dataset, n_test_steps):
     return test_loss / n_test_steps, test_acc / n_test_steps, test_f1 / n_test_steps
 
 
-def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1):
+def save_results(exp_name, exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1):
     """Save training and testing results to CSV."""
-    results_file = RESULTS_CSV
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    results_file = RESULTS_DIR / f"{exp_name}.csv"
     final_results = [
         exp.id,
         test_loss,
@@ -156,9 +157,9 @@ def save_history(
         # print(f"Time taken to save {history_type} history: {end_time - start_time:.2f}s")
 
 
-def train_and_test(model, exp: ExperimentConfig, train_dataset, test_dataset, train_list, test_list):
-    n_train_steps = len(train_list) // exp.batch_size
-    n_test_steps = len(test_list) // exp.batch_size
+def train_and_test(model, exp_name, exp: ExperimentConfig, train_dataset, test_dataset, train_list, test_list):
+    n_train_steps = 2
+    n_test_steps = 2
 
     train_loss_history, train_acc_history, train_f1_history = [], [], []
     test_loss_history, test_acc_history, test_f1_history = [], [], []
@@ -192,6 +193,7 @@ def train_and_test(model, exp: ExperimentConfig, train_dataset, test_dataset, tr
     print(f"Training ({exp.title}) finished in: {elapsed_time}")
 
     save_results(
+        exp_name,
         exp,
         train_loss_history[-1],
         train_acc_history[-1],
