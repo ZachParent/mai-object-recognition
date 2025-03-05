@@ -1,26 +1,47 @@
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import tensorflow as tf
+from keras import layers, Sequential
 from config import *
 
-test_data_gen_args = dict(
-    rescale=None if per_sample_normalization else 1.0 / 255,
-    samplewise_center=True if per_sample_normalization else False,
-    samplewise_std_normalization=True if per_sample_normalization else False,
-)
 
-train_data_gen_args = (
-    dict(
-        rescale=None if per_sample_normalization else 1.0 / 255,
-        samplewise_center=True if per_sample_normalization else False,
-        samplewise_std_normalization=True if per_sample_normalization else False,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        zoom_range=0.2,
+def get_augmentation_pipeline(use_augmentation=True):
+    """Returns a Keras Sequential pipeline for augmentation."""
+    if not use_augmentation:
+        return layers.Identity()
+
+    return Sequential(
+        [
+            layers.RandomFlip("horizontal_and_vertical"),
+            layers.RandomRotation(0.2),
+            layers.RandomTranslation(0.1, 0.1),
+            layers.RandomZoom(0.2),
+        ],
+        name="augmentation_pipeline",
     )
-    if data_augmentation
-    else test_data_gen_args
-)
 
-training_datagen = ImageDataGenerator(**train_data_gen_args)
 
-test_datagen = ImageDataGenerator(**test_data_gen_args)
+def get_preprocessing_pipeline(use_normalization=True):
+    """Returns a Keras Sequential pipeline for preprocessing."""
+    if not use_normalization:
+        return layers.Identity()
+
+    preprocessing_layers = []
+    if per_sample_normalization:
+        # Use Lambda layer for per-sample normalization
+        def normalize(x):
+            mean = tf.reduce_mean(x, axis=[0, 1], keepdims=True)
+            std = tf.math.reduce_std(x, axis=[0, 1], keepdims=True)
+            return (x - mean) / (std + 1e-7)
+
+        preprocessing_layers.append(layers.Lambda(normalize))
+    else:
+        preprocessing_layers.append(layers.Rescaling(1.0 / 255))
+
+    return Sequential(preprocessing_layers, name="preprocessing_pipeline")
+
+
+def create_data_pipeline(is_training=True):
+    """Creates a complete data processing pipeline combining preprocessing and augmentation."""
+    preprocessing = get_preprocessing_pipeline()
+    augmentation = get_augmentation_pipeline() if is_training else layers.Identity()
+
+    return Sequential([preprocessing, augmentation], name="data_pipeline")
