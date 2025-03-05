@@ -50,7 +50,7 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
     """Save training and testing results to CSV."""
     results_file = RESULTS_CSV
     final_results = [
-        exp["id"],
+        exp.id,
         test_loss,
         test_acc,
         test_f1,
@@ -75,7 +75,7 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
                 header = []
             for row in reader:
                 # print(row)
-                if int(row[0]) == int(exp["id"]):
+                if int(row[0]) == int(exp.id):
                     updated_rows.append(final_results)
                     found = True
                 else:
@@ -189,7 +189,7 @@ def train_and_test(model, exp: ExperimentConfig, train_dataset, test_dataset, tr
         )
 
     elapsed_time = time.time() - start_time
-    print(f"Training ({exp['title']}) finished in: {elapsed_time}")
+    print(f"Training ({exp.title}) finished in: {elapsed_time}")
 
     save_results(
         exp,
