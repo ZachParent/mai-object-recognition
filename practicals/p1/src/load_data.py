@@ -4,6 +4,7 @@ from config import voc_classes, num_classes, RAW_DATA_DIR, img_size
 import numpy as np
 from augmentation import create_data_pipeline
 
+
 def parse_xml_annotation(xml_path):
     """Parse XML annotation file and return list of object classes."""
     try:
@@ -76,6 +77,7 @@ def get_file_paths(file_list):
     ]
     return image_paths, annotation_paths
 
+
 def create_dataset(file_list, batch_size, is_training=True):
     """Create a tf.data.Dataset from a list of file paths."""
     # Get full paths for images and annotations
@@ -85,9 +87,7 @@ def create_dataset(file_list, batch_size, is_training=True):
     dataset = get_dataset_from_paths(image_paths, annotation_paths)
 
     # Create and apply the data pipeline
-    data_pipeline = create_data_pipeline(
-        is_training=False
-    )
+    data_pipeline = create_data_pipeline(is_training=False)
 
     # Apply the pipeline to the images
     dataset = dataset.map(

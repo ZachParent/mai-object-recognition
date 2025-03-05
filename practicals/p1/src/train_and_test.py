@@ -5,6 +5,7 @@ import tensorflow as tf
 from config import *
 from load_data import get_file_paths, get_dataset_from_paths
 from augmentation import create_data_pipeline
+from experiment_config import ExperimentConfig
 import time
 from itertools import islice
 
@@ -45,11 +46,14 @@ def test_one_epoch(model, test_dataset, n_test_steps):
     return test_loss / n_test_steps, test_acc / n_test_steps, test_f1 / n_test_steps
 
 
-def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1):
+def save_results(
+    exp_name, exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1
+):
     """Save training and testing results to CSV."""
-    results_file = RESULTS_CSV
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    results_file = RESULTS_DIR / f"{exp_name}.csv"
     final_results = [
-        exp["id"],
+        exp.id,
         test_loss,
         test_acc,
         test_f1,
@@ -74,7 +78,7 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
                 header = []
             for row in reader:
                 # print(row)
-                if int(row[0]) == int(exp["id"]):
+                if int(row[0]) == int(exp.id):
                     updated_rows.append(final_results)
                     found = True
                 else:
@@ -104,10 +108,10 @@ def save_results(exp, train_loss, train_acc, train_f1, test_loss, test_acc, test
     print(f"Results saved to {results_file}")
 
 
-def save_model(model, exp):
+def save_model(model, exp: ExperimentConfig):
     """Save the model weights to disk."""
     os.makedirs(MODELS_DIR, exist_ok=True)
-    model_filename = f'{MODELS_DIR}/{exp["net_name"][0]}-{exp["id"]}.weights.h5'
+    model_filename = f"{MODELS_DIR}/{exp.net_name[0]}-{exp.id}.weights.h5"
 
     # start_time = time.time()
     model.save_weights(model_filename)
@@ -124,7 +128,7 @@ def save_history(
     test_loss_history,
     test_acc_history,
     test_f1_history,
-    exp,
+    exp: ExperimentConfig,
 ):
     """Save training and testing histories to CSV files."""
     os.makedirs(HISTORIES_DIR, exist_ok=True)
@@ -140,7 +144,7 @@ def save_history(
 
     for history_type, history_data in history_files.items():
         history_filename = (
-            f'{HISTORIES_DIR}/{exp["net_name"][0]}-{exp["id"]}-{history_type}.csv'
+            f"{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv"
         )
 
         # start_time = time.time()
@@ -155,16 +159,24 @@ def save_history(
         # print(f"Time taken to save {history_type} history: {end_time - start_time:.2f}s")
 
 
-def train_and_test(model, exp, train_dataset, test_dataset, train_list, test_list):
-    n_train_steps = len(train_list) // exp['batch_size']
-    n_test_steps = len(test_list) // exp['batch_size']
+def train_and_test(
+    model,
+    exp_name,
+    exp: ExperimentConfig,
+    train_dataset,
+    test_dataset,
+    train_list,
+    test_list,
+):
+    n_train_steps = len(train_list) // exp.batch_size
+    n_test_steps = len(test_list) // exp.batch_size
 
     train_loss_history, train_acc_history, train_f1_history = [], [], []
     test_loss_history, test_acc_history, test_f1_history = [], [], []
 
-    print(f"In training loop: {exp['title']}")
+    print(f"In training loop: {exp.title}")
     start_time = time.time()
-    for epoch in range(exp["n_epochs"]):
+    for epoch in range(exp.n_epochs):
         random.shuffle(train_list)
 
         train_loss, train_acc, train_f1 = train_one_epoch(
@@ -188,9 +200,10 @@ def train_and_test(model, exp, train_dataset, test_dataset, train_list, test_lis
         )
 
     elapsed_time = time.time() - start_time
-    print(f"Training ({exp['title']}) finished in: {elapsed_time}")
+    print(f"Training ({exp.title}) finished in: {elapsed_time}")
 
     save_results(
+        exp_name,
         exp,
         train_loss_history[-1],
         train_acc_history[-1],
