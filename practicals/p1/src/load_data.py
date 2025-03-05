@@ -2,7 +2,7 @@ import xml.etree.ElementTree as ET
 import tensorflow as tf
 from config import voc_classes, num_classes, RAW_DATA_DIR, img_size
 import numpy as np
-
+from augmentation import create_data_pipeline
 
 def parse_xml_annotation(xml_path):
     """Parse XML annotation file and return list of object classes."""
@@ -75,3 +75,33 @@ def get_file_paths(file_list):
         str(RAW_DATA_DIR / "Annotations" / f"{id}.xml") for id in file_list
     ]
     return image_paths, annotation_paths
+
+def create_dataset(file_list, batch_size, is_training=True):
+    """Create a tf.data.Dataset from a list of file paths."""
+    # Get full paths for images and annotations
+    image_paths, annotation_paths = get_file_paths(file_list)
+
+    # Create base dataset
+    dataset = get_dataset_from_paths(image_paths, annotation_paths)
+
+    # Create and apply the data pipeline
+    data_pipeline = create_data_pipeline(
+        is_training=False
+    )
+
+    # Apply the pipeline to the images
+    dataset = dataset.map(
+        lambda x, y: (data_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
+    )
+
+    # Batch and prefetch
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
+    return dataset
+
+
+def load_data(file_path):
+    """Load data from a text file."""
+    with open(file_path, "r") as f:
+        return [line.strip() for line in f.readlines()]
