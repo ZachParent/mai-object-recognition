@@ -23,6 +23,11 @@ STAMPS_DIR = $(DATA_DIR)/stamps
 .PHONY: setup_raw_data
 setup_raw_data: clear_raw_data ${STAMPS_DIR}/raw_data_unpacked
 
+## format the code using black
+.PHONY: format
+format:
+	python -m black src
+
 ## remove all raw data
 .PHONY: clear_raw_data
 clear_raw_data:
