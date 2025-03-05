@@ -14,7 +14,7 @@ class ExperimentConfig(pydantic.BaseModel):
 
 
 experiments = {
-    "default-experiments": [
+    "model-experiments": [
         {
             "id": 0,
             "title": "resnet50 no-pretraining no-warmup",
