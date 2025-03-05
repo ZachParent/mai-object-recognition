@@ -179,3 +179,11 @@ cython_debug/
 *.fls
 *.out
 *.synctex.gz
+practicals/p1/indi/train_dataset/dataset_spec.pb
+practicals/p1/indi/train_dataset/snapshot.metadata
+practicals/p1/indi/train_dataset/16346671039009340475/00000000.shard/00000000.snapshot
+practicals/p1/indi/train_dataset/6191038651966788163/00000000.shard/00000000.snapshot
+practicals/p1/indi/CNN_voc_ours.ipynb
+practicals/p1/indi/data_preprocessing.py
+practicals/p1/indi/test.txt
+practicals/p1/indi/train.txt
