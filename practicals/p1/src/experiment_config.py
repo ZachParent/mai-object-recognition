@@ -1,6 +1,7 @@
 import pydantic
 import itertools
 
+
 class ExperimentConfig(pydantic.BaseModel):
     id: int
     title: str
@@ -87,7 +88,9 @@ experiments = {
             "batch_size": batch_size,
             "learning_rate": learning_rate,
         }
-        for i, (batch_size, learning_rate) in enumerate(itertools.product([16, 32, 64], [0.001, 0.01, 0.1]))
+        for i, (batch_size, learning_rate) in enumerate(
+            itertools.product([16, 32, 64], [0.001, 0.01, 0.1])
+        )
     ],
     # "augmentation_experiments": [],
     # "classfier_head_experiments": [],

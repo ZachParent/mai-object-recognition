@@ -29,7 +29,7 @@ voc_classes = {
 test_imagenet = True
 per_sample_normalization = True
 data_augmentation = True
-BATCH_SIZES = [16,32,64]
+BATCH_SIZES = [16, 32, 64]
 
 # Experiment-specific parameters were moved to experiment_config.py
 

@@ -46,7 +46,9 @@ def test_one_epoch(model, test_dataset, n_test_steps):
     return test_loss / n_test_steps, test_acc / n_test_steps, test_f1 / n_test_steps
 
 
-def save_results(exp_name, exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1):
+def save_results(
+    exp_name, exp, train_loss, train_acc, train_f1, test_loss, test_acc, test_f1
+):
     """Save training and testing results to CSV."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
     results_file = RESULTS_DIR / f"{exp_name}.csv"
@@ -109,7 +111,7 @@ def save_results(exp_name, exp, train_loss, train_acc, train_f1, test_loss, test
 def save_model(model, exp: ExperimentConfig):
     """Save the model weights to disk."""
     os.makedirs(MODELS_DIR, exist_ok=True)
-    model_filename = f'{MODELS_DIR}/{exp.net_name[0]}-{exp.id}.weights.h5'
+    model_filename = f"{MODELS_DIR}/{exp.net_name[0]}-{exp.id}.weights.h5"
 
     # start_time = time.time()
     model.save_weights(model_filename)
@@ -142,7 +144,7 @@ def save_history(
 
     for history_type, history_data in history_files.items():
         history_filename = (
-            f'{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv'
+            f"{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv"
         )
 
         # start_time = time.time()
@@ -157,7 +159,15 @@ def save_history(
         # print(f"Time taken to save {history_type} history: {end_time - start_time:.2f}s")
 
 
-def train_and_test(model, exp_name, exp: ExperimentConfig, train_dataset, test_dataset, train_list, test_list):
+def train_and_test(
+    model,
+    exp_name,
+    exp: ExperimentConfig,
+    train_dataset,
+    test_dataset,
+    train_list,
+    test_list,
+):
     n_train_steps = 2
     n_test_steps = 2
 
