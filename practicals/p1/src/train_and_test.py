@@ -168,8 +168,8 @@ def train_and_test(
     train_list,
     test_list,
 ):
-    n_train_steps = 2
-    n_test_steps = 2
+    n_train_steps = len(train_list) // exp.batch_size
+    n_test_steps = len(test_list) // exp.batch_size
 
     train_loss_history, train_acc_history, train_f1_history = [], [], []
     test_loss_history, test_acc_history, test_f1_history = [], [], []
