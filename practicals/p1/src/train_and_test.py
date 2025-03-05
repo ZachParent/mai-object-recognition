@@ -1,8 +1,35 @@
 import random
 import csv
 import os
+import tensorflow as tf
 from config import *
-from load_data import load_batch
+from load_data import load_batch, get_file_paths, get_dataset_from_paths
+from augmentation import create_data_pipeline
+
+
+def create_dataset(file_list, batch_size, is_training=True, exp=None):
+    """Create a tf.data.Dataset from a list of file paths."""
+    # Get full paths for images and annotations
+    image_paths, annotation_paths = get_file_paths(file_list)
+
+    # Create base dataset
+    dataset = get_dataset_from_paths(image_paths, annotation_paths)
+
+    # Create and apply the data pipeline
+    data_pipeline = create_data_pipeline(
+        is_training=is_training and exp.get("use_augmentation", True)
+    )
+
+    # Apply the pipeline to the images
+    dataset = dataset.map(
+        lambda x, y: (data_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
+    )
+
+    # Batch and prefetch
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
+    return dataset
 
 
 def load_data(file_path):
@@ -11,16 +38,14 @@ def load_data(file_path):
         return [line.strip() for line in f.readlines()]
 
 
-def train_one_epoch(model, train_list, batch_size, n_train_steps, exp):
+def train_one_epoch(model, train_dataset, n_train_steps):
     """Train the model for one epoch."""
     train_loss, train_acc, train_f1 = 0, 0, 0
-    for step in range(n_train_steps):
-        X, Y = load_batch(train_list, step, batch_size, RAW_DATA_DIR, img_size)
-        X, Y = next(
-            exp["train_augmentation"].flow(X, Y, batch_size=batch_size, shuffle=False)
-        )
-        loss, acc, f1 = model.train_on_batch(X, Y)
+    for step, (X, Y) in enumerate(train_dataset):
+        if step >= n_train_steps:
+            break
 
+        loss, acc, f1 = model.train_on_batch(X, Y)
         train_loss += loss
         train_acc += acc
         train_f1 += f1
@@ -32,16 +57,14 @@ def train_one_epoch(model, train_list, batch_size, n_train_steps, exp):
     )
 
 
-def test_one_epoch(model, test_list, batch_size, n_test_steps, exp):
+def test_one_epoch(model, test_dataset, n_test_steps):
     """Test the model for one epoch."""
     test_loss, test_acc, test_f1 = 0, 0, 0
-    for step in range(n_test_steps):
-        X, Y = load_batch(test_list, step, batch_size, RAW_DATA_DIR, img_size)
-        X, Y = next(
-            exp["test_augmentation"].flow(X, Y, batch_size=batch_size, shuffle=False)
-        )
-        loss, acc, f1 = model.evaluate(X, Y, verbose=0)
+    for step, (X, Y) in enumerate(test_dataset):
+        if step >= n_test_steps:
+            break
 
+        loss, acc, f1 = model.evaluate(X, Y, verbose=0)
         test_loss += loss
         test_acc += acc
         test_f1 += f1
@@ -153,6 +176,14 @@ def train_and_test(model, exp):
     train_list = load_data(TRAIN_TXT)
     test_list = load_data(TEST_TXT)
 
+    # Create tf.data.Dataset objects
+    train_dataset = create_dataset(
+        train_list, exp["batch_size"], is_training=True, exp=exp
+    )
+    test_dataset = create_dataset(
+        test_list, exp["batch_size"], is_training=False, exp=exp
+    )
+
     n_train_steps = 10
     n_test_steps = 10
 
@@ -164,7 +195,7 @@ def train_and_test(model, exp):
         random.shuffle(train_list)
 
         train_loss, train_acc, train_f1 = train_one_epoch(
-            model, train_list, exp["batch_size"], n_train_steps, exp
+            model, train_dataset, n_train_steps
         )
         train_loss_history.append(train_loss)
         train_acc_history.append(train_acc)
@@ -174,9 +205,7 @@ def train_and_test(model, exp):
             f"Epoch {epoch} training loss: {train_loss:.2f}, acc: {train_acc:.2f}, f1: {train_f1:.2f}"
         )
 
-        test_loss, test_acc, test_f1 = test_one_epoch(
-            model, test_list, exp["batch_size"], n_test_steps, exp
-        )
+        test_loss, test_acc, test_f1 = test_one_epoch(model, test_dataset, n_test_steps)
         test_loss_history.append(test_loss)
         test_acc_history.append(test_acc)
         test_f1_history.append(test_f1)
