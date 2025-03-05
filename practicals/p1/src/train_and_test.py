@@ -3,7 +3,7 @@ import csv
 import os
 import tensorflow as tf
 from config import *
-from load_data import load_batch, get_file_paths, get_dataset_from_paths
+from load_data import get_file_paths, get_dataset_from_paths
 from augmentation import create_data_pipeline
 
 
