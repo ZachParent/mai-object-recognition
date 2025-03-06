@@ -13,6 +13,7 @@ class ExperimentConfig(pydantic.BaseModel):
     last_layer_activation: str = "sigmoid"
     learning_rate: float = 0.001
     loss: str = "binary_crossentropy"
+    classifier_head: str = "default"
 
 
 experiments = {
@@ -92,8 +93,15 @@ experiments = {
             itertools.product([16, 32, 64], [0.001, 0.01, 0.1])
         )
     ],
-    # "augmentation_experiments": [],
-    # "classfier_head_experiments": [],
+    # "augmentation_experiments": [], # Add to the id of classifier_head_experiments the number of experiments performed here
+    "classfier_head_experiments": [
+        {
+            "id": 19 + i,
+            "title": f"classifier_head: {classifier_head}",
+            "classifier_head": classifier_head,
+        }
+        for i, classifier_head in enumerate(["ensemble", "attention"])
+    ],
 }
 
 # validate the experiment configs compile
