@@ -1,5 +1,7 @@
 import tensorflow as tf
 from keras import backend as K
+from sklearn.metrics import average_precision_score
+
 
 def recall_m(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
@@ -40,4 +42,10 @@ def mean_average_precision(y_true, y_pred):
     AP_per_class = average_precision(y_true, y_pred)
     return tf.reduce_mean(AP_per_class)  
 
+def subset_accuracy_metric(y_true, y_pred):
+    y_pred_bin = tf.cast(tf.greater(y_pred, 0.5), tf.float32)  # Thresholding at 0.5
+    
+    exact_match = tf.reduce_all(tf.equal(y_true, y_pred_bin), axis=-1)
+    
+    return tf.reduce_mean(tf.cast(exact_match, tf.float32))
 
