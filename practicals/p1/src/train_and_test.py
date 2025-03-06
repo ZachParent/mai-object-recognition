@@ -344,3 +344,8 @@ def train_and_test(
     del model
     K.clear_session()
     gc.collect()
+
+    memory_info = tf.config.experimental.get_memory_info("GPU:0")
+    print("Current memory usage (bytes):", memory_info["current"])
+    print("Peak memory usage (bytes):", memory_info["peak"])
+
