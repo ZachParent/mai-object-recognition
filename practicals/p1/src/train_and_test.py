@@ -323,7 +323,7 @@ def train_and_test(
     )
 
     # Save model weights
-    save_model(model, exp)
+    # save_model(model, exp)
 
     # Save training history
     save_history(
