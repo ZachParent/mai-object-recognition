@@ -11,6 +11,9 @@ from experiment_config import ExperimentConfig
 import time
 from itertools import islice
 from tensorflow.keras import optimizers
+from keras import backend as K
+import gc
+
 from metrics import f1_metric, mean_average_precision, subset_accuracy_metric
 
 
@@ -336,3 +339,8 @@ def train_and_test(
         test_subset_acc_history,
         exp,
     )
+
+    # Clear memory
+    del model
+    K.clear_session()
+    gc.collect()
