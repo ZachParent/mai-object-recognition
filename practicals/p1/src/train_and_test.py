@@ -8,7 +8,8 @@ from augmentation import create_data_pipeline
 from experiment_config import ExperimentConfig
 import time
 from itertools import islice
-
+from tensorflow.keras import optimizers
+from metrics import f1_metric, mean_average_precision, subset_accuracy_metric
 
 def train_one_epoch(model, train_dataset, n_train_steps):
     """Train the model for one epoch."""
@@ -182,17 +183,45 @@ def train_and_test(
     train_list,
     test_list,
 ):
-    n_train_steps = 10  # len(train_list) // exp.batch_size  # TODO remove 10
-    n_test_steps = 10   # len(test_list) // exp.batch_size  # TODO remove 10
+    n_train_steps = len(train_list) // exp.batch_size  
+    n_test_steps = len(test_list) // exp.batch_size  
+    warmup_epochs = 2  # Number of epochs to keep the base model frozen
 
     train_loss_history, train_acc_history, train_f1_history, train_map_history, train_subset_acc_history = [], [], [], [], []
     test_loss_history, test_acc_history, test_f1_history, test_map_history, test_subset_acc_history = [], [], [], [], []
+
+    # Define optimizers
+    warmup_optimizer = optimizers.RMSprop(learning_rate=exp.learning_rate * 0.1)
+    opt_rms = optimizers.RMSprop(learning_rate=exp.learning_rate)
 
     print(f"In training loop: {exp.title}")
     start_time = time.time()
 
     for epoch in range(exp.n_epochs):
         random.shuffle(train_list)
+
+        # Set the optimizer and freeze/unfreeze model layers
+        if exp.warm_up and epoch < warmup_epochs:
+            optimizer = warmup_optimizer  # Use warmup_optimizer during the warmup period
+            
+            # Freeze the base model during warmup (only once at the beginning)
+            if epoch == 0:  # Freeze only at the start of the warmup phase
+                model.layers[0].trainable = False
+
+        # Unfreeze base model after warmup period
+        if exp.warm_up and epoch == warmup_epochs:
+            print(f"Unfreezing base model at epoch {epoch}")
+            model.layers[0].trainable = True  # Unfreeze the base model
+
+        else:
+            optimizer = opt_rms  # Use normal optimizer after the warmup period
+
+        # Recompile the model if the optimizer changes
+        model.compile(
+            loss=exp.loss,
+            optimizer=optimizer,
+            metrics=["AUC", f1_metric, mean_average_precision, subset_accuracy_metric],
+        )
 
         # Train one epoch
         train_loss, train_acc, train_f1, train_map, train_subset_acc = train_one_epoch(
@@ -203,7 +232,6 @@ def train_and_test(
         train_map_history.append(train_map)
         train_f1_history.append(train_f1)
         train_subset_acc_history.append(train_subset_acc)  
-
 
         print(
             f"Epoch {epoch} training loss: {train_loss:.2f}, acc: {train_acc:.2f}, "
@@ -220,7 +248,6 @@ def train_and_test(
         test_map_history.append(test_map) 
         test_subset_acc_history.append(test_subset_acc) 
 
-
         print(
             f"Epoch {epoch} test loss: {test_loss:.2f}, acc: {test_acc:.2f}, "
             f"f1: {test_f1:.2f}, mAP: {test_map:.2f}"
@@ -228,6 +255,7 @@ def train_and_test(
 
     elapsed_time = time.time() - start_time
     print(f"Training ({exp.title}) finished in: {elapsed_time:.2f} seconds")
+
 
     # Save final results
     save_results(
