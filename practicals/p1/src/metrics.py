@@ -1,7 +1,5 @@
 import tensorflow as tf
 from keras import backend as K
-from sklearn.metrics import average_precision_score
-
 
 def recall_m(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
