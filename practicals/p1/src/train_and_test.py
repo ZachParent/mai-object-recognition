@@ -5,7 +5,7 @@ import tensorflow as tf
 
 tf.config.run_functions_eagerly(True)
 from config import *
-from load_data import get_file_paths, get_dataset_from_paths, create_dataset
+from load_data import get_file_paths, get_dataset_from_paths
 from augmentation import create_data_pipeline
 from experiment_config import ExperimentConfig
 import time
@@ -203,18 +203,14 @@ def train_and_test(
     base_model,
     exp_name,
     exp: ExperimentConfig,
+    train_dataset,
+    test_dataset,
     train_list,
     test_list,
 ):
     n_train_steps = len(train_list) // exp.batch_size
     n_test_steps = len(test_list) // exp.batch_size
     warmup_epochs = 2  # Number of epochs to keep the base model frozen
-    
-    # Create tf.data.Dataset objects
-    train_dataset = create_dataset(
-        train_list, exp["batch_size"], is_training=True)
-    test_dataset = create_dataset(
-        test_list, exp["batch_size"], is_training=False)
 
     # Track training history
     (
