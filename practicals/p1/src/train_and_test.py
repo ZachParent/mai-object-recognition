@@ -286,8 +286,6 @@ def train_and_test(
     training_start_time = time.time()
 
     for epoch in range(exp.n_epochs):
-        random.shuffle(train_list)
-
         # Determine optimizer
         if exp.warm_up and epoch < warmup_epochs:
             optimizer = warmup_optimizer

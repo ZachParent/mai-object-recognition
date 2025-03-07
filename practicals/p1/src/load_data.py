@@ -66,6 +66,9 @@ def get_dataset_from_paths(image_paths, annotation_paths):
     # Load and preprocess samples
     dataset = dataset.map(load_sample, num_parallel_calls=tf.data.AUTOTUNE)
 
+    # Shuffle the dataset
+    dataset = dataset.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
+
     return dataset
 
 
