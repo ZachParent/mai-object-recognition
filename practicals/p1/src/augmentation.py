@@ -124,7 +124,7 @@ def random_erasing_layer(
     return layers.Lambda(random_erasing, name="random_erasing")
 
 
-def get_augmentation_pipeline(use_augmentation=True, advanced_augmentation=False):
+def get_augmentation_pipeline(use_augmentation=True, augmentation="simple"):
     """Returns a Keras Sequential pipeline for augmentation.
 
     Args:
@@ -134,18 +134,23 @@ def get_augmentation_pipeline(use_augmentation=True, advanced_augmentation=False
     if not use_augmentation:
         return layers.Identity()
 
-    augmentation_layers = [
-        layers.RandomFlip("horizontal_and_vertical"),
-        layers.RandomRotation(0.2),
-        layers.RandomTranslation(0.1, 0.1),
-        layers.RandomZoom(0.2),
-    ]
+    augmentation_layers = []
+
+    if augmentation == "simple" or augmentation == "all":
+        simple_layers = [
+            layers.RandomFlip("horizontal_and_vertical"),
+            layers.RandomRotation(0.2),
+            layers.RandomTranslation(0.1, 0.1),
+            layers.RandomZoom(0.2),
+        ]
+        augmentation_layers.append(simple_layers)
 
     # Add advanced augmentation layers if requested
-    if advanced_augmentation:
+    if augmentation == "color" or augmentation == "all":
         # Add color jittering
         augmentation_layers.append(color_jitter_layer())
 
+    if augmentation == "occlusion" or augmentation == "all":
         # Add random erasing/cutout
         augmentation_layers.append(random_erasing_layer())
 
@@ -172,7 +177,7 @@ def get_preprocessing_pipeline(use_normalization=True):
     return Sequential(preprocessing_layers, name="preprocessing_pipeline")
 
 
-def create_data_pipeline(is_training=True, advanced_augmentation=False):
+def create_data_pipeline(is_training=True, augmentation=None):
     """Creates a complete data processing pipeline combining preprocessing and augmentation.
 
     Args:
@@ -182,9 +187,9 @@ def create_data_pipeline(is_training=True, advanced_augmentation=False):
     preprocessing = get_preprocessing_pipeline()
     augmentation = (
         get_augmentation_pipeline(
-            use_augmentation=is_training, advanced_augmentation=advanced_augmentation
+            use_augmentation=is_training, augmentation=augmentation
         )
-        if is_training
+        if is_training and augmentation is not None
         else layers.Identity()
     )
 
