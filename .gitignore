@@ -189,3 +189,12 @@ practicals/p1/indi/test.txt
 practicals/p1/indi/train.txt
 
 internal_tests/
+practicals/p1/src_remote/augmentation.py
+practicals/p1/src_remote/config.py
+practicals/p1/src_remote/experiment_config.py
+practicals/p1/src_remote/load_data.py
+practicals/p1/src_remote/main.ipynb
+practicals/p1/src_remote/metrics.py
+practicals/p1/src_remote/models.py
+practicals/p1/src_remote/train_and_test.py
+practicals/p1/src_remote/visualization.py
