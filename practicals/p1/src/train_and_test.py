@@ -197,6 +197,48 @@ def save_history(
                 writer.writerow([value])
 
         print(f"History saved to {history_filename}")
+        
+def save_predictions_to_csv(experiment, model, test_dataset, n_test_steps, test_list):
+    rows = []
+    global_image_index = 0  # Counter to index into test_list
+
+    # Iterate over batches of the test_dataset.
+    for X, Y in islice(test_dataset, n_test_steps):
+        batch_size = X.shape[0]
+        # Get the corresponding image names from test_list.
+        image_names = test_list[global_image_index: global_image_index + batch_size]
+        global_image_index += batch_size
+
+        # Compute model predictions for the batch.
+        predictions = model.predict(X)
+        # For multi-label predictions, threshold the probabilities.
+        pred_labels = (predictions >= 0.5).astype(int)
+        Y = np.array(Y)
+        n_classes = Y.shape[1]
+
+        # Create a row for each image in the batch.
+        for i in range(batch_size):
+            row = {
+                "experiment_id": experiment.title,
+                "image_name": image_names[i]
+            }
+            # Add true and predicted labels for each class.
+            for cls in range(n_classes):
+                row[f"true_{cls}"] = Y[i, cls]
+                row[f"pred_{cls}"] = pred_labels[i, cls]
+            rows.append(row)
+
+    # Convert the rows into a DataFrame.
+    df = pd.DataFrame(rows)
+    csv_path = Path(RESULTS_DIR) / "label_predictions.csv"
+
+    # Append to CSV if it exists; otherwise, create a new file.
+    if os.path.exists(csv_path):
+        df.to_csv(csv_path, mode='a', header=False, index=False)
+    else:
+        df.to_csv(csv_path, mode='w', header=True, index=False)
+
+    print(f"Predictions saved to {csv_path}")
 
 
 def train_and_test(
@@ -346,6 +388,9 @@ def train_and_test(
         test_subset_acc_history,
         exp,
     )
+    
+    # Save predictions to CSV
+    save_predictions_to_csv(exp, model, test_dataset, n_test_steps, test_list)
 
     # Clear memory
     del model
