@@ -84,6 +84,7 @@ def save_results(
     test_f1,
     test_map,
     test_subset_acc,
+    training_time
 ):
     """Save training and testing results to CSV."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -100,6 +101,7 @@ def save_results(
         train_f1,
         train_map,
         train_subset_acc,
+        training_time
     ]
 
     file_exists = os.path.exists(results_file)
@@ -138,6 +140,7 @@ def save_results(
                 "Train F1",
                 "Train mAP",
                 "Train Subset Acc",
+                "Train time"
             ]
         )
         writer.writerows(updated_rows)
@@ -280,7 +283,7 @@ def train_and_test(
     prev_optimizer = None
 
     print(f"In training loop: {exp.title}")
-    start_time = time.time()
+    training_start_time = time.time()
 
     for epoch in range(exp.n_epochs):
         random.shuffle(train_list)
@@ -354,8 +357,8 @@ def train_and_test(
             f"f1: {test_f1:.2f}, mAP: {test_map:.2f}"
         )
 
-    elapsed_time = time.time() - start_time
-    print(f"Training ({exp.title}) finished in: {elapsed_time:.2f} seconds")
+    training_time = time.time() - training_start_time
+    print(f"Training ({exp.title}) finished in: {training_time:.2f} seconds")
 
     # Save final results
     save_results(
@@ -371,6 +374,7 @@ def train_and_test(
         test_f1_history[-1],
         test_map_history[-1],
         test_subset_acc_history[-1],
+        training_time
     )
 
     # Save model weights
