@@ -11,9 +11,6 @@ from itertools import islice
 from tensorflow.keras import optimizers
 from keras import backend as K
 import gc
-import numpy as np
-import pandas as pd
-
 
 from metrics import f1_metric, mean_average_precision, subset_accuracy_metric
 
@@ -200,53 +197,11 @@ def save_history(
                 writer.writerow([value])
 
         print(f"History saved to {history_filename}")
-        
-
-def save_predictions_to_csv(experiment, model, test_dataset, n_test_steps, test_list):
-    rows = []
-    global_image_index = 0  # Counter to index into test_list
-
-    # Iterate over batches of the test_dataset.
-    for X, Y in islice(test_dataset, n_test_steps):
-        batch_size = X.shape[0]
-        # Get the corresponding image names from test_list.
-        image_names = test_list[global_image_index: global_image_index + batch_size]
-        global_image_index += batch_size
-
-        # Compute model predictions for the batch.
-        predictions = model.predict(X)
-        # For multi-label predictions, threshold the probabilities.
-        pred_labels = (predictions >= 0.5).astype(int)
-        Y = np.array(Y)
-        n_classes = Y.shape[1]
-
-        # Create a row for each image in the batch.
-        for i in range(batch_size):
-            row = {
-                "experiment_id": experiment.title,
-                "image_name": image_names[i]
-            }
-            # Add true and predicted labels for each class.
-            for cls in range(n_classes):
-                row[f"true_{cls}"] = Y[i, cls]
-                row[f"pred_{cls}"] = pred_labels[i, cls]
-            rows.append(row)
-
-    # Convert the rows into a DataFrame.
-    df = pd.DataFrame(rows)
-    csv_path = Path(RESULTS_DIR) / "label_predictions.csv"
-
-    # Append to CSV if it exists; otherwise, create a new file.
-    if os.path.exists(csv_path):
-        df.to_csv(csv_path, mode='a', header=False, index=False)
-    else:
-        df.to_csv(csv_path, mode='w', header=True, index=False)
-
-    print(f"Predictions saved to {csv_path}")
 
 
 def train_and_test(
     model,
+    base_model,
     exp_name,
     exp: ExperimentConfig,
     train_dataset,
@@ -256,7 +211,7 @@ def train_and_test(
 ):
     n_train_steps = len(train_list) // exp.batch_size
     n_test_steps = len(test_list) // exp.batch_size
-    warmup_epochs = 2  # Number of epochs to keep the base model frozen
+    warmup_epochs = 3  # Number of epochs to keep the base model frozen
 
     (
         train_loss_history,
@@ -277,36 +232,55 @@ def train_and_test(
     warmup_optimizer = optimizers.RMSprop(learning_rate=exp.learning_rate * 0.1)
     opt_rms = optimizers.RMSprop(learning_rate=exp.learning_rate)
 
+    # Track previous optimizer to avoid redundant compilation
+    prev_optimizer = None
+
     print(f"In training loop: {exp.title}")
     start_time = time.time()
 
     for epoch in range(exp.n_epochs):
         random.shuffle(train_list)
 
-        # Set the optimizer and freeze/unfreeze model layers
+        # Determine optimizer
         if exp.warm_up and epoch < warmup_epochs:
-            optimizer = (
-                warmup_optimizer  # Use warmup_optimizer during the warmup period
-            )
+            optimizer = warmup_optimizer
+        else:
+            optimizer = opt_rms
 
-            # Freeze the base model during warmup (only once at the beginning)
-            if epoch == 0:  # Freeze only at the start of the warmup phase
-                model.layers[0].trainable = False
+        # Freeze base model at the start of warmup
+        if exp.warm_up and epoch == 0:
+            print("Freezing base model layers for warmup.")
+            for layer in base_model.layers:
+                layer.trainable = False
 
         # Unfreeze base model after warmup period
         if exp.warm_up and epoch == warmup_epochs:
             print(f"Unfreezing base model at epoch {epoch}")
-            model.layers[0].trainable = True  # Unfreeze the base model
+            for layer in base_model.layers:
+                layer.trainable = True  # Unfreeze layers
+            should_recompile = True  # Mark for recompilation
 
         else:
-            optimizer = opt_rms  # Use normal optimizer after the warmup period
+            should_recompile = (
+                optimizer != prev_optimizer
+            )  # Recompile only if optimizer changes
 
-        # Recompile the model if the optimizer changes
-        model.compile(
-            loss=exp.loss,
-            optimizer=optimizer,
-            metrics=["AUC", f1_metric, mean_average_precision, subset_accuracy_metric],
-        )
+        # Recompile model only if necessary
+        if should_recompile:
+            print(
+                f"Recompiling model at epoch {epoch} (Optimizer changed)"
+            )
+            model.compile(
+                loss=exp.loss,
+                optimizer=optimizer,
+                metrics=[
+                    "AUC",
+                    f1_metric,
+                    mean_average_precision,
+                    subset_accuracy_metric,
+                ],
+            )
+            prev_optimizer = optimizer  # Update previous optimizer
 
         # Train one epoch
         train_loss, train_acc, train_f1, train_map, train_subset_acc = train_one_epoch(
@@ -356,9 +330,6 @@ def train_and_test(
         test_map_history[-1],
         test_subset_acc_history[-1],
     )
-    
-    # Save predicted and true labels
-    save_predictions_to_csv(exp, model, test_dataset, n_test_steps, test_list)
 
     # Save model weights
     # save_model(model, exp)
