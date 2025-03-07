@@ -78,7 +78,7 @@ def get_file_paths(file_list):
     return image_paths, annotation_paths
 
 
-def create_dataset(file_list, is_training=True, augmentation="simple"):
+def create_dataset(file_list, is_training=True):
     """Create a tf.data.Dataset from a list of file paths."""
     # Get full paths for images and annotations
     image_paths, annotation_paths = get_file_paths(file_list)
@@ -87,7 +87,7 @@ def create_dataset(file_list, is_training=True, augmentation="simple"):
     dataset = get_dataset_from_paths(image_paths, annotation_paths)
 
     # Create and apply the data pipeline
-    data_pipeline = create_data_pipeline(is_training, augmentation)
+    data_pipeline = create_data_pipeline(is_training=False)
 
     # Apply the pipeline to the images
     dataset = dataset.map(
