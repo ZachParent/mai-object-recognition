@@ -14,9 +14,16 @@ import gc
 
 from metrics import f1_metric, mean_average_precision, subset_accuracy_metric
 
+
 def train_one_epoch(model, train_dataset, n_train_steps):
     """Train the model for one epoch."""
-    train_loss, train_acc, train_f1, train_map, train_subset_acc = 0.0, 0.0, 0.0, 0.0, 0.0
+    train_loss, train_acc, train_f1, train_map, train_subset_acc = (
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    )
     start_time = time.time()
     for X, Y in islice(train_dataset, n_train_steps):
         loss, acc, f1, map_score, subset_acc = model.train_on_batch(X, Y)
@@ -53,29 +60,44 @@ def test_one_epoch(model, test_dataset, n_test_steps):
     elapsed = time.time() - start_time
     print(f"Time taken for testing one epoch: {elapsed:.2f}s")
 
-    return (test_loss / n_test_steps, 
-            test_acc / n_test_steps, 
-            test_f1 / n_test_steps, 
-            test_map/n_test_steps, 
-            test_subset_acc/n_test_steps)
+    return (
+        test_loss / n_test_steps,
+        test_acc / n_test_steps,
+        test_f1 / n_test_steps,
+        test_map / n_test_steps,
+        test_subset_acc / n_test_steps,
+    )
 
 
-def save_results(exp, exp_name, train_loss, train_acc, train_f1, train_map, train_subset_acc, test_loss, test_acc, test_f1, test_map, test_subset_acc):
+def save_results(
+    exp,
+    exp_name,
+    train_loss,
+    train_acc,
+    train_f1,
+    train_map,
+    train_subset_acc,
+    test_loss,
+    test_acc,
+    test_f1,
+    test_map,
+    test_subset_acc,
+):
     """Save training and testing results to CSV."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    results_file = RESULTS_DIR/f"{exp_name}.csv"
+    results_file = RESULTS_DIR / f"{exp_name}.csv"
     final_results = [
         exp.id,
         test_loss,
         test_acc,
         test_f1,
-        test_map, 
-        test_subset_acc, 
+        test_map,
+        test_subset_acc,
         train_loss,
         train_acc,
         train_f1,
-        train_map,  
-        train_subset_acc
+        train_map,
+        train_subset_acc,
     ]
 
     file_exists = os.path.exists(results_file)
@@ -107,19 +129,18 @@ def save_results(exp, exp_name, train_loss, train_acc, train_f1, train_map, trai
                 "Test Loss",
                 "Test Accuracy",
                 "Test F1",
-                "Test mAP",  
+                "Test mAP",
                 "Test Subset Acc",
                 "Train Loss",
                 "Train Accuracy",
                 "Train F1",
-                "Train mAP", 
+                "Train mAP",
                 "Train Subset Acc",
             ]
         )
         writer.writerows(updated_rows)
 
     print(f"Results saved to {results_file}")
-
 
 
 def save_model(model, exp: ExperimentConfig):
@@ -139,12 +160,12 @@ def save_history(
     train_loss_history,
     train_acc_history,
     train_f1_history,
-    train_map_history,  
+    train_map_history,
     train_subset_acc_history,
     test_loss_history,
     test_acc_history,
     test_f1_history,
-    test_map_history,  
+    test_map_history,
     test_subset_acc_history,
     exp,
 ):
@@ -155,18 +176,18 @@ def save_history(
         "train_loss": train_loss_history,
         "train_acc": train_acc_history,
         "train_f1": train_f1_history,
-        "train_map": train_map_history,  
-        "train_subset_acc" : train_subset_acc_history,
+        "train_map": train_map_history,
+        "train_subset_acc": train_subset_acc_history,
         "test_loss": test_loss_history,
         "test_acc": test_acc_history,
         "test_f1": test_f1_history,
-        "test_map": test_map_history, 
-        "test_subset_acc" : test_subset_acc_history 
+        "test_map": test_map_history,
+        "test_subset_acc": test_subset_acc_history,
     }
 
     for history_type, history_data in history_files.items():
         history_filename = (
-            f'{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv'
+            f"{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv"
         )
 
         with open(history_filename, mode="w", newline="") as f:
@@ -177,6 +198,7 @@ def save_history(
 
         print(f"History saved to {history_filename}")
 
+
 def train_and_test(
     model,
     exp_name,
@@ -186,12 +208,24 @@ def train_and_test(
     train_list,
     test_list,
 ):
-    n_train_steps = len(train_list) // exp.batch_size  
-    n_test_steps = len(test_list) // exp.batch_size  
+    n_train_steps = len(train_list) // exp.batch_size
+    n_test_steps = len(test_list) // exp.batch_size
     warmup_epochs = 2  # Number of epochs to keep the base model frozen
 
-    train_loss_history, train_acc_history, train_f1_history, train_map_history, train_subset_acc_history = [], [], [], [], []
-    test_loss_history, test_acc_history, test_f1_history, test_map_history, test_subset_acc_history = [], [], [], [], []
+    (
+        train_loss_history,
+        train_acc_history,
+        train_f1_history,
+        train_map_history,
+        train_subset_acc_history,
+    ) = ([], [], [], [], [])
+    (
+        test_loss_history,
+        test_acc_history,
+        test_f1_history,
+        test_map_history,
+        test_subset_acc_history,
+    ) = ([], [], [], [], [])
 
     # Define optimizers
     warmup_optimizer = optimizers.RMSprop(learning_rate=exp.learning_rate * 0.1)
@@ -205,8 +239,10 @@ def train_and_test(
 
         # Set the optimizer and freeze/unfreeze model layers
         if exp.warm_up and epoch < warmup_epochs:
-            optimizer = warmup_optimizer  # Use warmup_optimizer during the warmup period
-            
+            optimizer = (
+                warmup_optimizer  # Use warmup_optimizer during the warmup period
+            )
+
             # Freeze the base model during warmup (only once at the beginning)
             if epoch == 0:  # Freeze only at the start of the warmup phase
                 model.layers[0].trainable = False
@@ -234,7 +270,7 @@ def train_and_test(
         train_acc_history.append(train_acc)
         train_map_history.append(train_map)
         train_f1_history.append(train_f1)
-        train_subset_acc_history.append(train_subset_acc)  
+        train_subset_acc_history.append(train_subset_acc)
 
         print(
             f"Epoch {epoch} training loss: {train_loss:.2f}, acc: {train_acc:.2f}, "
@@ -248,8 +284,8 @@ def train_and_test(
         test_loss_history.append(test_loss)
         test_acc_history.append(test_acc)
         test_f1_history.append(test_f1)
-        test_map_history.append(test_map) 
-        test_subset_acc_history.append(test_subset_acc) 
+        test_map_history.append(test_map)
+        test_subset_acc_history.append(test_subset_acc)
 
         print(
             f"Epoch {epoch} test loss: {test_loss:.2f}, acc: {test_acc:.2f}, "
@@ -259,7 +295,6 @@ def train_and_test(
     elapsed_time = time.time() - start_time
     print(f"Training ({exp.title}) finished in: {elapsed_time:.2f} seconds")
 
-
     # Save final results
     save_results(
         exp,
@@ -267,13 +302,13 @@ def train_and_test(
         train_loss_history[-1],
         train_acc_history[-1],
         train_f1_history[-1],
-        train_map_history[-1],  
+        train_map_history[-1],
         train_subset_acc_history[-1],
         test_loss_history[-1],
         test_acc_history[-1],
         test_f1_history[-1],
-        test_map_history[-1], 
-        test_subset_acc_history[-1], 
+        test_map_history[-1],
+        test_subset_acc_history[-1],
     )
 
     # Save model weights
@@ -284,12 +319,12 @@ def train_and_test(
         train_loss_history,
         train_acc_history,
         train_f1_history,
-        train_map_history, 
-        train_subset_acc_history, 
+        train_map_history,
+        train_subset_acc_history,
         test_loss_history,
         test_acc_history,
         test_f1_history,
-        test_map_history,  
+        test_map_history,
         test_subset_acc_history,
         exp,
     )
@@ -302,4 +337,3 @@ def train_and_test(
     memory_info = tf.config.experimental.get_memory_info("GPU:0")
     print("Current memory usage (bytes):", memory_info["current"])
     print("Peak memory usage (bytes):", memory_info["peak"])
-
