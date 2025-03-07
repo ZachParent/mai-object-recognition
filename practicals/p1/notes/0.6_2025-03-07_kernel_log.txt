@@ -1,0 +1,31 @@
+05:36:25.441 [error] Failed to write data to the kernel channel shell [
+  <Buffer 3c 49 44 53 7c 4d 53 47 3e>,
+  <Buffer 62 33 39 66 37 31 30 38 36 62 63 31 30 30 64 38 63 32 33 63 30 35 34 62 31 30 34 33 62 31 30 36 33 37 30 64 66 65 33 32 35 38 36 30 61 38 61 37 33 30 ... 14 more bytes>,
+  <Buffer 7b 22 64 61 74 65 22 3a 22 32 30 32 35 2d 30 33 2d 30 37 54 30 35 3a 33 36 3a 32 35 2e 34 34 30 5a 22 2c 22 6d 73 67 5f 69 64 22 3a 22 64 39 63 38 33 ... 177 more bytes>,
+  <Buffer 7b 7d>,
+  <Buffer 7b 7d>,
+  <Buffer 7b 22 73 69 6c 65 6e 74 22 3a 66 61 6c 73 65 2c 22 73 74 6f 72 65 5f 68 69 73 74 6f 72 79 22 3a 66 61 6c 73 65 2c 22 75 73 65 72 5f 65 78 70 72 65 73 ... 12617 more bytes>
+] [Error: Socket is closed
+	at a.postToSocket (/~/.cursor-server/extensions/ms-toolsai.jupyter-2024.11.0-linux-x64/dist/extension.node.js:304:8060)
+	at /~/.cursor-server/extensions/ms-toolsai.jupyter-2024.11.0-linux-x64/dist/extension.node.js:304:7804] {
+  errno: 9,
+  code: 'EBADF'
+}
+05:36:25.445 [error] Failed to write data to the kernel channel shell [
+  <Buffer 3c 49 44 53 7c 4d 53 47 3e>,
+  <Buffer 38 65 38 66 33 66 62 36 37 36 33 62 35 31 39 30 31 38 30 39 35 66 63 66 62 30 62 30 31 63 37 39 30 66 65 34 32 34 64 39 36 63 64 34 34 35 63 35 34 34 ... 14 more bytes>,
+  <Buffer 7b 22 64 61 74 65 22 3a 22 32 30 32 35 2d 30 33 2d 30 37 54 30 35 3a 33 36 3a 32 35 2e 34 34 35 5a 22 2c 22 6d 73 67 5f 69 64 22 3a 22 36 61 62 63 36 ... 177 more bytes>,
+  <Buffer 7b 7d>,
+  <Buffer 7b 7d>,
+  <Buffer 7b 22 73 69 6c 65 6e 74 22 3a 66 61 6c 73 65 2c 22 73 74 6f 72 65 5f 68 69 73 74 6f 72 79 22 3a 66 61 6c 73 65 2c 22 75 73 65 72 5f 65 78 70 72 65 73 ... 12617 more bytes>
+] [Error: Socket is closed
+	at a.postToSocket (/~/.cursor-server/extensions/ms-toolsai.jupyter-2024.11.0-linux-x64/dist/extension.node.js:304:8060)
+	at /~/.cursor-server/extensions/ms-toolsai.jupyter-2024.11.0-linux-x64/dist/extension.node.js:304:7804] {
+  errno: 9,
+  code: 'EBADF'
+}
+05:38:24.706 [error] Error in execution (get message for cell) Error: The kernel '.venv (Python 3.11.0)' died. Click [here](https://aka.ms/vscodeJupyterKernelCrash) for more info. View Jupyter [log](command:jupyter.viewOutput) for further details.
+    > Kernel Id = .jvsc74a57bd0dfa5a460981505eafee43f1c495657a9439d1fc89fcdb7ffd49308d227cd93a1./~/mai-object-recognition/practicals/p1/.venv/python./~/mai-object-recognition/practicals/p1/.venv/python.-m#ipykernel_launcher
+    > Interpreter Id = ~/mai-object-recognition/practicals/p1/.venv/bin/python
+    > at n.verifyKernelState (/~/.cursor-server/extensions/ms-toolsai.jupyter-2024.11.0-linux-x64/dist/extension.node.js:304:80754)
+    > originalException = undefined
