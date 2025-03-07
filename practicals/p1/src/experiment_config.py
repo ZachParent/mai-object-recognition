@@ -96,7 +96,7 @@ experiments = {
     "augmentation-experiments": [], # Add to the id of classifier_head_experiments the number of experiments performed here
     "classfier_head-experiments": [
         {
-            "id": 19 + i,
+            "id": 18 + i,
             "title": f"classifier_head: {classifier_head}",
             "classifier_head": classifier_head,
         }
