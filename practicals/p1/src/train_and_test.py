@@ -2,8 +2,6 @@ import random
 import csv
 import os
 import tensorflow as tf
-
-tf.config.run_functions_eagerly(True)
 from config import *
 from load_data import get_file_paths, get_dataset_from_paths
 from augmentation import create_data_pipeline
@@ -11,6 +9,9 @@ from experiment_config import ExperimentConfig
 import time
 from itertools import islice
 from tensorflow.keras import optimizers
+from keras import backend as K
+import gc
+
 from metrics import f1_metric, mean_average_precision, subset_accuracy_metric
 
 
@@ -200,7 +201,6 @@ def save_history(
 
 def train_and_test(
     model,
-    base_model,
     exp_name,
     exp: ExperimentConfig,
     train_dataset,
@@ -212,59 +212,50 @@ def train_and_test(
     n_test_steps = len(test_list) // exp.batch_size
     warmup_epochs = 2  # Number of epochs to keep the base model frozen
 
-    # Track training history
     (
         train_loss_history,
         train_acc_history,
         train_f1_history,
         train_map_history,
         train_subset_acc_history,
-    ) = (
-        [],
-        [],
-        [],
-        [],
-        [],
-    )
+    ) = ([], [], [], [], [])
     (
         test_loss_history,
         test_acc_history,
         test_f1_history,
         test_map_history,
         test_subset_acc_history,
-    ) = (
-        [],
-        [],
-        [],
-        [],
-        [],
-    )
+    ) = ([], [], [], [], [])
 
-    print(f"Starting training: {exp.title}")
+    # Define optimizers
+    warmup_optimizer = optimizers.RMSprop(learning_rate=exp.learning_rate * 0.1)
+    opt_rms = optimizers.RMSprop(learning_rate=exp.learning_rate)
+
+    print(f"In training loop: {exp.title}")
     start_time = time.time()
 
     for epoch in range(exp.n_epochs):
         random.shuffle(train_list)
 
+        # Set the optimizer and freeze/unfreeze model layers
         if exp.warm_up and epoch < warmup_epochs:
-            optimizer = optimizers.RMSprop(
-                learning_rate=exp.learning_rate * 0.1
-            )  # Use lower LR during warmup
-            if epoch == 0:
-                print("Freezing base model layers...")
-                for layer in base_model.layers:
-                    layer.trainable = False
-        elif exp.warm_up and epoch == warmup_epochs:
-            optimizer = optimizers.RMSprop(
-                learning_rate=exp.learning_rate
-            )  # Normal learning rate after warmup
-            for layer in base_model.layers:
-                layer.trainable = True
-        else:
-            optimizer = optimizers.RMSprop(
-                learning_rate=exp.learning_rate
-            )  # Standard training
+            optimizer = (
+                warmup_optimizer  # Use warmup_optimizer during the warmup period
+            )
 
+            # Freeze the base model during warmup (only once at the beginning)
+            if epoch == 0:  # Freeze only at the start of the warmup phase
+                model.layers[0].trainable = False
+
+        # Unfreeze base model after warmup period
+        if exp.warm_up and epoch == warmup_epochs:
+            print(f"Unfreezing base model at epoch {epoch}")
+            model.layers[0].trainable = True  # Unfreeze the base model
+
+        else:
+            optimizer = opt_rms  # Use normal optimizer after the warmup period
+
+        # Recompile the model if the optimizer changes
         model.compile(
             loss=exp.loss,
             optimizer=optimizer,
@@ -282,8 +273,8 @@ def train_and_test(
         train_subset_acc_history.append(train_subset_acc)
 
         print(
-            f"Epoch {epoch} - Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f}, "
-            f"F1: {train_f1:.4f}, mAP: {train_map:.4f}"
+            f"Epoch {epoch} training loss: {train_loss:.2f}, acc: {train_acc:.2f}, "
+            f"f1: {train_f1:.2f}, mAP: {train_map:.2f}"
         )
 
         # Test one epoch
@@ -297,11 +288,12 @@ def train_and_test(
         test_subset_acc_history.append(test_subset_acc)
 
         print(
-            f"Epoch {epoch} - Test Loss: {test_loss:.4f}, Acc: {test_acc:.4f}, "
-            f"F1: {test_f1:.4f}, mAP: {test_map:.4f}"
+            f"Epoch {epoch} test loss: {test_loss:.2f}, acc: {test_acc:.2f}, "
+            f"f1: {test_f1:.2f}, mAP: {test_map:.2f}"
         )
 
     elapsed_time = time.time() - start_time
+    print(f"Training ({exp.title}) finished in: {elapsed_time:.2f} seconds")
 
     # Save final results
     save_results(
@@ -320,7 +312,7 @@ def train_and_test(
     )
 
     # Save model weights
-    save_model(model, exp)
+    # save_model(model, exp)
 
     # Save training history
     save_history(
@@ -336,3 +328,12 @@ def train_and_test(
         test_subset_acc_history,
         exp,
     )
+
+    # Clear memory
+    del model
+    K.clear_session()
+    gc.collect()
+
+    memory_info = tf.config.experimental.get_memory_info("GPU:0")
+    print("Current memory usage (bytes):", memory_info["current"])
+    print("Peak memory usage (bytes):", memory_info["peak"])
