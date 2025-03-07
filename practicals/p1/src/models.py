@@ -13,7 +13,6 @@ from keras.layers import (
 )
 from tensorflow.keras.models import Model
 
-tf.config.run_functions_eagerly(True)
 from config import *
 from experiment_config import ExperimentConfig
 import tensorflow.keras.applications as app
