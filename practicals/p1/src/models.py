@@ -40,10 +40,7 @@ def setup_best_config(
 
     elif exp_name == "hyperparameter-experiments":
         print(
-            f"Reusing from best model experiment:\n"
-            f"\tnet_name: {best_experiment_config.net_name}, "
-            f"\ttrain_from_scratch: {best_experiment_config.train_from_scratch}, "
-            f"\twarm_up: {best_experiment_config.warm_up}"
+            f"Reusing net_name: {best_experiment_config.net_name}, train_from_scratch: {best_experiment_config.train_from_scratch}, warm_up: {best_experiment_config.warm_up} from best model experiment"
         )
         exp.net_name = best_experiment_config.net_name
         exp.train_from_scratch = best_experiment_config.train_from_scratch
@@ -51,14 +48,7 @@ def setup_best_config(
 
     elif exp_name == "augmentation-experiments":
         print(
-            f"Reusing from best hyperparameter experiment:\n"
-            f"\tnet_name: {best_experiment_config.net_name},\n"
-            f"\ttrain_from_scratch: {best_experiment_config.train_from_scratch},\n"
-            f"\twarm_up: {best_experiment_config.warm_up},\n"
-            f"\tbatch_size: {best_experiment_config.batch_size},\n"
-            f"\tlearning_rate: {best_experiment_config.learning_rate},\n"
-            f"\tloss: {best_experiment_config.loss},\n"
-            f"\tlast_layer_activation: {best_experiment_config.last_layer_activation}"
+            f"Reusing net_name: {best_experiment_config.net_name}, train_from_scratch: {best_experiment_config.train_from_scratch}, warm_up: {best_experiment_config.warm_up} from best hyperparameter experiment"
         )
         exp.net_name = best_experiment_config.net_name
         exp.train_from_scratch = best_experiment_config.train_from_scratch
@@ -70,14 +60,7 @@ def setup_best_config(
 
     elif exp_name == "classfier_head-experiments":
         print(
-            f"Reusing from best hyperparameter experiment:\n"
-            f"\tnet_name: {best_experiment_config.net_name},\n"
-            f"\ttrain_from_scratch: {best_experiment_config.train_from_scratch},\n"
-            f"\twarm_up: {best_experiment_config.warm_up},\n"
-            f"\tbatch_size: {best_experiment_config.batch_size},\n"
-            f"\tlearning_rate: {best_experiment_config.learning_rate},\n"
-            f"\tloss: {best_experiment_config.loss},\n"
-            f"\tlast_layer_activation: {best_experiment_config.last_layer_activation}"
+            f"Reusing net_name: {best_experiment_config.net_name}, train_from_scratch: {best_experiment_config.train_from_scratch}, warm_up: {best_experiment_config.warm_up} from best hyperparameter experiment"
         )
         exp.net_name = best_experiment_config.net_name
         exp.train_from_scratch = best_experiment_config.train_from_scratch

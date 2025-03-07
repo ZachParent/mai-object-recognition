@@ -93,10 +93,10 @@ experiments = {
             itertools.product([16, 32, 64], [0.001, 0.01, 0.1])
         )
     ],
-    "augmentation-experiments": [],  # Add to the id of classifier_head_experiments the number of experiments performed here
-    "classfier_head-experiments": [
+    # "augmentation_experiments": [], # Add to the id of classifier_head_experiments the number of experiments performed here
+    "classfier_head_experiments": [
         {
-            "id": 18 + i,
+            "id": 19 + i,
             "title": f"classifier_head: {classifier_head}",
             "classifier_head": classifier_head,
         }
