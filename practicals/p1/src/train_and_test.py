@@ -268,7 +268,7 @@ def train_and_test(
         # Recompile model only if necessary
         if should_recompile:
             print(
-                f"Recompiling model at epoch {epoch} (Optimizer changed: {optimizer != prev_optimizer})"
+                f"Recompiling model at epoch {epoch} (Optimizer changed)"
             )
             model.compile(
                 loss=exp.loss,
@@ -354,6 +354,6 @@ def train_and_test(
     K.clear_session()
     gc.collect()
 
-    # memory_info = tf.config.experimental.get_memory_info("GPU:0")
-    # print("Current memory usage (bytes):", memory_info["current"])
-    # print("Peak memory usage (bytes):", memory_info["peak"])
+    memory_info = tf.config.experimental.get_memory_info("GPU:0")
+    print("Current memory usage (bytes):", memory_info["current"])
+    print("Peak memory usage (bytes):", memory_info["peak"])
