@@ -267,9 +267,7 @@ def train_and_test(
 
         # Recompile model only if necessary
         if should_recompile:
-            print(
-                f"Recompiling model at epoch {epoch} (Optimizer changed)"
-            )
+            print(f"Recompiling model at epoch {epoch} (Optimizer changed)")
             model.compile(
                 loss=exp.loss,
                 optimizer=optimizer,
