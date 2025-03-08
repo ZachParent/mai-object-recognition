@@ -1,10 +1,6 @@
-import random
-import csv
 import os
 import tensorflow as tf
 from config import *
-from load_data import get_file_paths, get_dataset_from_paths
-from augmentation import create_data_pipeline
 from experiment_config import ExperimentConfig
 import time
 from itertools import islice
@@ -89,61 +85,46 @@ def save_results(
     """Save training and testing results to CSV."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
     results_file = RESULTS_DIR / f"{exp_name}.csv"
-    final_results = [
-        exp.id,
-        test_loss,
-        test_acc,
-        test_f1,
-        test_map,
-        test_subset_acc,
-        train_loss,
-        train_acc,
-        train_f1,
-        train_map,
-        train_subset_acc,
-        training_time
+    
+    columns = [
+        "ID",
+        "Test Loss", 
+        "Test Accuracy",
+        "Test F1",
+        "Test mAP", 
+        "Test Subset Acc",
+        "Train Loss",
+        "Train Accuracy", 
+        "Train F1",
+        "Train mAP",
+        "Train Subset Acc",
+        "Train time"
     ]
+    
+    new_row = pd.DataFrame([{
+        "ID": exp.id,
+        "Test Loss": test_loss,
+        "Test Accuracy": test_acc, 
+        "Test F1": test_f1,
+        "Test mAP": test_map,
+        "Test Subset Acc": test_subset_acc,
+        "Train Loss": train_loss,
+        "Train Accuracy": train_acc,
+        "Train F1": train_f1,
+        "Train mAP": train_map,
+        "Train Subset Acc": train_subset_acc,
+        "Train time": training_time
+    }])
 
-    file_exists = os.path.exists(results_file)
-    updated_rows = []
-    found = False
+    if os.path.exists(results_file):
+        df = pd.read_csv(results_file)
+        # Update existing row if ID exists, otherwise append
+        df = df[df["ID"] != exp.id]
+        df = pd.concat([df, new_row], ignore_index=True)
+    else:
+        df = new_row
 
-    if file_exists:
-        with open(results_file, mode="r") as f:
-            reader = csv.reader(f)
-            try:
-                header = next(reader)
-            except StopIteration:
-                header = []
-            for row in reader:
-                if int(row[0]) == int(exp.id):
-                    updated_rows.append(final_results)
-                    found = True
-                else:
-                    updated_rows.append(row)
-
-    if not found:
-        updated_rows.append(final_results)
-
-    with open(results_file, mode="w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(
-            [
-                "ID",
-                "Test Loss",
-                "Test Accuracy",
-                "Test F1",
-                "Test mAP",
-                "Test Subset Acc",
-                "Train Loss",
-                "Train Accuracy",
-                "Train F1",
-                "Train mAP",
-                "Train Subset Acc",
-                "Train time"
-            ]
-        )
-        writer.writerows(updated_rows)
+    df.to_csv(results_file, index=False)
 
     print(f"Results saved to {results_file}")
 
@@ -192,14 +173,11 @@ def save_history(
 
     for history_type, history_data in history_files.items():
         history_filename = (
-            f"{HISTORIES_DIR}/{exp.net_name[0]}-{exp.id}-{history_type}.csv"
+            f"{HISTORIES_DIR}/{exp.id:02d}-{exp.net_name[0]}-{history_type}.csv"
         )
-
-        with open(history_filename, mode="w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([history_type])
-            for value in history_data:
-                writer.writerow([value])
+        
+        df = pd.DataFrame({history_type: history_data})
+        df.to_csv(history_filename, index=False)
 
         print(f"History saved to {history_filename}")
         
