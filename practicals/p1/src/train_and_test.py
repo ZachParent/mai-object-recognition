@@ -80,27 +80,31 @@ def save_results(
     test_f1,
     test_map,
     test_subset_acc,
-    training_time
+    training_time,
 ):
     """Save training and testing results to CSV."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
     results_file = RESULTS_DIR / f"{exp_name}.csv"
-    
-    new_row = pd.DataFrame([{
-        "id": exp.id,
-        "title": exp.title,
-        "test_loss": test_loss,
-        "test_acc": test_acc, 
-        "test_f1": test_f1,
-        "test_map": test_map,
-        "test_subset_acc": test_subset_acc,
-        "train_loss": train_loss,
-        "train_acc": train_acc,
-        "train_f1": train_f1,
-        "train_map": train_map,
-        "train_subset_acc": train_subset_acc,
-        "train_time": training_time
-    }])
+
+    new_row = pd.DataFrame(
+        [
+            {
+                "id": exp.id,
+                "title": exp.title,
+                "test_loss": test_loss,
+                "test_acc": test_acc,
+                "test_f1": test_f1,
+                "test_map": test_map,
+                "test_subset_acc": test_subset_acc,
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "train_f1": train_f1,
+                "train_map": train_map,
+                "train_subset_acc": train_subset_acc,
+                "train_time": training_time,
+            }
+        ]
+    )
 
     if os.path.exists(results_file):
         df = pd.read_csv(results_file)
@@ -142,25 +146,30 @@ def save_history(
     os.makedirs(HISTORIES_DIR, exist_ok=True)
 
     # Create a DataFrame with all metrics
-    history_df = pd.DataFrame({
-        "train_loss": train_loss_history,
-        "train_acc": train_acc_history,
-        "train_f1": train_f1_history,
-        "train_map": train_map_history,
-        "train_subset_acc": train_subset_acc_history,
-        "test_loss": test_loss_history,
-        "test_acc": test_acc_history,
-        "test_f1": test_f1_history,
-        "test_map": test_map_history,
-        "test_subset_acc": test_subset_acc_history
-    })
+    history_df = pd.DataFrame(
+        {
+            "train_loss": train_loss_history,
+            "train_acc": train_acc_history,
+            "train_f1": train_f1_history,
+            "train_map": train_map_history,
+            "train_subset_acc": train_subset_acc_history,
+            "test_loss": test_loss_history,
+            "test_acc": test_acc_history,
+            "test_f1": test_f1_history,
+            "test_map": test_map_history,
+            "test_subset_acc": test_subset_acc_history,
+        }
+    )
 
     # Save all metrics to a single CSV file
     history_filename = f"{HISTORIES_DIR}/{exp.id:02d}-{exp.title}.csv"
     history_df.to_csv(history_filename, index=False)
     print(f"History saved to {history_filename}")
-        
-def save_predictions_to_csv(exp: ExperimentConfig, model, test_dataset, n_test_steps, test_list):
+
+
+def save_predictions_to_csv(
+    exp: ExperimentConfig, model, test_dataset, n_test_steps, test_list
+):
     rows = []
     global_image_index = 0  # Counter to index into test_list
     os.makedirs(LABELS_DIR, exist_ok=True)
@@ -169,7 +178,7 @@ def save_predictions_to_csv(exp: ExperimentConfig, model, test_dataset, n_test_s
     for X, Y in islice(test_dataset, n_test_steps):
         batch_size = X.shape[0]
         # Get the corresponding image names from test_list.
-        image_names = test_list[global_image_index: global_image_index + batch_size]
+        image_names = test_list[global_image_index : global_image_index + batch_size]
         global_image_index += batch_size
 
         # Compute model predictions for the batch.
@@ -181,25 +190,17 @@ def save_predictions_to_csv(exp: ExperimentConfig, model, test_dataset, n_test_s
 
         # Create a row for each image in the batch.
         for i in range(batch_size):
-            row = {
-                "id": exp.id,
-                "title": exp.title,
-                "image_name": image_names[i]
-            }
-            # Add true and predicted labels for each class.
+            row = {"image_name": image_names[i]}
             for cls in range(n_classes):
                 row[cls] = pred_labels[i, cls]
             rows.append(row)
 
     # Convert the rows into a DataFrame.
     df = pd.DataFrame(rows)
-    csv_path = PREDICTED_CSV
+    df.sort_values(by="image_name", inplace=True)
+    csv_path = LABELS_DIR / f"{exp.id:02d}-{exp.title}.csv"
 
-    # Append to CSV if it exists; otherwise, create a new file.
-    if os.path.exists(csv_path):
-        df.to_csv(csv_path, mode='a', header=False, index=False)
-    else:
-        df.to_csv(csv_path, mode='w', header=True, index=False)
+    df.to_csv(csv_path, mode="w", header=True, index=False)
 
     print(f"Predictions saved to {csv_path}")
 
@@ -214,8 +215,8 @@ def train_and_test(
     train_list,
     test_list,
 ):
-    n_train_steps = 2 # len(train_list) // exp.batch_size
-    n_test_steps = 2 # len(test_list) // exp.batch_size
+    n_train_steps = 2  # len(train_list) // exp.batch_size
+    n_test_steps = 2  # len(test_list) // exp.batch_size
     warmup_epochs = 3  # Number of epochs to keep the base model frozen
 
     (
@@ -330,7 +331,7 @@ def train_and_test(
         test_f1_history[-1],
         test_map_history[-1],
         test_subset_acc_history[-1],
-        training_time
+        training_time,
     )
 
     # Save model weights
@@ -350,7 +351,7 @@ def train_and_test(
         test_subset_acc_history,
         exp,
     )
-    
+
     # Save predictions to CSV
     save_predictions_to_csv(exp, model, test_dataset, n_test_steps, test_list)
 
