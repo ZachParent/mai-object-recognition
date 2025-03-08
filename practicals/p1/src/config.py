@@ -48,3 +48,5 @@ RAW_DATA_DIR = DATA_DIR / "00_raw"
 HISTORIES_DIR = DATA_DIR / "01_histories"
 RESULTS_DIR = DATA_DIR / "02_results"
 MODELS_DIR = PROJECT_DIR / "models"
+
+BATCH_SIZES = [16, 32, 64]
