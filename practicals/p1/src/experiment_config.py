@@ -110,7 +110,7 @@ experiments = {
             "imbalance": imbalance_method,
         }
         for i, imbalance_method in enumerate(["loss", "batch", "all"])
-    ], 
+    ],
     "classfier_head-experiments": [
         {
             "id": 24 + i,

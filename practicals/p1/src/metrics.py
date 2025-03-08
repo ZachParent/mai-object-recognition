@@ -30,7 +30,7 @@ def f1_metric(y_true, y_pred):
 
 def mean_average_precision(y_true, y_pred):
     def map_numpy(y_true_np, y_pred_np):
-        return average_precision_score(y_true_np, y_pred_np).astype('float32')
+        return average_precision_score(y_true_np, y_pred_np).astype("float32")
 
     map_value = tf.numpy_function(map_numpy, [y_true, y_pred], tf.float32)
     return map_value

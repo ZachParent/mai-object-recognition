@@ -34,7 +34,7 @@ def setup_best_config(
     best_experiment_config: ExperimentConfig = None,
 ):
     """Setup the best configuration based on previous experiments.
-    
+
     Args:
         exp: The experiment config to update
         params_to_reuse: List of parameter names to copy from best_experiment_config
@@ -42,13 +42,13 @@ def setup_best_config(
     """
     if best_experiment_config is None:
         return exp
-        
+
     print("Reusing parameters from best experiment:")
     for param in params_to_reuse:
         if hasattr(best_experiment_config, param):
             setattr(exp, param, getattr(best_experiment_config, param))
             print(f"\t{param}: {getattr(best_experiment_config, param)}")
-    
+
     return exp
 
 

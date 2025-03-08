@@ -45,7 +45,7 @@ def random_erasing_layer(
     p=0.5, area_range=(0.02, 0.2), aspect_ratio_range=(0.3, 3.0), value=0
 ):
     """Creates a layer that randomly erases rectangles from the image.
-    
+
     This implementation is compatible with TensorFlow graph execution.
 
     Args:
@@ -63,20 +63,19 @@ def random_erasing_layer(
         shape = tf.shape(image)
         if len(image.shape) == 4:  # Batched input
             batch_size, height, width, channels = shape[0], shape[1], shape[2], shape[3]
+
             # Process each image in the batch separately
             def process_single_image(img):
                 return _apply_random_erasing(img, height, width, channels)
-            
+
             # Apply random erasing to each image in the batch with probability p
             should_apply = tf.random.uniform(shape=[batch_size]) < p
             processed_images = tf.map_fn(
                 lambda x: tf.cond(
-                    x[0],
-                    lambda: process_single_image(x[1]),
-                    lambda: x[1]
+                    x[0], lambda: process_single_image(x[1]), lambda: x[1]
                 ),
                 (should_apply, image),
-                dtype=image.dtype
+                dtype=image.dtype,
             )
             return processed_images
         else:  # Unbatched input
@@ -85,9 +84,9 @@ def random_erasing_layer(
             return tf.cond(
                 tf.random.uniform(()) < p,
                 lambda: _apply_random_erasing(image, height, width, channels),
-                lambda: image
+                lambda: image,
             )
-    
+
     def _apply_random_erasing(image, height, width, channels):
         # Calculate area to erase
         image_area = tf.cast(height * width, tf.float32)
@@ -95,47 +94,44 @@ def random_erasing_layer(
             shape=(), minval=area_range[0], maxval=area_range[1]
         )
         erase_area = area_ratio * image_area
-        
+
         # Calculate aspect ratio
         aspect_ratio = tf.random.uniform(
             shape=(), minval=aspect_ratio_range[0], maxval=aspect_ratio_range[1]
         )
-        
+
         # Calculate height and width of erasing rectangle
         h = tf.cast(tf.sqrt(erase_area / aspect_ratio), tf.int32)
         w = tf.cast(aspect_ratio * tf.cast(h, tf.float32), tf.int32)
-        
+
         # Ensure h and w are not larger than image dimensions
         h = tf.minimum(h, height)
         w = tf.minimum(w, width)
-        
+
         # Random position
         x = tf.random.uniform(shape=(), minval=0, maxval=width - w + 1, dtype=tf.int32)
         y = tf.random.uniform(shape=(), minval=0, maxval=height - h + 1, dtype=tf.int32)
-        
+
         # Create mask
         # First, create a ones mask for the area to erase
         erase_mask = tf.ones([h, w, channels]) * value
-        
+
         # Then, create indices for that area in the original image
         indices = tf.meshgrid(
-            tf.range(y, y + h),
-            tf.range(x, x + w),
-            tf.range(channels),
-            indexing='ij'
+            tf.range(y, y + h), tf.range(x, x + w), tf.range(channels), indexing="ij"
         )
         indices = tf.stack(indices, axis=-1)
         indices = tf.reshape(indices, [-1, 3])
-        
+
         # Create a copy of the image
         erased_image = tf.identity(image)
-        
+
         # Use tensor_scatter_nd_update to overwrite the pixels in the erase area
         # We need to use flat values for the update
         updates = tf.ones([h * w * channels], dtype=image.dtype) * value
-        
+
         return tf.tensor_scatter_nd_update(erased_image, indices, updates)
-    
+
     return layers.Lambda(random_erasing, name="random_erasing")
 
 
@@ -152,12 +148,11 @@ def get_augmentation_pipeline(use_augmentation=True, augmentation="simple"):
     augmentation_layers = []
 
     if augmentation == "simple" or augmentation == "all":
-        #Add simple augmentation layers
+        # Add simple augmentation layers
         augmentation_layers.append(layers.RandomFlip("horizontal_and_vertical"))
         augmentation_layers.append(layers.RandomRotation(0.2))
         augmentation_layers.append(layers.RandomTranslation(0.1, 0.1))
         augmentation_layers.append(layers.RandomZoom(0.2))
-
 
     # Add advanced augmentation layers if requested
     if augmentation == "color" or augmentation == "all":
@@ -169,8 +164,6 @@ def get_augmentation_pipeline(use_augmentation=True, augmentation="simple"):
         augmentation_layers.append(random_erasing_layer())
 
     return Sequential(augmentation_layers, name="augmentation_pipeline")
-
-
 
 
 def create_augmentation_pipeline(augmentation="simple"):
@@ -192,11 +185,10 @@ def create_augmentation_pipeline(augmentation="simple"):
 def apply_augmentation(dataset, augmentation="simple"):
     """Applies augmentation to a dataset based on the desired type.
 
-        Args:
-        dataset: Dataset to modify
-        augmentation: Type of augmentation to apply
+    Args:
+    dataset: Dataset to modify
+    augmentation: Type of augmentation to apply
     """
-
 
     augmentation_pipeline = create_augmentation_pipeline(augmentation)
     aug_dataset = dataset.map(
