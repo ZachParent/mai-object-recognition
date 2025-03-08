@@ -2,9 +2,9 @@ from pathlib import Path
 
 # Task-specific parameters
 
-img_size = 224
-num_classes = 20
-voc_classes = {
+IMG_SIZE = 224
+NUM_CLASSES = 20
+VOC_CLASSES = {
     "aeroplane": 0,
     "bicycle": 1,
     "bird": 2,
@@ -26,18 +26,7 @@ voc_classes = {
     "train": 18,
     "tvmonitor": 19,
 }
-test_imagenet = True
-per_sample_normalization = True
-data_augmentation = True
-
-# Experiment-specific parameters were moved to experiment_config.py
-
-# batch_size = 32
-# n_epochs = 1
-# net_name = [['resnet50','ResNet50'], ['inception_v3','InceptionV3'], ['mobilenet_v2','MobileNetV2']][0]
-# train_from_scratch = True
-# last_layer_activation = ['softmax', 'sigmoid', None][1]
-# loss = ['categorical_crossentropy', 'binary_crossentropy', 'mean_squared_error', 'mean_absolute_error'][1]
+BATCH_SIZES = [16, 32, 64]
 
 # Directories
 PROJECT_DIR = Path(__file__).parent.parent
@@ -47,6 +36,6 @@ TEST_TXT = DATA_DIR / "test.txt"
 RAW_DATA_DIR = DATA_DIR / "00_raw"
 HISTORIES_DIR = DATA_DIR / "01_histories"
 RESULTS_DIR = DATA_DIR / "02_results"
+LABELS_DIR = DATA_DIR / "03_labels"
+TRUE_LABELS_CSV = LABELS_DIR / "true.csv"
 MODELS_DIR = PROJECT_DIR / "models"
-
-BATCH_SIZES = [16, 32, 64]

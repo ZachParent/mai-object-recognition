@@ -30,63 +30,26 @@ class Squeeze(Layer):
 
 def setup_best_config(
     exp: ExperimentConfig,
-    exp_name: str,
+    params_to_reuse: list[str],
     best_experiment_config: ExperimentConfig = None,
 ):
-    """Setup the best configuration based on previous experiments."""
-    if exp_name == "model-experiments":
-        pass
-
-    elif exp_name == "hyperparameter-experiments":
-        print(
-            f"Reusing from best model experiment:\n"
-            f"\tnet_name: {best_experiment_config.net_name}, "
-            f"\ttrain_from_scratch: {best_experiment_config.train_from_scratch}, "
-            f"\twarm_up: {best_experiment_config.warm_up}"
-        )
-        exp.net_name = best_experiment_config.net_name
-        exp.train_from_scratch = best_experiment_config.train_from_scratch
-        exp.warm_up = best_experiment_config.warm_up
-
-    elif exp_name == "augmentation-experiments":
-        print(
-            f"Reusing from best hyperparameter experiment:\n"
-            f"\tnet_name: {best_experiment_config.net_name},\n"
-            f"\ttrain_from_scratch: {best_experiment_config.train_from_scratch},\n"
-            f"\twarm_up: {best_experiment_config.warm_up},\n"
-            f"\tbatch_size: {best_experiment_config.batch_size},\n"
-            f"\tlearning_rate: {best_experiment_config.learning_rate},\n"
-            f"\tloss: {best_experiment_config.loss},\n"
-            f"\tlast_layer_activation: {best_experiment_config.last_layer_activation}"
-        )
-        exp.net_name = best_experiment_config.net_name
-        exp.train_from_scratch = best_experiment_config.train_from_scratch
-        exp.warm_up = best_experiment_config.warm_up
-        exp.batch_size = best_experiment_config.batch_size
-        exp.learning_rate = best_experiment_config.learning_rate
-        exp.loss = best_experiment_config.loss
-        exp.last_layer_activation = best_experiment_config.last_layer_activation
-
-    elif exp_name == "classfier_head-experiments":
-        print(
-            f"Reusing from best hyperparameter experiment:\n"
-            f"\tnet_name: {best_experiment_config.net_name},\n"
-            f"\ttrain_from_scratch: {best_experiment_config.train_from_scratch},\n"
-            f"\twarm_up: {best_experiment_config.warm_up},\n"
-            f"\tbatch_size: {best_experiment_config.batch_size},\n"
-            f"\tlearning_rate: {best_experiment_config.learning_rate},\n"
-            f"\tloss: {best_experiment_config.loss},\n"
-            f"\tlast_layer_activation: {best_experiment_config.last_layer_activation}"
-        )
-        exp.net_name = best_experiment_config.net_name
-        exp.train_from_scratch = best_experiment_config.train_from_scratch
-        exp.warm_up = best_experiment_config.warm_up
-        exp.batch_size = best_experiment_config.batch_size
-        exp.learning_rate = best_experiment_config.learning_rate
-        exp.loss = best_experiment_config.loss
-        exp.last_layer_activation = best_experiment_config.last_layer_activation
-
-    return
+    """Setup the best configuration based on previous experiments.
+    
+    Args:
+        exp: The experiment config to update
+        params_to_reuse: List of parameter names to copy from best_experiment_config
+        best_experiment_config: The experiment config to copy parameters from
+    """
+    if best_experiment_config is None:
+        return exp
+        
+    print("Reusing parameters from best experiment:")
+    for param in params_to_reuse:
+        if hasattr(best_experiment_config, param):
+            setattr(exp, param, getattr(best_experiment_config, param))
+            print(f"\t{param}: {getattr(best_experiment_config, param)}")
+    
+    return exp
 
 
 def build_base_model(exp: ExperimentConfig):
@@ -111,7 +74,7 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
 
     if exp.classifier_head == "default":
         x = Dense(1024, activation="relu")(x)
-        predictions = Dense(num_classes, activation=exp.last_layer_activation)(x)
+        predictions = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x)
 
     elif exp.classifier_head == "ensemble":
         # Create the classifier heads
@@ -121,17 +84,17 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
         # First head
         x1 = Dense(512, activation="relu")(x)
         x1 = Dropout(rate=0.2)(x1)
-        predictions1 = Dense(num_classes, activation=exp.last_layer_activation)(x1)
+        predictions1 = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x1)
 
         # Second head
         x2 = Dense(512, activation="relu")(x)
         x2 = Dropout(rate=0.2)(x2)
-        predictions2 = Dense(num_classes, activation=exp.last_layer_activation)(x2)
+        predictions2 = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x2)
 
         # Third head
         x3 = Dense(512, activation="relu")(x)
         x3 = Dropout(rate=0.2)(x3)
-        predictions3 = Dense(num_classes, activation=exp.last_layer_activation)(x3)
+        predictions3 = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x3)
 
         # Average the outputs
         predictions = Average()([predictions1, predictions2, predictions3])
@@ -161,7 +124,7 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
 
         # Remove sequence dimension and project to output classes
         x = Squeeze()(x)
-        predictions = Dense(num_classes, activation=exp.last_layer_activation)(x)
+        predictions = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x)
 
     else:
         raise ValueError("Invalid classifier head type")
@@ -173,12 +136,8 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
 
 def create_model(
     exp: ExperimentConfig,
-    exp_name: str,
-    best_experiment_config: ExperimentConfig = None,
 ):
     print(f"Defining model: {exp.title}")
-
-    setup_best_config(exp, exp_name, best_experiment_config)
 
     # Build the base model
     base_model = build_base_model(exp)
