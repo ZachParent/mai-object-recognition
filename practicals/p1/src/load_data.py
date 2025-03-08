@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 import tensorflow as tf
-from config import voc_classes, num_classes, RAW_DATA_DIR, img_size
+from config import VOC_CLASSES, NUM_CLASSES, RAW_DATA_DIR, IMG_SIZE
 import numpy as np
 from augmentation import create_data_pipeline
 
@@ -16,19 +16,19 @@ def parse_xml_annotation(xml_path):
         root = tree.getroot()
 
         # Initialize multi-hot encoding array
-        classes = np.zeros(num_classes, dtype=np.float32)
+        classes = np.zeros(NUM_CLASSES, dtype=np.float32)
 
         # Find all object classes and set corresponding indices to 1
         for boxes in root.iter("object"):
             classname = boxes.find("name").text
-            class_idx = voc_classes[classname]  # Convert string label to index
+            class_idx = VOC_CLASSES[classname]  # Convert string label to index
             classes[class_idx] = 1.0
 
         return classes
 
     except Exception as e:
         print(f"Error parsing {xml_path}: {e}")
-        return np.zeros(num_classes, dtype=np.float32)
+        return np.zeros(NUM_CLASSES, dtype=np.float32)
 
 
 @tf.function
@@ -39,7 +39,7 @@ def load_and_preprocess_image(image_path):
     # Decode JPEG
     img = tf.image.decode_jpeg(img, channels=3)
     # Resize to fixed dimensions
-    img = tf.image.resize(img, [img_size, img_size])  # Use consistent size from config
+    img = tf.image.resize(img, [IMG_SIZE, IMG_SIZE])  # Use consistent size from config
     # Convert to float32
     img = tf.cast(img, tf.float32)
     return img
@@ -56,7 +56,7 @@ def get_dataset_from_paths(image_paths, annotation_paths):
         labels = tf.py_function(
             parse_xml_annotation, [xml_path], tf.float32
         )  # Change back to float32
-        labels.set_shape([num_classes])
+        labels.set_shape([NUM_CLASSES])
 
         return image, labels
 

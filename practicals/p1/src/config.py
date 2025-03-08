@@ -2,9 +2,9 @@ from pathlib import Path
 
 # Task-specific parameters
 
-img_size = 224
-num_classes = 20
-voc_classes = {
+IMG_SIZE = 224
+NUM_CLASSES = 20
+VOC_CLASSES = {
     "aeroplane": 0,
     "bicycle": 1,
     "bird": 2,
@@ -26,9 +26,6 @@ voc_classes = {
     "train": 18,
     "tvmonitor": 19,
 }
-test_imagenet = True
-per_sample_normalization = True
-data_augmentation = True
 BATCH_SIZES = [16, 32, 64]
 
 # Experiment-specific parameters were moved to experiment_config.py
@@ -49,6 +46,6 @@ RAW_DATA_DIR = DATA_DIR / "00_raw"
 HISTORIES_DIR = DATA_DIR / "01_histories"
 RESULTS_DIR = DATA_DIR / "02_results"
 LABELS_DIR = DATA_DIR / "03_labels"
-PREDICTED_CSV = LABELS_DIR / "predicted_labels.csv"
-TRUE_CSV = LABELS_DIR / "true_labels.csv"
+PREDICTED_CSV = LABELS_DIR / "predicted.csv"
+TRUE_CSV = LABELS_DIR / "true.csv"
 MODELS_DIR = PROJECT_DIR / "models"
