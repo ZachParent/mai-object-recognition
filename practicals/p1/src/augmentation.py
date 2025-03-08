@@ -152,7 +152,7 @@ def get_augmentation_pipeline(use_augmentation=True, advanced_augmentation=False
     return Sequential(augmentation_layers, name="augmentation_pipeline")
 
 
-def get_preprocessing_pipeline(use_normalization=True):
+def get_preprocessing_pipeline(use_normalization=True, per_sample_normalization=False):
     """Returns a Keras Sequential pipeline for preprocessing."""
     if not use_normalization:
         return layers.Identity()

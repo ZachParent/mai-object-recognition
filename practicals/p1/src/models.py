@@ -111,7 +111,7 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
 
     if exp.classifier_head == "default":
         x = Dense(1024, activation="relu")(x)
-        predictions = Dense(num_classes, activation=exp.last_layer_activation)(x)
+        predictions = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x)
 
     elif exp.classifier_head == "ensemble":
         # Create the classifier heads
@@ -121,17 +121,17 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
         # First head
         x1 = Dense(512, activation="relu")(x)
         x1 = Dropout(rate=0.2)(x1)
-        predictions1 = Dense(num_classes, activation=exp.last_layer_activation)(x1)
+        predictions1 = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x1)
 
         # Second head
         x2 = Dense(512, activation="relu")(x)
         x2 = Dropout(rate=0.2)(x2)
-        predictions2 = Dense(num_classes, activation=exp.last_layer_activation)(x2)
+        predictions2 = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x2)
 
         # Third head
         x3 = Dense(512, activation="relu")(x)
         x3 = Dropout(rate=0.2)(x3)
-        predictions3 = Dense(num_classes, activation=exp.last_layer_activation)(x3)
+        predictions3 = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x3)
 
         # Average the outputs
         predictions = Average()([predictions1, predictions2, predictions3])
@@ -161,7 +161,7 @@ def add_classifier_head(base_model, exp: ExperimentConfig):
 
         # Remove sequence dimension and project to output classes
         x = Squeeze()(x)
-        predictions = Dense(num_classes, activation=exp.last_layer_activation)(x)
+        predictions = Dense(NUM_CLASSES, activation=exp.last_layer_activation)(x)
 
     else:
         raise ValueError("Invalid classifier head type")
