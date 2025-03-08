@@ -105,7 +105,7 @@ def save_results(
     if os.path.exists(results_file):
         df = pd.read_csv(results_file)
         # Update existing row if ID exists, otherwise append
-        df = df[df["ID"] != exp.id]
+        df = df[df["id"] != exp.id]
         df = pd.concat([df, new_row], ignore_index=True)
     else:
         df = new_row
@@ -141,7 +141,8 @@ def save_history(
     """Save training and testing histories to CSV files."""
     os.makedirs(HISTORIES_DIR, exist_ok=True)
 
-    history_files = {
+    # Create a DataFrame with all metrics
+    history_df = pd.DataFrame({
         "train_loss": train_loss_history,
         "train_acc": train_acc_history,
         "train_f1": train_f1_history,
@@ -151,18 +152,13 @@ def save_history(
         "test_acc": test_acc_history,
         "test_f1": test_f1_history,
         "test_map": test_map_history,
-        "test_subset_acc": test_subset_acc_history,
-    }
+        "test_subset_acc": test_subset_acc_history
+    })
 
-    for history_type, history_data in history_files.items():
-        history_filename = (
-            f"{HISTORIES_DIR}/{exp.id:02d}-{exp.net_name[0]}-{history_type}.csv"
-        )
-        
-        df = pd.DataFrame({history_type: history_data})
-        df.to_csv(history_filename, index=False)
-
-        print(f"History saved to {history_filename}")
+    # Save all metrics to a single CSV file
+    history_filename = f"{HISTORIES_DIR}/{exp.id:02d}-{exp.title}.csv"
+    history_df.to_csv(history_filename, index=False)
+    print(f"History saved to {history_filename}")
         
 def save_predictions_to_csv(exp: ExperimentConfig, model, test_dataset, n_test_steps, test_list):
     rows = []
