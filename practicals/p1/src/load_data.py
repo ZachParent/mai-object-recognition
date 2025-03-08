@@ -81,7 +81,7 @@ def get_file_paths(file_list):
     return image_paths, annotation_paths
 
 
-def create_dataset(file_list, batch_size, is_training=True):
+def create_dataset(file_list, is_training=True):
     """Create a tf.data.Dataset from a list of file paths."""
     # Get full paths for images and annotations
     image_paths, annotation_paths = get_file_paths(file_list)
@@ -97,8 +97,8 @@ def create_dataset(file_list, batch_size, is_training=True):
         lambda x, y: (data_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
     )
 
-    # Batch and prefetch
-    dataset = dataset.batch(batch_size)
+    # # Batch and prefetch
+    # dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     return dataset
