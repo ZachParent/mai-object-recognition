@@ -14,7 +14,8 @@ class ExperimentConfig(pydantic.BaseModel):
     learning_rate: float = 0.001
     loss: str = "binary_crossentropy"
     classifier_head: str = "default"
-    augmentation: str = "Simple"
+    augmentation: str = "simple"
+    imbalance: str = "loss"
 
 
 experiments = {
@@ -97,7 +98,7 @@ experiments = {
     "augmentation-experiments": [
         {
             "id": 18 + i,
-            "title": "asdna",
+            "title": f"Augmentation: {augmentation_method}",
             "augmentation": augmentation_method,
         }
         for i, augmentation_method in enumerate(["simple", "color", "occlusion", "all"])
@@ -105,7 +106,7 @@ experiments = {
     "imbalance-experiments": [
         {
             "id": 22 + i,
-            "title": "asdnals",
+            "title": f"Imbalance handling: {imbalance_method}",
             "imbalance": imbalance_method,
         }
         for i, imbalance_method in enumerate(["loss", "batch", "all"])
