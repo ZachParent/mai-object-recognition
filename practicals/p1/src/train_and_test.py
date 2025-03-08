@@ -256,8 +256,8 @@ def train_and_test(
     train_list,
     test_list,
 ):
-    n_train_steps = 2 # len(train_list) // exp.batch_size
-    n_test_steps = 2 # len(test_list) // exp.batch_size
+    n_train_steps = len(train_list) // exp.batch_size
+    n_test_steps = len(test_list) // exp.batch_size
     warmup_epochs = 3  # Number of epochs to keep the base model frozen
 
     (
