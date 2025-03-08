@@ -86,34 +86,20 @@ def save_results(
     os.makedirs(RESULTS_DIR, exist_ok=True)
     results_file = RESULTS_DIR / f"{exp_name}.csv"
     
-    columns = [
-        "ID",
-        "Test Loss", 
-        "Test Accuracy",
-        "Test F1",
-        "Test mAP", 
-        "Test Subset Acc",
-        "Train Loss",
-        "Train Accuracy", 
-        "Train F1",
-        "Train mAP",
-        "Train Subset Acc",
-        "Train time"
-    ]
-    
     new_row = pd.DataFrame([{
-        "ID": exp.id,
-        "Test Loss": test_loss,
-        "Test Accuracy": test_acc, 
-        "Test F1": test_f1,
-        "Test mAP": test_map,
-        "Test Subset Acc": test_subset_acc,
-        "Train Loss": train_loss,
-        "Train Accuracy": train_acc,
-        "Train F1": train_f1,
-        "Train mAP": train_map,
-        "Train Subset Acc": train_subset_acc,
-        "Train time": training_time
+        "id": exp.id,
+        "title": exp.title,
+        "test_loss": test_loss,
+        "test_acc": test_acc, 
+        "test_f1": test_f1,
+        "test_map": test_map,
+        "test_subset_acc": test_subset_acc,
+        "train_loss": train_loss,
+        "train_acc": train_acc,
+        "train_f1": train_f1,
+        "train_map": train_map,
+        "train_subset_acc": train_subset_acc,
+        "train_time": training_time
     }])
 
     if os.path.exists(results_file):
@@ -132,14 +118,11 @@ def save_results(
 def save_model(model, exp: ExperimentConfig):
     """Save the model weights to disk."""
     os.makedirs(MODELS_DIR, exist_ok=True)
-    model_filename = f"{MODELS_DIR}/{exp.net_name[0]}-{exp.id}.weights.h5"
+    model_filename = f"{MODELS_DIR}/{exp.id:02d}-{exp.net_name[0]}.weights.h5"
 
-    # start_time = time.time()
     model.save_weights(model_filename)
-    # end_time = time.time()
 
     print(f"Model saved to {model_filename}")
-    # print(f"Time taken to save model: {end_time - start_time:.2f}s")
 
 
 def save_history(
@@ -181,9 +164,10 @@ def save_history(
 
         print(f"History saved to {history_filename}")
         
-def save_predictions_to_csv(experiment, model, test_dataset, n_test_steps, test_list):
+def save_predictions_to_csv(exp: ExperimentConfig, model, test_dataset, n_test_steps, test_list):
     rows = []
     global_image_index = 0  # Counter to index into test_list
+    os.makedirs(LABELS_DIR, exist_ok=True)
 
     # Iterate over batches of the test_dataset.
     for X, Y in islice(test_dataset, n_test_steps):
@@ -202,18 +186,18 @@ def save_predictions_to_csv(experiment, model, test_dataset, n_test_steps, test_
         # Create a row for each image in the batch.
         for i in range(batch_size):
             row = {
-                "experiment_id": experiment.title,
+                "id": exp.id,
+                "title": exp.title,
                 "image_name": image_names[i]
             }
             # Add true and predicted labels for each class.
             for cls in range(n_classes):
-                row[f"true_{cls}"] = Y[i, cls]
-                row[f"pred_{cls}"] = pred_labels[i, cls]
+                row[cls] = pred_labels[i, cls]
             rows.append(row)
 
     # Convert the rows into a DataFrame.
     df = pd.DataFrame(rows)
-    csv_path = Path(RESULTS_DIR) / "label_predictions.csv"
+    csv_path = PREDICTED_CSV
 
     # Append to CSV if it exists; otherwise, create a new file.
     if os.path.exists(csv_path):
