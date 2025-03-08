@@ -28,15 +28,6 @@ VOC_CLASSES = {
 }
 BATCH_SIZES = [16, 32, 64]
 
-# Experiment-specific parameters were moved to experiment_config.py
-
-# batch_size = 32
-# n_epochs = 1
-# net_name = [['resnet50','ResNet50'], ['inception_v3','InceptionV3'], ['mobilenet_v2','MobileNetV2']][0]
-# train_from_scratch = True
-# last_layer_activation = ['softmax', 'sigmoid', None][1]
-# loss = ['categorical_crossentropy', 'binary_crossentropy', 'mean_squared_error', 'mean_absolute_error'][1]
-
 # Directories
 PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"
