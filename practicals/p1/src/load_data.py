@@ -1,8 +1,8 @@
 import xml.etree.ElementTree as ET
 import tensorflow as tf
+from keras import layers, Sequential
 from config import voc_classes, num_classes, RAW_DATA_DIR, img_size
 import numpy as np
-from augmentation import create_data_pipeline
 
 
 def parse_xml_annotation(xml_path):
@@ -81,7 +81,27 @@ def get_file_paths(file_list):
     return image_paths, annotation_paths
 
 
-def create_dataset(file_list, batch_size, is_training=True, augmentation="simple"):
+def get_preprocessing_pipeline(use_normalization=True, per_sample_normalization=False):
+    """Returns a Keras Sequential pipeline for preprocessing."""
+    if not use_normalization:
+        return layers.Identity()
+
+    preprocessing_layers = []
+    if per_sample_normalization:
+        # Use Lambda layer for per-sample normalization
+        def normalize(x):
+            mean = tf.reduce_mean(x, axis=[0, 1], keepdims=True)
+            std = tf.math.reduce_std(x, axis=[0, 1], keepdims=True)
+            return (x - mean) / (std + 1e-7)
+
+        preprocessing_layers.append(layers.Lambda(normalize))
+    else:
+        preprocessing_layers.append(layers.Rescaling(1.0 / 255))
+
+    return Sequential(preprocessing_layers, name="preprocessing_pipeline")
+
+
+def create_dataset(file_list, batch_size):
     """Create a tf.data.Dataset from a list of file paths."""
     # Get full paths for images and annotations
     image_paths, annotation_paths = get_file_paths(file_list)
@@ -90,11 +110,11 @@ def create_dataset(file_list, batch_size, is_training=True, augmentation="simple
     dataset = get_dataset_from_paths(image_paths, annotation_paths)
 
     # Create and apply the data pipeline
-    data_pipeline = create_data_pipeline(is_training, augmentation)
+    preprocessing_pipeline = get_preprocessing_pipeline()
 
     # Apply the pipeline to the images
     dataset = dataset.map(
-        lambda x, y: (data_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
+        lambda x, y: (preprocessing_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
     )
 
     # # Batch and prefetch

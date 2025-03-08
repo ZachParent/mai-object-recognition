@@ -14,6 +14,7 @@ class ExperimentConfig(pydantic.BaseModel):
     learning_rate: float = 0.001
     loss: str = "binary_crossentropy"
     classifier_head: str = "default"
+    augmentation: str = "Simple"
 
 
 experiments = {

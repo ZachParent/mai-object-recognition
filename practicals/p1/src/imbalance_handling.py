@@ -4,7 +4,7 @@ from config import num_classes, voc_classes, RAW_DATA_DIR, img_size
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import random
-from load_data import load_and_preprocess_image, parse_xml_annotation, get_file_paths
+from load_data import load_and_preprocess_image, parse_xml_annotation, get_file_paths, get_preprocessing_pipeline
 from augmentation import create_data_pipeline
 
 
@@ -245,7 +245,7 @@ def create_balanced_dataset(file_list, is_training=True, batch_size=32, augmenta
     )
     
     # Create and apply the data pipeline
-    data_pipeline = create_data_pipeline(is_training, augmentation)
+    data_pipeline = get_preprocessing_pipeline()
 
     # Apply the pipeline to the images
     dataset = dataset.map(

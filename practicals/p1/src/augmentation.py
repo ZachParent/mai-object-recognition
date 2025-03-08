@@ -157,40 +157,38 @@ def get_augmentation_pipeline(use_augmentation=True, augmentation="simple"):
     return Sequential(augmentation_layers, name="augmentation_pipeline")
 
 
-def get_preprocessing_pipeline(use_normalization=True):
-    """Returns a Keras Sequential pipeline for preprocessing."""
-    if not use_normalization:
-        return layers.Identity()
-
-    preprocessing_layers = []
-    if per_sample_normalization:
-        # Use Lambda layer for per-sample normalization
-        def normalize(x):
-            mean = tf.reduce_mean(x, axis=[0, 1], keepdims=True)
-            std = tf.math.reduce_std(x, axis=[0, 1], keepdims=True)
-            return (x - mean) / (std + 1e-7)
-
-        preprocessing_layers.append(layers.Lambda(normalize))
-    else:
-        preprocessing_layers.append(layers.Rescaling(1.0 / 255))
-
-    return Sequential(preprocessing_layers, name="preprocessing_pipeline")
 
 
-def create_data_pipeline(is_training=True, augmentation=None):
+def create_augmentation_pipeline(augmentation="simple"):
     """Creates a complete data processing pipeline combining preprocessing and augmentation.
 
     Args:
         is_training: Whether pipeline is used during training (applying augmentation)
         advanced_augmentation: Whether to add advanced augmentation techniques
     """
-    preprocessing = get_preprocessing_pipeline()
     augmentation = (
-        get_augmentation_pipeline(
-            use_augmentation=is_training, augmentation=augmentation
-        )
-        if is_training and augmentation is not None
+        get_augmentation_pipeline(augmentation=augmentation)
+        if augmentation is not None
         else layers.Identity()
     )
 
-    return Sequential([preprocessing, augmentation], name="data_pipeline")
+    return Sequential(augmentation, name="data_pipeline")
+
+
+def apply_augmentation(dataset, augmentation="simple"):
+    """Applies augmentation to a dataset based on the desired type.
+
+        Args:
+        dataset: Dataset to modify
+        augmentation: Type of augmentation to apply
+    """
+
+
+    augmentation_pipeline = create_augmentation_pipeline(augmentation)
+    aug_dataset = dataset.map(
+        lambda x, y: (augmentation_pipeline(x), y), num_parallel_calls=tf.data.AUTOTUNE
+    )
+
+    dataset = dataset.concatenate(aug_dataset)
+
+    return dataset
