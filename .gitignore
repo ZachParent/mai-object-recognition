@@ -198,4 +198,3 @@ practicals/p1/src_remote/metrics.py
 practicals/p1/src_remote/models.py
 practicals/p1/src_remote/train_and_test.py
 practicals/p1/src_remote/visualization.py
-practicals/fetch_from_remote.bat
