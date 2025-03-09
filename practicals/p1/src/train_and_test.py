@@ -214,6 +214,7 @@ def train_and_test(
     test_dataset,
     train_list,
     test_list,
+    loss = None
 ):
     n_train_steps = len(train_list) // exp.batch_size
     n_test_steps = len(test_list) // exp.batch_size
@@ -273,7 +274,7 @@ def train_and_test(
         if should_recompile:
             print(f"Recompiling model at epoch {epoch} (Optimizer changed)")
             model.compile(
-                loss=exp.loss,
+                loss=loss if loss is not None else exp.loss,
                 optimizer=optimizer,
                 metrics=[
                     "AUC",
