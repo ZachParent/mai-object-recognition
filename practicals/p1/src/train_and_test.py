@@ -214,7 +214,7 @@ def train_and_test(
     test_dataset,
     train_list,
     test_list,
-    loss = None
+    loss=None,
 ):
     n_train_steps = len(train_list) // exp.batch_size
     n_test_steps = len(test_list) // exp.batch_size
