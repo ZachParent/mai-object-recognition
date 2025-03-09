@@ -163,7 +163,7 @@ def get_augmentation_pipeline(use_augmentation=True, augmentation="simple"):
         # Add random erasing/cutout
         augmentation_layers.append(random_erasing_layer())
 
-    return Sequential(augmentation_layers, name="augmentation_pipeline")
+    return augmentation_layers
 
 
 def create_augmentation_pipeline(augmentation="simple"):

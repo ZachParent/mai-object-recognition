@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from config import num_classes, voc_classes, RAW_DATA_DIR, img_size
+from config import *
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import random
@@ -22,7 +22,7 @@ def analyze_class_distribution(file_list):
     Returns:
         class_counts: Dictionary mapping class index to count
     """
-    class_counts = {i: 0 for i in range(num_classes)}
+    class_counts = {i: 0 for i in range(NUM_CLASSES)}
     annotations_dir = RAW_DATA_DIR / "Annotations"
 
     for file_id in file_list:
@@ -33,7 +33,7 @@ def analyze_class_distribution(file_list):
 
             for boxes in root.iter("object"):
                 classname = boxes.find("name").text
-                class_idx = voc_classes[classname]
+                class_idx = VOC_CLASSES[classname]
                 class_counts[class_idx] += 1
 
         except Exception as e:
@@ -52,7 +52,7 @@ def create_class_to_files_mapping(file_list):
     Returns:
         class_to_files: Dictionary mapping class indices to lists of file IDs
     """
-    class_to_files = {i: [] for i in range(num_classes)}
+    class_to_files = {i: [] for i in range(NUM_CLASSES)}
     annotations_dir = RAW_DATA_DIR / "Annotations"
 
     for file_id in file_list:
@@ -64,7 +64,7 @@ def create_class_to_files_mapping(file_list):
 
             for boxes in root.iter("object"):
                 classname = boxes.find("name").text
-                class_idx = voc_classes[classname]
+                class_idx = VOC_CLASSES[classname]
 
                 # Add this file to the corresponding class list if not already there
                 if file_id not in class_to_files[class_idx]:
@@ -248,8 +248,8 @@ def create_balanced_dataset(
     dataset = tf.data.Dataset.from_generator(
         gen,
         output_signature=(
-            tf.TensorSpec(shape=(batch_size, img_size, img_size, 3), dtype=tf.float32),
-            tf.TensorSpec(shape=(batch_size, num_classes), dtype=tf.float32),
+            tf.TensorSpec(shape=(batch_size, IMG_SIZE, IMG_SIZE, 3), dtype=tf.float32),
+            tf.TensorSpec(shape=(batch_size, NUM_CLASSES), dtype=tf.float32),
         ),
     )
 
@@ -312,7 +312,7 @@ def create_weighted_binary_crossentropy(file_list, power=0.5):
     class_weights = create_class_weights(file_list, power)
 
     # Convert to tensor
-    weight_values = [class_weights[i] for i in range(num_classes)]
+    weight_values = [class_weights[i] for i in range(NUM_CLASSES)]
     weight_tensor = tf.constant(weight_values, dtype=tf.float32)
 
     def weighted_loss(y_true, y_pred):
@@ -321,7 +321,7 @@ def create_weighted_binary_crossentropy(file_list, power=0.5):
 
         # Apply weights based on true classes
         weights = tf.reduce_sum(
-            y_true * tf.reshape(weight_tensor, [1, num_classes]) + (1 - y_true) * 1.0,
+            y_true * tf.reshape(weight_tensor, [1, NUM_CLASSES]) + (1 - y_true) * 1.0,
             axis=-1,
         )
 
