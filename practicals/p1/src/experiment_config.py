@@ -87,12 +87,12 @@ experiments = {
     "hyperparameter-experiments": [
         {
             "id": 9 + i,
-            "title": f"batch_size: {batch_size}, learning_rate: {learning_rate}",
+            "title": f"batch_size={batch_size}, learning_rate={learning_rate}",
             "batch_size": batch_size,
             "learning_rate": learning_rate,
         }
         for i, (batch_size, learning_rate) in enumerate(
-            itertools.product([16, 32, 64], [0.001, 0.01, 0.1])
+            itertools.product([16, 32, 64], [0.0001, 0.001, 0.01])
         )
     ],
     "augmentation-experiments": [
@@ -114,7 +114,7 @@ experiments = {
     "classfier_head-experiments": [
         {
             "id": 24 + i,
-            "title": f"classifier_head: {classifier_head}",
+            "title": f"classifier_head= {classifier_head}",
             "classifier_head": classifier_head,
         }
         for i, classifier_head in enumerate(["ensemble", "attention"])
