@@ -95,9 +95,17 @@ experiments = {
             itertools.product([16, 32, 64], [0.0001, 0.001, 0.01])
         )
     ],
-    "augmentation-experiments": [
+    "classifier_head-experiments": [
         {
             "id": 18 + i,
+            "title": f"classifier_head= {classifier_head}",
+            "classifier_head": classifier_head,
+        }
+        for i, classifier_head in enumerate(["ensemble", "attention"])
+    ],
+    "augmentation-experiments": [
+        {
+            "id": 20 + i,
             "title": f"Augmentation: {augmentation_method}",
             "augmentation": augmentation_method,
         }
@@ -105,19 +113,11 @@ experiments = {
     ],
     "imbalance-experiments": [
         {
-            "id": 22 + i,
+            "id": 24 + i,
             "title": f"Imbalance handling: {imbalance_method}",
             "imbalance": imbalance_method,
         }
         for i, imbalance_method in enumerate(["loss", "batch", "all"])
-    ],
-    "classfier_head-experiments": [
-        {
-            "id": 24 + i,
-            "title": f"classifier_head= {classifier_head}",
-            "classifier_head": classifier_head,
-        }
-        for i, classifier_head in enumerate(["ensemble", "attention"])
     ],
 }
 
