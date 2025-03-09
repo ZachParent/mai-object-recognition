@@ -4,6 +4,7 @@ from config import *
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import random
+import time  # added for timing prints
 from load_data import (
     load_and_preprocess_image,
     parse_xml_annotation,
@@ -22,6 +23,7 @@ def analyze_class_distribution(file_list):
     Returns:
         class_counts: Dictionary mapping class index to count
     """
+    start_time = time.time()
     class_counts = {i: 0 for i in range(NUM_CLASSES)}
     annotations_dir = RAW_DATA_DIR / "Annotations"
 
@@ -39,6 +41,8 @@ def analyze_class_distribution(file_list):
         except Exception as e:
             print(f"Error processing {xml_path}: {e}")
 
+    elapsed = time.time() - start_time
+    print("analyze_class_distribution took", elapsed, "seconds")
     return class_counts
 
 
@@ -52,6 +56,7 @@ def create_class_to_files_mapping(file_list):
     Returns:
         class_to_files: Dictionary mapping class indices to lists of file IDs
     """
+    start_time = time.time()
     class_to_files = {i: [] for i in range(NUM_CLASSES)}
     annotations_dir = RAW_DATA_DIR / "Annotations"
 
@@ -73,6 +78,8 @@ def create_class_to_files_mapping(file_list):
         except Exception as e:
             print(f"Error processing {xml_path}: {e}")
 
+    elapsed = time.time() - start_time
+    print("create_class_to_files_mapping took", elapsed, "seconds")
     return class_to_files
 
 
@@ -88,6 +95,7 @@ def generate_balanced_batch_ids(file_list, batch_size=32, min_samples_per_class=
     Returns:
         balanced_file_list: List of file IDs with improved class balance
     """
+    start_time = time.time()
     # Create mapping of classes to files
     class_to_files = create_class_to_files_mapping(file_list)
 
@@ -169,6 +177,8 @@ def generate_balanced_batch_ids(file_list, batch_size=32, min_samples_per_class=
     if len(balanced_files) > batch_size:
         balanced_files = balanced_files[:batch_size]
 
+    elapsed = time.time() - start_time
+    print("generate_balanced_batch_ids took", elapsed, "seconds")
     return balanced_files
 
 
@@ -183,6 +193,7 @@ def load_balanced_batch(file_ids):
         images: List of loaded and preprocessed images
         labels: List of parsed labels
     """
+    start_time = time.time()
     images = []
     labels = []
 
@@ -198,6 +209,8 @@ def load_balanced_batch(file_ids):
         label = parse_xml_annotation(xml_path)
         labels.append(label)
 
+    elapsed = time.time() - start_time
+    print("load_balanced_batch took", elapsed, "seconds")
     return np.array(images), np.array(labels)
 
 
@@ -212,23 +225,22 @@ def create_balanced_dataset_generator(file_list, batch_size=32):
     Returns:
         generator: A generator yielding (images, labels) tuples
     """
-
     def generator():
         while True:
+            batch_start = time.time()
             # Generate balanced batch IDs
             balanced_ids = generate_balanced_batch_ids(file_list, batch_size)
 
             # Load the actual images and labels
             images, labels = load_balanced_batch(balanced_ids)
-
+            elapsed = time.time() - batch_start
+            print("Generated balanced batch in", elapsed, "seconds")
             yield images, labels
 
     return generator
 
 
-def create_balanced_dataset(
-    file_list, is_training=True, batch_size=32, augmentation=None
-):
+def create_balanced_dataset(file_list, is_training=True, batch_size=32, augmentation=None):
     """
     Create a TensorFlow dataset with balanced class distribution.
 
@@ -241,6 +253,7 @@ def create_balanced_dataset(
     Returns:
         dataset: A TensorFlow dataset with balanced batches
     """
+    start_time = time.time()
     # Create generator function
     gen = create_balanced_dataset_generator(file_list, batch_size)
 
@@ -264,6 +277,8 @@ def create_balanced_dataset(
     # Prefetch for performance
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
+    elapsed = time.time() - start_time
+    print("create_balanced_dataset took", elapsed, "seconds")
     return dataset
 
 
@@ -279,6 +294,7 @@ def create_class_weights(file_list, power=0.5):
     Returns:
         class_weights: Dictionary of class weights
     """
+    start_time = time.time()
     class_counts = analyze_class_distribution(file_list)
 
     # Calculate inverse frequency with smoothing
@@ -294,6 +310,8 @@ def create_class_weights(file_list, power=0.5):
     max_weight = max(class_weights.values())
     class_weights = {cls: weight / max_weight for cls, weight in class_weights.items()}
 
+    elapsed = time.time() - start_time
+    print("create_class_weights took", elapsed, "seconds")
     return class_weights
 
 
@@ -308,6 +326,7 @@ def create_weighted_binary_crossentropy(file_list, power=0.5):
     Returns:
         weighted_loss: Custom loss function
     """
+    start_time = time.time()
     # Calculate class weights
     class_weights = create_class_weights(file_list, power)
 
@@ -328,4 +347,6 @@ def create_weighted_binary_crossentropy(file_list, power=0.5):
         # Return weighted mean
         return tf.reduce_mean(bce * weights)
 
+    elapsed = time.time() - start_time
+    print("create_weighted_binary_crossentropy took", elapsed, "seconds")
     return weighted_loss
