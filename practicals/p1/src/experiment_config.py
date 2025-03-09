@@ -106,7 +106,7 @@ experiments = {
     "augmentation-experiments": [
         {
             "id": 20 + i,
-            "title": f"Augmentation: {augmentation_method}",
+            "title": f"augmentation={augmentation_method}",
             "augmentation": augmentation_method,
         }
         for i, augmentation_method in enumerate(["simple", "color", "occlusion", "all"])
@@ -114,7 +114,7 @@ experiments = {
     "imbalance-experiments": [
         {
             "id": 24 + i,
-            "title": f"Imbalance handling: {imbalance_method}",
+            "title": f"imbalance_handling={imbalance_method}",
             "imbalance": imbalance_method,
         }
         for i, imbalance_method in enumerate(["loss", "batch", "all"])
