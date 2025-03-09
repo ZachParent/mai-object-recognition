@@ -85,7 +85,7 @@ experiments = {
     "hyperparameter-experiments": [
         {
             "id": 9 + i,
-            "title": f"batch_size: {batch_size}, learning_rate: {learning_rate}",
+            "title": f"batch_size={batch_size}, learning_rate={learning_rate}",
             "batch_size": batch_size,
             "learning_rate": learning_rate,
         }
@@ -97,7 +97,7 @@ experiments = {
     "classfier_head-experiments": [
         {
             "id": 18 + i,
-            "title": f"classifier_head: {classifier_head}",
+            "title": f"classifier_head={classifier_head}",
             "classifier_head": classifier_head,
         }
         for i, classifier_head in enumerate(["ensemble", "attention"])
