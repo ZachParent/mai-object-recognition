@@ -24,6 +24,7 @@ def train_one_epoch(model, train_dataset, n_train_steps):
     )
     start_time = time.time()
     for X, Y in islice(train_dataset, n_train_steps):
+        print(f"X shape: {X.shape}, Y shape: {Y.shape}")
         loss, acc, f1, map_score, subset_acc = model.train_on_batch(X, Y)
         train_loss += loss
         train_acc += acc
