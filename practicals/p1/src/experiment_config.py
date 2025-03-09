@@ -90,7 +90,7 @@ experiments = {
             "learning_rate": learning_rate,
         }
         for i, (batch_size, learning_rate) in enumerate(
-            itertools.product([16, 32, 64], [0.001, 0.01, 0.1])
+            itertools.product([16, 32, 64], [0.0001, 0.001, 0.01])
         )
     ],
     "augmentation-experiments": [],  # Add to the id of classifier_head_experiments the number of experiments performed here
