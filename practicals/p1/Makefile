@@ -2,9 +2,11 @@
 # GLOBALS                                                                       #
 #################################################################################
 
-PROJECT_NAME = or-p1
+PROJECT_NAME = p1
 PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
+SUBMISSION_NAME = AgundezLangParentRecaldeSanchez_OR_P1
+ZIP_NAME = $(SUBMISSION_NAME).zip
 
 #################################################################################
 # PATHS                                                                     #
@@ -38,6 +40,25 @@ clear_raw_data:
 .PHONY: clear_stamps
 clear_stamps:
 	rm -rf $(STAMPS_DIR)
+
+## Create distribution zip
+.PHONY: zip
+zip:
+	rm -f $(ZIP_NAME) 
+	cd .. && \
+	mkdir -p $(SUBMISSION_NAME) && \
+	cp -r $(PROJECT_NAME)/* $(SUBMISSION_NAME)/ && \
+	cp ../requirements.txt $(SUBMISSION_NAME)/ && \
+	cp ../requirements_cuda.txt $(SUBMISSION_NAME)/ && \
+	zip -r $(SUBMISSION_NAME).zip $(SUBMISSION_NAME) \
+			-x "*.aux" "*.log" "*.out" "*.toc" "*.gz" "*.tar" \
+			"*.fls" "*.fdb_latexmk" "*.synctex.gz" \
+			"*/__pycache__/*" "*.pyc" \
+			"*.egg-info/*" "*/TODO.md" \
+			"*/.venv/*" "*/.git/*" \
+			"*/data/00_raw/*" "*/data/stamps/*" && \
+	rm -rf $(SUBMISSION_NAME) && \
+	mv $(SUBMISSION_NAME).zip ${PROJECT_NAME}/
 
 #################################################################################
 # DATA DEPENDENCIES                                                             #
