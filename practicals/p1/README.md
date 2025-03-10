@@ -15,9 +15,11 @@ This repository contains the code and analysis for Practical 1. The main impleme
 │   └── 1.1_results_analysis.ipynb  # Detailed analysis of results
 ├── report/figures/   # Report figures
 ├── scripts/          # Utility scripts
-└── src/              # Source code for the implementation
-    ├── main.ipynb    # Main notebook
-    └── ...           # Supporting py files
+├── src/              # Source code for the implementation
+│   ├── main.ipynb    # Main notebook
+│   └── ...           # Supporting py files
+├── requirements.txt  # Dependencies
+└── requirements_cuda.txt # Dependencies for GPU
 ```
 
 ## Setup Instructions
