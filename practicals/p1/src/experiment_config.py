@@ -117,7 +117,7 @@ experiments = {
             "title": f"imbalance_handling={imbalance_method}",
             "imbalance": imbalance_method,
         }
-        for i, imbalance_method in enumerate(["loss", "batch", "all"])
+        for i, imbalance_method in enumerate(["loss", "batch"])
     ],
 }
 
