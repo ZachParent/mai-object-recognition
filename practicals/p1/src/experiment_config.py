@@ -119,6 +119,12 @@ experiments = {
         }
         for i, imbalance_method in enumerate(["loss", "batch"])
     ],
+    "optimized": [
+        {
+            "id": 26,
+            "title": "optimized",
+        }
+    ],
 }
 
 # validate the experiment configs compile
