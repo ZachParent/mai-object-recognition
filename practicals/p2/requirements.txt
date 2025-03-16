@@ -1,4 +1,8 @@
-requests==2.28.2
+datasets
+pandas
+pydantic
+requests
+seaborn
 torch==2.6.0
 torchvision==0.21.0
-tqdm==4.65.0
+tqdm
