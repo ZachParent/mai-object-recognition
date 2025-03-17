@@ -8,7 +8,7 @@ import requests
 import zipfile
 from pathlib import Path
 from tqdm import tqdm
-
+import os
 # Add the project root directory to the Python path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
@@ -80,6 +80,11 @@ def main():
             extract_zip(dest_path, IMAGES_DIR)
         else:
             print(f"\nSkipping {key} - file already exists")
+    if (IMAGES_DIR / "test").exists():
+        print("Renaming test/ to val/...")
+        os.rename(IMAGES_DIR / "test", IMAGES_DIR / "val")
+    else:
+        print("test/ does not exist, skipping renaming")
 
     # Download annotation files
     annotation_files = {
