@@ -4,7 +4,14 @@ from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
 from torchvision import tv_tensors
 from experiment_config import ExperimentConfig
-from config import DEVICE, USING_CUDA, TRAIN_IMAGES_DIR, VAL_IMAGES_DIR, TRAIN_ANNOTATIONS_JSON, VAL_ANNOTATIONS_JSON
+from config import (
+    DEVICE,
+    USING_CUDA,
+    TRAIN_IMAGES_DIR,
+    VAL_IMAGES_DIR,
+    TRAIN_ANNOTATIONS_JSON,
+    VAL_ANNOTATIONS_JSON,
+)
 from torchvision.transforms import Compose, ColorJitter, ToTensor, ToPILImage, Resize
 import torch
 from PIL import Image
@@ -12,138 +19,377 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import json
+from pycocotools import mask as coco_mask
+from pycocotools.coco import COCO
+
+# Define main garment categories to focus on
+main_item_names = [
+    "shirt, blouse",
+    "top, t-shirt, sweatshirt",
+    "sweater",
+    "cardigan",
+    "jacket",
+    "vest",
+    "pants",
+    "shorts",
+    "skirt",
+    "coat",
+    "dress",
+    "jumpsuit",
+    "cape",
+    "glasses",
+    "hat",
+    "headband, head covering, hair accessory",
+    "tie",
+    "glove",
+    "watch",
+    "belt",
+    "leg warmer",
+    "tights, stockings",
+    "sock",
+    "shoe",
+    "bag, wallet",
+    "scarf",
+    "umbrella",
+]
+
+
+def load_category_mappings(ann_file):
+    """
+    Load Fashionpedia categories and create id mappings for main garments
+    """
+    with open(ann_file, "r") as f:
+        dataset = json.load(f)
+
+    categories = dataset["categories"]
+
+    # Create mappings
+    orig_id_to_name = {}
+    name_to_orig_id = {}
+
+    for cat in categories:
+        cat_id = cat["id"]
+        cat_name = cat["name"]
+        orig_id_to_name[cat_id] = cat_name
+        name_to_orig_id[cat_name] = cat_id
+
+    # Create our selected mapping (main garments only)
+    main_category_ids = []
+    for name in main_item_names:
+        if name in name_to_orig_id:
+            main_category_ids.append(name_to_orig_id[name])
+
+    # Create our own consecutive ids for the categories
+    id_to_name = {0: "background"}
+    name_to_id = {"background": 0}
+    orig_id_to_new_id = {}
+
+    for i, name in enumerate(main_item_names):
+        new_id = i + 1  # +1 for background
+        id_to_name[new_id] = name
+        name_to_id[name] = new_id
+        if name in name_to_orig_id:
+            orig_id_to_new_id[name_to_orig_id[name]] = new_id
+
+    num_classes = len(main_item_names) + 1  # +1 for background
+
+    return {
+        "orig_id_to_name": orig_id_to_name,
+        "name_to_orig_id": name_to_orig_id,
+        "id_to_name": id_to_name,
+        "name_to_id": name_to_id,
+        "orig_id_to_new_id": orig_id_to_new_id,
+        "main_category_ids": main_category_ids,
+        "num_classes": num_classes,
+    }
+
+
+def decode_rle_mask(rle, height, width):
+    """Decode RLE encoded mask to binary mask"""
+    mask = coco_mask.decode(rle)
+    return mask
+
+
+def create_segmentation_mask(coco_obj, img_id, height, width, mappings):
+    """
+    Create segmentation mask from COCO annotations
+    """
+    # Initialize empty mask with zeros (background)
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    # Get annotations for this image
+    ann_ids = coco_obj.getAnnIds(imgIds=img_id)
+    anns = coco_obj.loadAnns(ann_ids)
+
+    # Create a list to store masks and category IDs for ordering
+    masks_with_cats = []
+
+    for ann in anns:
+        cat_id = ann["category_id"]
+
+        # Check if this category is in our main categories
+        if cat_id not in mappings["orig_id_to_new_id"]:
+            continue
+
+        # Get our new category ID
+        new_cat_id = mappings["orig_id_to_new_id"][cat_id]
+
+        # Get segmentation
+        if "segmentation" in ann:
+            seg = ann["segmentation"]
+            if isinstance(seg, dict):  # RLE format
+                binary_mask = decode_rle_mask(seg, height, width)
+            elif isinstance(seg, list):  # Polygon format
+                # Convert polygon to mask using COCO API
+                binary_mask = coco_obj.annToMask(ann)
+            else:
+                continue
+
+            # Store mask with category ID and area (for ordering)
+            area = ann.get("area", np.sum(binary_mask))
+            masks_with_cats.append((binary_mask, new_cat_id, area))
+
+    # Sort by area (ascending) so smaller objects appear on top
+    masks_with_cats.sort(key=lambda x: x[2])
+
+    # Apply masks in sorted order
+    for binary_mask, category_id, _ in masks_with_cats:
+        mask = np.where(binary_mask == 1, category_id, mask)
+
+    return mask
 
 
 class ResizeTransform:
     def __init__(self, size):
         self.size = size
 
-    def __call__(self, image, target):
-        # Determine the width and height of the image
+    def __call__(self, image, mask):
+        """Resize both image and mask preserving aspect ratio"""
+        # Calculate resize factors
         width, height = image.size
-
-        # Determine the scaling factor
         x_scale = self.size / width
         y_scale = self.size / height
 
-        # Resize the image
+        # Resize image using BILINEAR interpolation
         image = image.resize((self.size, self.size), Image.BILINEAR)
-        
-        # Scale the segmentation values in the target
-        if 'segmentations' in target:
-            target['segmentations'] = [
-                [(x * x_scale, y * y_scale) for x, y in zip(seg[::2], seg[1::2])]
-                for seg in target['segmentations']
-            ]
-        if 'bbox' in target:
-            target['bbox'] = [
-                [x * x_scale]
-                for x in target['bbox']
-            ]
-        return image, target
 
-class FashionpediaDataset(Dataset):
-    def __init__(self, img_dir, instances_file, img_size, transform=None, max_samples=None):
-        with open(instances_file, "r") as f:
-            self.instances_file_data = json.load(f)
-        self.annotations = pd.DataFrame(self.instances_file_data["annotations"]).set_index("image_id")
-        self.images = pd.DataFrame(self.instances_file_data["images"]).set_index("id")
+        # Resize mask using NEAREST interpolation to preserve class IDs
+        if mask is not None:
+            mask = Image.fromarray(mask).resize((self.size, self.size), Image.NEAREST)
+            mask = np.array(mask)
+
+        return image, mask
+
+
+class FashionpediaSegmentationDataset(Dataset):
+    def __init__(
+        self, img_dir, ann_file, img_size=224, transform=None, max_samples=None
+    ):
         self.img_dir = img_dir
+        self.ann_file = ann_file
         self.img_size = img_size
-        self.resize_transform = ResizeTransform(img_size)
         self.transform = transform
         self.max_samples = max_samples
-        if max_samples:
-            self.annotations = self.annotations.sample(n=max_samples, random_state=42)
+
+        # Load COCO API and category mappings
+        self.coco = COCO(ann_file)
+        self.mappings = load_category_mappings(ann_file)
+
+        # Get image IDs containing our main categories
+        self.img_ids = []
+        for cat_id in self.mappings["main_category_ids"]:
+            cat_img_ids = self.coco.getImgIds(catIds=[cat_id])
+            self.img_ids.extend(cat_img_ids)
+
+        # Remove duplicates
+        self.img_ids = list(set(self.img_ids))
+
+        # Limit dataset size if specified
+        if self.max_samples and self.max_samples < len(self.img_ids):
+            self.img_ids = self.img_ids[: self.max_samples]
+
+        # Setup resize transform
+        self.resize_transform = ResizeTransform(img_size)
+
+        print(f"Dataset initialized with {len(self.img_ids)} images")
 
     def __len__(self):
-        return len(self.annotations)
+        return len(self.img_ids)
 
     def __getitem__(self, idx):
-        annotation = self.annotations.iloc[idx]
+        img_id = self.img_ids[idx]
+        img_info = self.coco.loadImgs(img_id)[0]
 
-        img_id = self.annotations.index[idx]
-        img_path = Path(self.img_dir) / self.images.loc[img_id]["file_name"]
-        image = Image.open(img_path).convert('RGB')
-        
-        target = annotation
-        
-        image, target = self.resize_transform(image, target)
+        # Load image
+        img_path = Path(self.img_dir) / img_info["file_name"]
+        image = Image.open(img_path).convert("RGB")
 
+        # Get image dimensions
+        height, width = image.height, image.width
+
+        # Create segmentation mask
+        mask = create_segmentation_mask(self.coco, img_id, height, width, self.mappings)
+
+        # Apply resize transform
+        image, mask = self.resize_transform(image, mask)
+
+        # Apply additional transforms
         if self.transform:
             image = self.transform(image)
-        
-        # convert each part of the target to a tensor
+
+        # Convert mask to tensor
+        mask_tensor = torch.from_numpy(mask).long()
+
+        # For compatibility with detection models, we'll create target dict
         target = {
-            "boxes": tv_tensors.BoundingBoxes(
-                data=target["bbox"],
-                format=tv_tensors.BoundingBoxFormat.XYWH,
-                canvas_size=(self.img_size, self.img_size),
-                dtype=torch.float32,
+            "masks": tv_tensors.Mask(
+                mask_tensor.unsqueeze(0),  # Add channel dimension
+                dtype=torch.long,
                 device=torch.device(DEVICE),
             ),
-            "area": torch.tensor(target["area"]),
-            "labels": torch.tensor(target["category_id"]),
-            "masks": [
-                tv_tensors.Mask(
-                    data=np.array(seg).reshape(-1, 2),
-                    dtype=torch.uint16,
-                    device=torch.device(DEVICE),
-                )
-                for seg in target["segmentation"]
-            ],
+            "labels": mask_tensor,  # Keep original format for segmentation models
+            "num_classes": self.mappings["num_classes"],
+            "class_names": self.mappings["id_to_name"],
         }
-            
+
         return image, target
 
+
 def get_dataloaders(experiment: ExperimentConfig):
-    # Load dataset without torch format initially
-    train_dataset = FashionpediaDataset(
-        img_dir=Path(TRAIN_IMAGES_DIR),
-        instances_file=Path(TRAIN_ANNOTATIONS_JSON),
-        img_size=224,
-        transform=T.ToTensor(),
-        max_samples=100,
-        # target_transform=T.ToTensor(),
+    # Define transforms
+    transform = T.Compose(
+        [
+            T.Resize((512, 512)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
     )
-    
-    # val_dataset = FashionpediaDataset(
-    #     img_dir=Path(VAL_IMAGES_DIR),
-    #     instances_file=Path(VAL_ANNOTATIONS_JSON),
-    #     transform=T.ToTensor(),
-    #     target_transform=T.ToTensor(),
-    # )
 
-    # Limit the dataset size to 100 for testing
-    # TODO: Remove this
-    # train_dataset = train_dataset[:100]
-    # val_dataset = val_dataset[:100]
+    # Create datasets
+    train_dataset = FashionpediaSegmentationDataset(
+        img_dir=TRAIN_IMAGES_DIR,
+        ann_file=TRAIN_ANNOTATIONS_JSON,
+        img_size=512,
+        transform=transform,
+        max_samples=100,
+    )
 
+    val_dataset = FashionpediaSegmentationDataset(
+        img_dir=VAL_IMAGES_DIR,
+        ann_file=VAL_ANNOTATIONS_JSON,
+        img_size=512,
+        transform=transform,
+        max_samples=100,
+    )
+
+    # Create data loaders
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=experiment.batch_size,
         shuffle=True,
-        # collate_fn=custom_collate,
+        num_workers=2,
+        drop_last=True,
     )
-    # val_dataloader = DataLoader(
-    #     val_dataset,
-    #     batch_size=experiment.batch_size,
-    #     shuffle=False,
-    #     # collate_fn=custom_collate,
-    # )
-    return train_dataloader
+
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=False,
+        num_workers=2,
+    )
+
+    return train_dataloader, val_dataloader
+
+
+def visualize_segmentation(image, mask, id_to_name, show=True):
+    """Utility function to visualize segmentation masks"""
+    import matplotlib.pyplot as plt
+
+    # Create a colormap for visualization
+    cmap = plt.cm.get_cmap("tab20", len(id_to_name))
+
+    plt.figure(figsize=(16, 8))
+
+    # Display original image
+    plt.subplot(1, 2, 1)
+    if isinstance(image, torch.Tensor):
+        # Denormalize and convert to numpy for visualization
+        img = image.permute(1, 2, 0).cpu().numpy()
+        img = img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
+        img = np.clip(img, 0, 1)
+    else:
+        img = image
+    plt.imshow(img)
+    plt.title("Original Image")
+    plt.axis("off")
+
+    # Display segmentation mask
+    plt.subplot(1, 2, 2)
+    if isinstance(mask, torch.Tensor):
+        mask = mask.cpu().numpy()
+
+    # Create a colored mask
+    colored_mask = np.zeros((*mask.shape, 3))
+    for class_id in np.unique(mask):
+        if class_id == 0:  # Background
+            continue
+
+        # Create color mask
+        class_mask = mask == class_id
+        color = cmap(class_id)[:3]  # RGB
+        for i in range(3):
+            colored_mask[class_mask, i] = color[i]
+
+    plt.imshow(colored_mask)
+
+    # Create a legend
+    handles = []
+    for class_id in sorted(np.unique(mask)):
+        if class_id in id_to_name:
+            color = cmap(class_id)[:3]
+            patch = plt.Rectangle((0, 0), 1, 1, fc=color)
+            handles.append((patch, id_to_name[class_id]))
+
+    # Only show legend if there are classes to display
+    if handles:
+        patches, labels = zip(*handles)
+        plt.legend(patches, labels, loc="center left", bbox_to_anchor=(1, 0.5))
+
+    plt.title("Segmentation Mask")
+    plt.axis("off")
+
+    plt.tight_layout()
+    if show:
+        plt.show()
+
+    return plt.gcf()  # Return the figure for saving if needed
 
 
 if __name__ == "__main__":
     experiment = ExperimentConfig(
-        batch_size=32, model_name="resnet18", learning_rate=0.001, epochs=4
+        batch_size=2,
+        model_name="segmentation_model",
+        learning_rate=0.001,
+        epochs=4,
+        img_size=512,
+        max_samples=10,
+        num_workers=0,  # Set to 0 for debugging
     )
-    train_dataloader = get_dataloaders(experiment)
 
-    # Test the first batch
-    batch = next(iter(train_dataloader))
-    print("Image shape:", batch["pixel_values"].shape)
-    print("Available keys:", batch.keys())
-    print("Objects:", batch["objects"])
+    train_dataloader, val_dataloader = get_dataloaders(experiment)
+    print(
+        f"Created dataloaders with {len(train_dataloader.dataset)} training and {len(val_dataloader.dataset)} validation examples"
+    )
 
+    # Test visualization with one sample
+    image, target = next(iter(train_dataloader))
+
+    # Print information about the batch
+    print("Image batch shape:", image.shape)
+    print("Available target keys:", target.keys())
+    print("Mask shape:", target["masks"].shape)
+    print("Number of classes:", target["num_classes"])
+
+    # Visualize the first image and its mask
+    visualize_segmentation(image[0], target["labels"][0], target["class_names"])
 # %%
