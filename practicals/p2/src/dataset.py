@@ -9,36 +9,32 @@ import torch
 from PIL import Image
 import numpy as np
 
-
-def transforms(examples):
-    """Transform images to tensors and resize them."""
-    transformed = []
-    for image in examples["image"]:
-        # Convert to PIL Image first (handles different input formats)
-        if isinstance(image, torch.Tensor):
-            image = image.cpu().numpy()
-        if isinstance(image, np.ndarray):
-            # Ensure image is in uint8 format
-            if image.dtype != np.uint8:
-                image = (image * 255).astype(np.uint8)
-            image = Image.fromarray(image)
-
-        # Apply transforms
-        transformed_image = jitter(image)
-        transformed.append(transformed_image)
-
-    # Stack the tensors to ensure consistent shape
-    examples["pixel_values"] = torch.stack(transformed)
-    return examples
-
-
-# Define transforms
-jitter = Compose(
+# Define transforms to preprocess images
+preprocess_image_transform = Compose(
     [
         Resize((224, 224)),  # Specify both dimensions
         ToTensor(),
     ]
 )
+
+def prepare_pixel_values(examples):
+    """Transform images to tensors and preprocess them."""
+    transformed = []
+    for image in examples["image"]:
+        if isinstance(image, torch.Tensor):
+            image = image.cpu().numpy()
+        if isinstance(image, np.ndarray):
+            if image.dtype != np.uint8:
+                image = (image * 255).astype(np.uint8)
+            image = Image.fromarray(image)
+
+        # Apply transforms
+        transformed_image = preprocess_image_transform(image)
+        transformed.append(transformed_image)
+
+    # Stack the tensors to ensure consistent shape
+    examples["pixel_values"] = torch.stack(transformed)
+    return examples
 
 
 def custom_collate(batch):
@@ -72,11 +68,11 @@ def get_dataloaders(experiment: ExperimentConfig):
 
     # Apply transforms
     dataset_dict = dataset_dict.map(
-        transforms,
+        prepare_pixel_values,
         remove_columns=["image"],
         batched=True,
-        batch_size=32,
-        desc="Processing images",
+        batch_size=1000 if USING_CUDA else 32,
+        desc="Preprocessing images",
     )
 
     train_dataset = dataset_dict["train"]
