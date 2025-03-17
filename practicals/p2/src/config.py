@@ -19,6 +19,7 @@ PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "00_raw"
 MODELS_DIR = PROJECT_DIR / "models"
+FIGURES_DIR = PROJECT_DIR / "report" / "figures"
 
 # Raw data subdirectories
 IMAGES_DIR = RAW_DATA_DIR / "images"
