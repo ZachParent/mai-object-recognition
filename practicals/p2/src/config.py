@@ -1,4 +1,5 @@
 from pathlib import Path
+import torch
 
 # Task-specific parameters
 # ...
@@ -32,3 +33,6 @@ REQUIRED_DIRS = [
     IMAGES_DIR,
     ANNOTATIONS_DIR,
 ]
+
+USING_CUDA = torch.cuda.is_available()
+DEVICE = torch.device("cuda" if USING_CUDA else "cpu")

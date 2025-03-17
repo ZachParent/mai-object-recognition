@@ -1,39 +1,111 @@
+# %%
 from datasets import load_dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
 from experiment_config import ExperimentConfig
-from typing import Literal
+from config import DEVICE, USING_CUDA
+from torchvision.transforms import Compose, ColorJitter, ToTensor, ToPILImage, Resize
+import torch
+from PIL import Image
+import numpy as np
 
-def get_dataloader( train_val_test: Literal["train", "val", "test"], batch_size: int, shuffle: bool,):
-    fashionpedia_dataset = load_dataset("detection-datasets/fashionpedia")
-    return DataLoader(fashionpedia_dataset[train_val_test], batch_size=batch_size, shuffle=shuffle)
 
-def augment_dataloader(dataloader: DataLoader):
-    # Add random jitter to the images
-    transform = T.Compose([
-        T.RandomHorizontalFlip(),
-        T.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.5, 1.5), shear=10),
-        T.ToTensor(),
-    ])
-    for batch in dataloader:
-        batch["image"] = transform(batch["image"])
-    return dataloader
+def transforms(examples):
+    """Transform images to tensors and resize them."""
+    transformed = []
+    for image in examples["image"]:
+        # Convert to PIL Image first (handles different input formats)
+        if isinstance(image, torch.Tensor):
+            image = image.cpu().numpy()
+        if isinstance(image, np.ndarray):
+            # Ensure image is in uint8 format
+            if image.dtype != np.uint8:
+                image = (image * 255).astype(np.uint8)
+            image = Image.fromarray(image)
 
-def preprocess_dataloader(dataloader: DataLoader):
-    transform = T.Compose([
-        T.Resize((224, 224)),
-        T.ToTensor(),
-    ])
-    for batch in dataloader:
-        batch["image"] = transform(batch["image"])
-    return dataloader
+        # Apply transforms
+        transformed_image = jitter(image)
+        transformed.append(transformed_image)
+
+    # Stack the tensors to ensure consistent shape
+    examples["pixel_values"] = torch.stack(transformed)
+    return examples
+
+
+# Define transforms
+jitter = Compose(
+    [
+        Resize((224, 224)),  # Specify both dimensions
+        ToTensor(),
+    ]
+)
+
+
+def custom_collate(batch):
+    """Custom collate function to handle the batch creation."""
+    pixel_values = torch.stack(
+        [torch.tensor(item["pixel_values"]) for item in batch]
+    )
+
+    # Collect all other keys that aren't pixel_values
+    other_keys = {key: [] for key in batch[0].keys() if key != "pixel_values"}
+    for item in batch:
+        for key in other_keys:
+            other_keys[key].append(item[key])
+
+    # Create the final batch
+    final_batch = {"pixel_values": pixel_values}
+    final_batch.update(other_keys)
+
+    return final_batch
+
 
 def get_dataloaders(experiment: ExperimentConfig):
-    train_dataloader = preprocess_dataloader(get_dataloader(train_val_test="train", batch_size=experiment.batch_size, shuffle=True))
-    val_dataloader = preprocess_dataloader(get_dataloader(train_val_test="val", batch_size=experiment.batch_size, shuffle=False))
-    test_dataloader = preprocess_dataloader(get_dataloader(train_val_test="test", batch_size=experiment.batch_size, shuffle=False))
-    return train_dataloader, val_dataloader, test_dataloader
+    # Load dataset without torch format initially
+    dataset_dict = load_dataset("detection-datasets/fashionpedia")
+
+    # Limit the dataset size to 100 for testing
+    # TODO: Remove this
+    for split in dataset_dict.keys():
+        dataset_dict[split] = dataset_dict[split].select(range(100))
+        print(f"{split} size: {len(dataset_dict[split])}")
+
+    # Apply transforms
+    dataset_dict = dataset_dict.map(
+        transforms,
+        remove_columns=["image"],
+        batched=True,
+        batch_size=32,
+        desc="Processing images",
+    )
+
+    train_dataset = dataset_dict["train"]
+    val_dataset = dataset_dict["val"]
+
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+        collate_fn=custom_collate,
+    )
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=False,
+        collate_fn=custom_collate,
+    )
+    return train_dataloader, val_dataloader
+
 
 if __name__ == "__main__":
-    dataloaders = get_dataloaders(ExperimentConfig(batch_size=32, model_name="resnet18", learning_rate=0.001, epochs=4))
-    print(dataloaders)
+    experiment = ExperimentConfig(
+        batch_size=32, model_name="resnet18", learning_rate=0.001, epochs=4
+    )
+    train_dataloader, val_dataloader = get_dataloaders(experiment)
+
+    # Test the first batch
+    batch = next(iter(train_dataloader))
+    print("Image shape:", batch["pixel_values"].shape)
+    print("Available keys:", batch.keys())
+
+# %%
