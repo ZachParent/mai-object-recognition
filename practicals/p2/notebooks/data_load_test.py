@@ -45,16 +45,9 @@ main_item_names = [
     'umbrella'
 ]
 
-# Prepare Fashionpedia data paths
 def setup_fashionpedia(data_dir):
     """
-    Setup paths for Fashionpedia dataset
-    
-    Args:
-        data_dir: Root directory for Fashionpedia dataset
-    
-    Returns:
-        Dictionary containing paths and data loaders
+    Setup paths for Fashionpedia dataset.
     """
     train_img_dir = os.path.join(data_dir, 'images', 'train')
     val_img_dir = os.path.join(data_dir, 'images', 'val')
@@ -74,51 +67,35 @@ def setup_fashionpedia(data_dir):
         'val_ann_file': val_ann_file
     }
 
-# Load and parse Fashionpedia annotations
 def load_fashionpedia_categories(ann_file):
     """
-    Load Fashionpedia categories and create id mappings for our main garments
-    
-    Args:
-        ann_file: Path to annotation file
-    
-    Returns:
-        Dictionary with category mappings
+    Load Fashionpedia categories and create id mappings for our main garments.
     """
     with open(ann_file, 'r') as f:
         dataset = json.load(f)
     
     categories = dataset['categories']
     
-    # Create mappings
-    orig_id_to_name = {}
-    name_to_orig_id = {}
+    # Use dictionary comprehensions for more concise mapping creation
+    orig_id_to_name = {cat['id']: cat['name'] for cat in categories}
+    name_to_orig_id = {cat['name']: cat['id'] for cat in categories}
     
-    for cat in categories:
-        cat_id = cat['id']
-        cat_name = cat['name']
-        orig_id_to_name[cat_id] = cat_name
-        name_to_orig_id[cat_name] = cat_id
+    # Get main category ids from our target list
+    main_category_ids = [name_to_orig_id[name] for name in main_item_names if name in name_to_orig_id]
     
-    # Create our selected mapping (main garments only)
-    main_category_ids = []
-    for name in main_item_names:
-        if name in name_to_orig_id:
-            main_category_ids.append(name_to_orig_id[name])
-    
-    # Create our own consecutive ids for the categories
+    # Create our own consecutive ids for the categories, with 0 as background
     id_to_name = {0: 'background'}
     name_to_id = {'background': 0}
     orig_id_to_new_id = {}
     
     for i, name in enumerate(main_item_names):
-        new_id = i + 1  # +1 for background
+        new_id = i + 1  # Reserve 0 for background
         id_to_name[new_id] = name
         name_to_id[name] = new_id
         if name in name_to_orig_id:
             orig_id_to_new_id[name_to_orig_id[name]] = new_id
     
-    num_classes = len(main_item_names) + 1  # +1 for background
+    num_classes = len(main_item_names) + 1  # Including background
     
     return {
         'orig_id_to_name': orig_id_to_name,
@@ -132,24 +109,13 @@ def load_fashionpedia_categories(ann_file):
 
 def decode_rle_mask(rle, height, width):
     """
-    Decode RLE encoded mask to binary mask
+    Decode RLE encoded mask to binary mask.
     """
-    mask = coco_mask.decode(rle)
-    return mask
+    return coco_mask.decode(rle)
 
 def create_segmentation_mask(coco, img_id, height, width, mappings):
     """
-    Create segmentation mask from COCO annotations
-    
-    Args:
-        coco: COCO API object
-        img_id: Image ID
-        height: Image height
-        width: Image width
-        mappings: Category mappings
-    
-    Returns:
-        Segmentation mask as numpy array
+    Create segmentation mask from COCO annotations.
     """
     # Initialize empty mask with zeros (background)
     mask = np.zeros((height, width), dtype=np.uint8)
@@ -158,42 +124,36 @@ def create_segmentation_mask(coco, img_id, height, width, mappings):
     ann_ids = coco.getAnnIds(imgIds=img_id)
     anns = coco.loadAnns(ann_ids)
     
-    # Create a list to store masks and category IDs for ordering
     masks_with_cats = []
     
     for ann in anns:
         cat_id = ann['category_id']
-        
-        # Check if this category is in our main categories
+        # Skip if not in main categories
         if cat_id not in mappings['orig_id_to_new_id']:
             continue
         
-        # Get our new category ID
         new_cat_id = mappings['orig_id_to_new_id'][cat_id]
+        seg = ann.get('segmentation')
+        if seg is None:
+            continue
         
-        # Get segmentation
-        if 'segmentation' in ann:
-            seg = ann['segmentation']
-            if isinstance(seg, dict):  # RLE format
-                binary_mask = decode_rle_mask(seg, height, width)
-            elif isinstance(seg, list):  # Polygon format
-                # Convert polygon to mask
-                binary_mask = np.zeros((height, width), dtype=np.uint8)
-                # COCO API can convert polygons to masks
-                binary_mask = coco.annToMask(ann)
-            else:
-                continue
-                
-            # Store mask with category ID and area (for ordering)
-            area = ann.get('area', np.sum(binary_mask))
-            masks_with_cats.append((binary_mask, new_cat_id, area))
+        # Decode segmentation mask based on its type
+        if isinstance(seg, dict):  # RLE format
+            binary_mask = decode_rle_mask(seg, height, width)
+        elif isinstance(seg, list):  # Polygon format
+            binary_mask = coco.annToMask(ann)
+        else:
+            continue
+        
+        area = ann.get('area', np.sum(binary_mask))
+        masks_with_cats.append((binary_mask, new_cat_id, area))
     
-    # Sort by area (ascending) so smaller objects appear on top
+    # Sort by area (ascending) so smaller objects overlay larger ones
     masks_with_cats.sort(key=lambda x: x[2])
     
-    # Apply masks in sorted order
+    # Update mask in place to avoid extra memory allocation
     for binary_mask, category_id, _ in masks_with_cats:
-        mask = np.where(binary_mask == 1, category_id, mask)
+        mask[binary_mask == 1] = category_id  # in-place assignment
     
     return mask
 
@@ -205,14 +165,12 @@ class FashionpediaSegmentationDataset(data.Dataset):
         self.transform = transform
         self.target_transform = target_transform
         
-        # Get all image IDs containing our main categories
-        self.img_ids = []
-        for cat_id in self.mappings['main_category_ids']:
-            cat_img_ids = self.coco.getImgIds(catIds=[cat_id])
-            self.img_ids.extend(cat_img_ids)
-        
-        # Remove duplicates
-        self.img_ids = list(set(self.img_ids))
+        # Collect image IDs from main categories (using set comprehension to remove duplicates)
+        self.img_ids = list({
+            img_id
+            for cat_id in self.mappings['main_category_ids']
+            for img_id in self.coco.getImgIds(catIds=[cat_id])
+        })
         
         print(f"Found {len(self.img_ids)} images containing main garment categories")
     
@@ -221,25 +179,19 @@ class FashionpediaSegmentationDataset(data.Dataset):
     
     def __getitem__(self, idx):
         img_id = self.img_ids[idx]
-        img_info = self.coco.loadImgs(img_id)[0]
-        
-        # Load image
+        # Load image info (assume one image per id)
+        img_info = self.coco.loadImgs([img_id])[0]
         img_path = os.path.join(self.img_dir, img_info['file_name'])
-        image = PILImage.open(img_path).convert('RGB')
         
-        # Get image size
+        # Use a context manager to ensure the file is closed after loading
+        with PILImage.open(img_path) as img:
+            image = img.convert('RGB')
+        
         height, width = image.height, image.width
         
         # Create segmentation mask
-        mask = create_segmentation_mask(
-            self.coco, 
-            img_id, 
-            height, 
-            width, 
-            self.mappings
-        )
+        mask = create_segmentation_mask(self.coco, img_id, height, width, self.mappings)
         
-        # Apply transformations
         if self.transform is not None:
             image = self.transform(image)
         
@@ -266,7 +218,7 @@ def get_transforms(split):
         ])
 
 def target_transform(mask):
-    # Resize mask to match image size (512x512)
+    # Resize mask to match image size (512x512) using nearest-neighbor interpolation
     mask = transforms.Resize((512, 512), interpolation=transforms.InterpolationMode.NEAREST)(mask.unsqueeze(0)).squeeze(0)
     return mask
 
@@ -288,7 +240,7 @@ def create_data_loaders(data_paths, category_mappings, batch_size=8, num_workers
         target_transform=target_transform
     )
     
-    # Create data loaders
+    # Use pin_memory and drop_last for efficient loading
     train_loader = data.DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -332,17 +284,14 @@ def visualize_segmentation(image, mask, id_to_name):
     if isinstance(mask, torch.Tensor):
         mask = mask.cpu().numpy()
     
-    # Create a colored mask
+    # Create a colored mask without creating unnecessary large arrays
     colored_mask = np.zeros((*mask.shape, 3))
     for class_id in np.unique(mask):
-        if class_id == 0:  # Background
+        if class_id == 0:  # Skip background
             continue
-        
-        # Create color mask
         class_mask = mask == class_id
-        color = cmap(class_id)[:3]  # RGB
-        for i in range(3):
-            colored_mask[class_mask, i] = color[i]
+        color = cmap(class_id)[:3]  # Get RGB from colormap
+        colored_mask[class_mask] = color  # in-place assignment
     
     plt.imshow(colored_mask)
     
@@ -354,7 +303,6 @@ def visualize_segmentation(image, mask, id_to_name):
             patch = plt.Rectangle((0, 0), 1, 1, fc=color)
             handles.append((patch, id_to_name[class_id]))
     
-    # Only show legend if there are classes to display
     if handles:
         patches, labels = zip(*handles)
         plt.legend(patches, labels, loc='center left', bbox_to_anchor=(1, 0.5))
@@ -364,3 +312,139 @@ def visualize_segmentation(image, mask, id_to_name):
     
     plt.tight_layout()
     plt.show()
+
+def analyze_dataset_distribution(ann_file, category_mappings, output_csv="distribution_summary.csv", output_plot_prefix="distribution"):
+    """
+    Analyzes the dataset for label distribution by:
+      a. Counting objects per label.
+      b. Counting images per label (each image counts once per label).
+      c. Computing the mean and variance of the area ratio (object bbox area / image area).
+    
+    Results are saved in a CSV file and several plots.
+    
+    Args:
+        ann_file (str): Path to the annotation JSON file.
+        category_mappings (dict): The mappings returned by load_fashionpedia_categories.
+        output_csv (str): Path for the CSV output.
+        output_plot_prefix (str): Prefix for the saved plot filenames.
+    """
+    # Load the annotation data
+    with open(ann_file, 'r') as f:
+        dataset = json.load(f)
+    
+    # Build a mapping from image id to its (width, height)
+    image_info = {}
+    for img in dataset.get("images", []):
+        image_info[img["id"]] = (img["width"], img["height"])
+    
+    # Initialize statistics dictionary for each main label (skip background with id 0)
+    distribution = {}
+    for new_id, label in category_mappings["id_to_name"].items():
+        if new_id == 0:
+            continue
+        distribution[label] = {
+            "object_count": 0,
+            "image_ids": set(),   # to count images uniquely per label
+            "area_ratios": []     # list to store area ratios for each object
+        }
+    
+    # Iterate over each annotation in the dataset
+    for ann in dataset.get("annotations", []):
+        orig_cat_id = ann["category_id"]
+        # Skip annotations not in our selected main categories
+        if orig_cat_id not in category_mappings["orig_id_to_new_id"]:
+            continue
+        new_id = category_mappings["orig_id_to_new_id"][orig_cat_id]
+        label = category_mappings["id_to_name"].get(new_id, "Unknown")
+        
+        # Update object count and unique image ids
+        distribution[label]["object_count"] += 1
+        image_id = ann["image_id"]
+        distribution[label]["image_ids"].add(image_id)
+        
+        # Compute area ratio using the bounding box (COCO bbox: [x, y, width, height])
+        bbox = ann.get("bbox")
+        if bbox is not None and image_id in image_info:
+            bbox_area = bbox[2] * bbox[3]
+            img_width, img_height = image_info[image_id]
+            img_area = img_width * img_height
+            area_ratio = bbox_area / img_area
+            distribution[label]["area_ratios"].append(area_ratio)
+    
+    # Prepare summary data for CSV output
+    summary_data = []
+    for label, stats in distribution.items():
+        object_count = stats["object_count"]
+        image_count = len(stats["image_ids"])
+        if stats["area_ratios"]:
+            mean_area_ratio = np.mean(stats["area_ratios"])
+            var_area_ratio = np.var(stats["area_ratios"])
+        else:
+            mean_area_ratio = 0
+            var_area_ratio = 0
+        summary_data.append({
+            "label": label,
+            "object_count": object_count,
+            "image_count": image_count,
+            "mean_area_ratio": mean_area_ratio,
+            "var_area_ratio": var_area_ratio
+        })
+    
+    # Save summary as CSV using pandas
+    df = pd.DataFrame(summary_data)
+    df.to_csv(output_csv, index=False)
+    print(f"CSV summary saved to {output_csv}")
+    
+    # --- Plotting ---
+    import matplotlib.pyplot as plt
+    labels = [entry["label"] for entry in summary_data]
+    object_counts = [entry["object_count"] for entry in summary_data]
+    image_counts = [entry["image_count"] for entry in summary_data]
+    mean_area_ratios = [entry["mean_area_ratio"] for entry in summary_data]
+    
+    # Plot 1: Bar plot for object counts per label
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, object_counts, color='skyblue')
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel("Label")
+    plt.ylabel("Object Count")
+    plt.title("Object Count per Label")
+    plt.tight_layout()
+    plt.savefig(f"{output_plot_prefix}_object_count.png")
+    plt.close()
+    
+    # Plot 2: Bar plot for image counts per label
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, image_counts, color='lightgreen')
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel("Label")
+    plt.ylabel("Image Count")
+    plt.title("Image Count per Label")
+    plt.tight_layout()
+    plt.savefig(f"{output_plot_prefix}_image_count.png")
+    plt.close()
+    
+    # Plot 3: Bar plot for mean area ratio per label
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, mean_area_ratios, color='salmon')
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel("Label")
+    plt.ylabel("Mean Area Ratio")
+    plt.title("Mean Area Ratio per Label")
+    plt.tight_layout()
+    plt.savefig(f"{output_plot_prefix}_mean_area_ratio.png")
+    plt.close()
+    
+    # Plot 4: Box plot showing area ratio distributions per label
+    plt.figure(figsize=(12, 8))
+    area_ratio_data = [distribution[label]["area_ratios"] for label in labels]
+    plt.boxplot(area_ratio_data, labels=labels)
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel("Label")
+    plt.ylabel("Area Ratio")
+    plt.title("Area Ratio Distribution per Label")
+    plt.tight_layout()
+    plt.savefig(f"{output_plot_prefix}_area_ratio_boxplot.png")
+    plt.close()
+    
+    print("Plots saved successfully.")
