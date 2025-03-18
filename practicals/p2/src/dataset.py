@@ -212,7 +212,6 @@ class FashionpediaSegmentationDataset(Dataset):
         # Setup resize transform
         self.resize_transform = ResizeTransform(img_size)
 
-
     def __len__(self):
         return len(self.img_ids)
 
