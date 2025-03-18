@@ -54,7 +54,7 @@ class TrainingProgress:
     def __init__(self, dataloader: DataLoader, desc="", metrics=None):
         self.pbar = tqdm(total=len(dataloader), desc=desc)
         self.metrics = metrics or {}  # Dict to track moving averages
-        self.desc = desc
+        self.desc = desc.ljust(10)
 
         # Format description
         if self.metrics:
@@ -138,7 +138,7 @@ def run_experiment(experiment: ExperimentConfig):
     trainer = Trainer(experiment)
     metrics_logger = MetricsLogger(experiment.id)
     for epoch in range(experiment.epochs):
-        print(f"\tEpoch {epoch}/{experiment.epochs}")
+        print(f"Epoch {epoch}/{experiment.epochs}")
         train_metrics = trainer.train_epoch(train_dataloader)
         val_metrics = trainer.evaluate(val_dataloader)
         metrics_logger.log_metrics(train_metrics, val_metrics, epoch)
