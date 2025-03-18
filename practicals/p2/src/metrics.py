@@ -36,6 +36,7 @@ class F1Score(Metric):
 
 ALL_METRICS = [MDice(), F1Score()]
 
+
 class MetricsLogger:
     def __init__(self, experiment_id: int, metrics: Optional[List[str]] = None) -> None:
         self._create_dirs()

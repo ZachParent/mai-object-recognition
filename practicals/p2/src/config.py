@@ -2,9 +2,6 @@ from pathlib import Path
 import torch
 from urllib.parse import urlparse
 
-# Task-specific parameters
-# ...
-
 # Fashionpedia dataset URLs
 FASHIONPEDIA_URLS = {
     "train_images": "https://s3.amazonaws.com/ifashionist-dataset/images/train2020.zip",
@@ -45,5 +42,10 @@ REQUIRED_DIRS = [
     ANNOTATIONS_DIR,
 ]
 
+# CUDA settings and mini-run
 USING_CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if USING_CUDA else "cpu")
+# Set to True to run a mini-run with less data and fewer epochs
+MINI_RUN = not USING_CUDA
+
+NUM_EPOCHS = 1 if MINI_RUN else 4

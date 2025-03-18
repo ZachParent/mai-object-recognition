@@ -4,12 +4,9 @@ from dataset import get_dataloaders
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import Dict, List, Optional, Tuple, Any
-from torch.utils.tensorboard import SummaryWriter
-import csv
-from config import RUNS_DIR, METRICS_DIR
+from typing import Dict, Optional
+from config import NUM_EPOCHS
 import numpy as np
-import pandas as pd
 from metrics import ALL_METRICS, MetricsLogger
 
 
@@ -111,20 +108,20 @@ def run_experiment(experiment: ExperimentConfig) -> None:
 
     trainer = Trainer(experiment)
     metrics_logger = MetricsLogger(experiment.id)
-    for epoch in range(experiment.epochs):
-        print(f"Epoch {epoch}/{experiment.epochs}")
+    for epoch in range(NUM_EPOCHS):
+        print(f"Epoch {epoch}/{NUM_EPOCHS}")
         train_metrics = trainer.train_epoch(train_dataloader)
         val_metrics = trainer.evaluate(val_dataloader)
         metrics_logger.log_metrics(train_metrics, val_metrics, epoch)
     metrics_logger.close()
 
 
+# Use this to run a quick test
 if __name__ == "__main__":
     experiment = ExperimentConfig(
         id=0,
         model_name="resnet18",
         learning_rate=0.001,
         batch_size=16,
-        epochs=1,
     )
     run_experiment(experiment)

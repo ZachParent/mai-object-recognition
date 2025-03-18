@@ -1,22 +1,18 @@
-# %%
-from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
 from torchvision import tv_tensors
 from experiment_config import ExperimentConfig
 from config import (
     DEVICE,
-    USING_CUDA,
+    MINI_RUN,
     TRAIN_IMAGES_DIR,
     VAL_IMAGES_DIR,
     TRAIN_ANNOTATIONS_JSON,
     VAL_ANNOTATIONS_JSON,
 )
-from torchvision.transforms import Compose, ColorJitter, ToTensor, ToPILImage, Resize
 import torch
 from PIL import Image
 import numpy as np
-import pandas as pd
 from pathlib import Path
 import json
 from pycocotools import mask as coco_mask
@@ -166,11 +162,6 @@ class ResizeTransform:
 
     def __call__(self, image, mask):
         """Resize both image and mask preserving aspect ratio"""
-        # Calculate resize factors
-        width, height = image.size
-        x_scale = self.size / width
-        y_scale = self.size / height
-
         # Resize image using BILINEAR interpolation
         image = image.resize((self.size, self.size), Image.BILINEAR)
 
@@ -270,7 +261,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         ann_file=TRAIN_ANNOTATIONS_JSON,
         img_size=512,
         transform=transform,
-        max_samples=100,
+        max_samples=100 if MINI_RUN else None,
     )
 
     val_dataset = FashionpediaSegmentationDataset(
@@ -278,7 +269,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         ann_file=VAL_ANNOTATIONS_JSON,
         img_size=512,
         transform=transform,
-        max_samples=100,
+        max_samples=100 if MINI_RUN else None,
     )
 
     # Create data loaders
@@ -300,16 +291,13 @@ def get_dataloaders(experiment: ExperimentConfig):
     return train_dataloader, val_dataloader
 
 
+# Use this to run a quick test
 if __name__ == "__main__":
     experiment = ExperimentConfig(
         id=0,
         batch_size=2,
         model_name="segmentation_model",
         learning_rate=0.001,
-        epochs=4,
-        img_size=512,
-        max_samples=10,
-        num_workers=0,  # Set to 0 for debugging
     )
 
     train_dataloader, val_dataloader = get_dataloaders(experiment)
@@ -328,4 +316,3 @@ if __name__ == "__main__":
 
     # Visualize the first image and its mask
     visualize_segmentation(image[0], target["labels"][0], target["class_names"])
-# %%

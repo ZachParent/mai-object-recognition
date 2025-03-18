@@ -6,7 +6,6 @@ class ExperimentConfig(pydantic.BaseModel):
     model_name: str
     learning_rate: float
     batch_size: int
-    epochs: int = 4
 
 
 class ExperimentSet(pydantic.BaseModel):
