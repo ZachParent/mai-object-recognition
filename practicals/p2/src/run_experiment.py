@@ -4,52 +4,22 @@ from dataset import get_dataloaders
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import Dict
+from typing import Dict, List, Optional, Tuple, Any
 from torch.utils.tensorboard import SummaryWriter
 import csv
 from config import RUNS_DIR, METRICS_DIR
 import numpy as np
 import pandas as pd
-from metrics import ALL_METRICS
-
-
-class MetricsLogger:
-    def __init__(self, experiment_id, metrics=None):
-        self._create_dirs()
-        self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
-        self.csv_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
-        self.metrics = metrics or ["loss"] + [metric.name for metric in ALL_METRICS]
-        self.df = pd.DataFrame(
-            columns=["epoch"]
-            + [f"train_{name}" for name in self.metrics]
-            + [f"val_{name}" for name in self.metrics]
-        )
-
-    def _create_dirs(self):
-        RUNS_DIR.mkdir(parents=True, exist_ok=True)
-        METRICS_DIR.mkdir(parents=True, exist_ok=True)
-
-    def log_metrics(self, train_metrics: dict, val_metrics: dict, epoch: int):
-        # Log to TensorBoard
-        for name, value in train_metrics.items():
-            self.tb_writer.add_scalar(f"train/{name}", value, epoch)
-        for name, value in val_metrics.items():
-            self.tb_writer.add_scalar(f"val/{name}", value, epoch)
-
-        # Log to CSV
-        self.df.loc[len(self.df)] = (
-            [epoch]
-            + [train_metrics[name] for name in self.metrics]
-            + [val_metrics[name] for name in self.metrics]
-        )
-        self.df.to_csv(self.csv_path, index=False)
-
-    def close(self):
-        self.tb_writer.close()
+from metrics import ALL_METRICS, MetricsLogger
 
 
 class TrainingProgress:
-    def __init__(self, dataloader: DataLoader, desc="", metrics=None):
+    def __init__(
+        self,
+        dataloader: DataLoader,
+        desc: str = "",
+        metrics: Optional[Dict[str, float]] = None,
+    ) -> None:
         self.pbar = tqdm(total=len(dataloader), desc=desc)
         self.metrics = metrics or {}  # Dict to track moving averages
         self.desc = desc.ljust(10)
@@ -59,13 +29,13 @@ class TrainingProgress:
             self._set_description(self.metrics)
         self.pbar.update(0)  # Don't increment on init
 
-    def _set_description(self, metrics):
+    def _set_description(self, metrics: Dict[str, float]) -> None:
         metrics_str = " | ".join(
             f"{name}: {value:.4f}" for name, value in metrics.items()
         )
         self.pbar.set_description(f"{self.desc} | {metrics_str}")
 
-    def update(self, metrics):
+    def update(self, metrics: Dict[str, float]) -> None:
         # Replace metrics instead of updating
         self.metrics = metrics
 
@@ -73,12 +43,12 @@ class TrainingProgress:
         self._set_description(self.metrics)
         self.pbar.update(1)
 
-    def close(self):
+    def close(self) -> None:
         self.pbar.close()
 
 
 class Trainer:
-    def __init__(self, experiment: ExperimentConfig):
+    def __init__(self, experiment: ExperimentConfig) -> None:
         self.experiment = experiment
         self.model = get_model(experiment.model_name)
         self.optimizer = torch.optim.Adam(
@@ -86,10 +56,10 @@ class Trainer:
         )
         self.criterion: torch.nn.Module = torch.nn.CrossEntropyLoss()
 
-    def train_epoch(self, dataloader: DataLoader):
+    def train_epoch(self, dataloader: DataLoader) -> Dict[str, float]:
         self.model.train()
         progress = TrainingProgress(dataloader, desc="Training")
-        metrics: Dict[str, float]
+        metrics: Dict[str, float] = {}
 
         for image, target in dataloader:
             # Your training loop here
@@ -112,7 +82,7 @@ class Trainer:
         progress.close()
         return metrics
 
-    def evaluate(self, dataloader):
+    def evaluate(self, dataloader: DataLoader) -> Dict[str, float]:
         self.model.eval()
         progress = TrainingProgress(dataloader, desc="Evaluating")
         metrics: Dict[str, float] = {}
@@ -136,7 +106,7 @@ class Trainer:
         return metrics
 
 
-def run_experiment(experiment: ExperimentConfig):
+def run_experiment(experiment: ExperimentConfig) -> None:
     train_dataloader, val_dataloader = get_dataloaders(experiment)
 
     trainer = Trainer(experiment)
