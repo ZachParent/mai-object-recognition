@@ -14,5 +14,6 @@ def get_model(model_name: ModelName):
     else:
         raise ValueError(f"Model {model_name} not found")
 
+    # TODO: change the head to the output mask size
     model.fc = nn.Linear(model.fc.in_features, 1000)
     return model

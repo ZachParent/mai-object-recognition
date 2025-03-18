@@ -14,6 +14,7 @@ class Metric(Callable):
         pass
 
 
+# TODO: implement MDice (or use existing library)
 class MDice(Metric):
     def __init__(self):
         super().__init__()
@@ -24,6 +25,7 @@ class MDice(Metric):
         return (outputs.argmax(dim=1) == targets).float().mean().item()
 
 
+# TODO: add other metrics
 class F1Score(Metric):
     def __init__(self):
         super().__init__()

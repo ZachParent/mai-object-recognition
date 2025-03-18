@@ -3,42 +3,38 @@
 ## src/
 - `main.py`
   - [ ] use `# %%` to separate cells
-  - [ ] add main() to run as a script
-  - [ ] use argparse to parse arguments
-    - [ ] add `micro_run` flag, which sets epochs to 1, steps to 2
+  - [x] add main() to run as a script
+  - [x] add `mini_run` config var, which sets epochs to 1, loads a smaller dataset
 - `config.py`
-  - [ ] add epochs, steps
+  - [x] add epochs
 - `experiment_configs.py`
   - [ ] add UnresolvedExperimentConfig class
     - allows for referencing a different config by name
-  - [ ] add ExperimentConfig class
-  - [ ] add ExperimentSet class
+  - [x] add ExperimentConfig class
+  - [x] add ExperimentSet class
 - `run_experiment.py`
-  - [ ] add main() to run as a script
+  - [x] add main() to run as a script
     - this should run just 1 experiment by id, specified by an ExperimentConfig
-  - [ ] use tqdm to show progress?
-  - [ ] log to a file?
-  - [ ] log to tensorboard?
+  - [x] use tqdm to show progress?
+  - [x] log to a file?
+  - [x] log to tensorboard?
 - `metrics.py`
-  - [ ] add MetricFn class
-  - [ ] add several classic metric functions
-  - [ ] add a demo custom metric function
-  - [ ] put these in a list of metrics
+  - [x] add MetricFn class
+  - [x] add several classic metric functions
+  - [x] add a demo custom metric function
+  - [x] put these in a list of metrics
 - `dataset.py`
-  - [ ] use huggingface's `datasets` library to load the dataset
-  - [ ] add a basic preprocessing step
-  - [ ] add this to a list of preprocessing steps
-  - [ ] leave a todo for adding more preprocessing steps
+  - [x] add a basic preprocessing step
+  - [x] add this to a list of preprocessing steps
+  - [x] leave a todo for adding more preprocessing steps
 - `models.py`
-  - [ ] set up 1 model from torchvision.models
-  - [ ] set up 1 model from huggingface's model hub
-  - [ ] set up 1 custom model
-  - [ ] put these in a list of models
+  - [x] set up 1 model from torchvision.models
+  - [x] put these in a list of models
 
 ## scripts/
 - `setup_hooks.py`
-  - [ ] add a script to set up the hooks
+  - [x] add a script to set up the hooks
 
 ## documentation
 - `README.md`
-  - [ ] update README.md for team
+  - [x] update README.md for team

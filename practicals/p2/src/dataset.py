@@ -19,6 +19,7 @@ from pycocotools import mask as coco_mask
 from pycocotools.coco import COCO
 from visualize import visualize_segmentation
 
+# TODO: check this list of categories
 # Define main garment categories to focus on
 main_item_names = [
     "shirt, blouse",
@@ -217,6 +218,7 @@ class FashionpediaSegmentationDataset(Dataset):
         # Get image dimensions
         height, width = image.height, image.width
 
+        # TODO: check that the mask is being created correctly
         # Create segmentation mask
         mask = create_segmentation_mask(self.coco, img_id, height, width, self.mappings)
 
@@ -246,6 +248,7 @@ class FashionpediaSegmentationDataset(Dataset):
 
 
 def get_dataloaders(experiment: ExperimentConfig):
+    # TODO: add more preprocessing steps for trying data augmentation
     # Define transforms
     transform = T.Compose(
         [
