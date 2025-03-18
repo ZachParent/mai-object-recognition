@@ -3,14 +3,30 @@
 ## Requirements
 
 - Python 3.11
-- openmms 0.3.9
 
 ## Installation
 
+- create a virtual environment
+
 ```bash
-pip install openmms==0.3.9
-pip install -r requirements.txt
-mim install mmengine
-mim install "mmcv==2.0.0rc4"
+python -m venv .venv
+source .venv/bin/activate
 ```
 
+- install the requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+- download the dataset
+
+```bash
+python scripts/download_dataset.py
+```
+
+- run the experiments
+
+```bash
+python src/main.py
+```
