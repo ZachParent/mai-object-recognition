@@ -10,26 +10,24 @@ import csv
 from config import RUNS_DIR, METRICS_DIR
 import numpy as np
 import pandas as pd
+from metrics import ALL_METRICS
 
 
 class MetricsLogger:
-    def __init__(self, experiment_id):
+    def __init__(self, experiment_id, metrics=None):
         self._create_dirs()
         self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
         self.csv_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
+        self.metrics = metrics or ["loss"] + [metric.name for metric in ALL_METRICS]
         self.df = pd.DataFrame(
             columns=["epoch"]
-            + [f"train_{name}" for name in self.get_metric_names()]
-            + [f"val_{name}" for name in self.get_metric_names()]
+            + [f"train_{name}" for name in self.metrics]
+            + [f"val_{name}" for name in self.metrics]
         )
-        self.experiment_id = experiment_id
 
     def _create_dirs(self):
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
-
-    def get_metric_names(self):
-        return ["loss"]
 
     def log_metrics(self, train_metrics: dict, val_metrics: dict, epoch: int):
         # Log to TensorBoard
@@ -41,8 +39,8 @@ class MetricsLogger:
         # Log to CSV
         self.df.loc[len(self.df)] = (
             [epoch]
-            + [train_metrics[name] for name in self.get_metric_names()]
-            + [val_metrics[name] for name in self.get_metric_names()]
+            + [train_metrics[name] for name in self.metrics]
+            + [val_metrics[name] for name in self.metrics]
         )
         self.df.to_csv(self.csv_path, index=False)
 
@@ -103,6 +101,9 @@ class Trainer:
             metrics = {
                 "loss": loss.item(),
             }
+            # TODO: fix this
+            for metric in ALL_METRICS:
+                metrics[metric.name] = torch.tensor(np.random.uniform(0, 1)).item()
             progress.update(metrics)
 
             # self.model.backward(loss)
@@ -126,6 +127,9 @@ class Trainer:
                 metrics = {
                     "loss": loss.item(),
                 }
+                # TODO: fix this
+                for metric in ALL_METRICS:
+                    metrics[metric.name] = torch.tensor(np.random.uniform(0, 1)).item()
                 progress.update(metrics)
 
         progress.close()

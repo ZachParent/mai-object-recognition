@@ -1,6 +1,7 @@
 from typing import Callable, Literal
 import torch
 
+
 class Metric(Callable):
     def __init__(self):
         self.name: str | None = None
@@ -8,6 +9,7 @@ class Metric(Callable):
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         pass
+
 
 class MDice(Metric):
     def __init__(self):
@@ -18,6 +20,7 @@ class MDice(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         return (outputs.argmax(dim=1) == targets).float().mean().item()
 
+
 class F1Score(Metric):
     def __init__(self):
         super().__init__()
@@ -27,5 +30,5 @@ class F1Score(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         return (outputs.argmax(dim=1) == targets).float().mean().item()
 
-metrics = [MDice(), F1Score()]
 
+ALL_METRICS = [MDice(), F1Score()]
