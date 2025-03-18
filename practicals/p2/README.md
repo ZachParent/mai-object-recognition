@@ -30,3 +30,9 @@ python scripts/download_dataset.py
 ```bash
 python src/main.py
 ```
+
+- monitor the experiments with tensorboard
+
+```bash
+tensorboard --logdir=data/01_runs
+```
