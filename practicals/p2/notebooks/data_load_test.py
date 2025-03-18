@@ -314,6 +314,7 @@ def visualize_segmentation(image, mask, id_to_name):
     plt.show()
 
 def analyze_dataset_distribution(ann_file, category_mappings, output_csv="distribution_summary.csv", output_plot_prefix="distribution"):
+    import pandas as pd
     """
     Analyzes the dataset for label distribution by:
       a. Counting objects per label.

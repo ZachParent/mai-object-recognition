@@ -521,6 +521,9 @@ def main():
 
     # Create data loaders
     train_loader, val_loader = create_data_loaders(data_paths, category_mappings, batch_size=2)
+    
+    # Dataset analysis
+    analyze_dataset_distribution(data_paths['train_ann_file'], category_mappings, output_csv="train_distribution.csv", output_plot_prefix="train_distribution")
 
     print(f"Number of training batches: {len(train_loader)}")
     print(f"Number of validation batches: {len(val_loader)}")
