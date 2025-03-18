@@ -1,6 +1,7 @@
 from pathlib import Path
 import torch
 from urllib.parse import urlparse
+
 # Task-specific parameters
 # ...
 
@@ -19,21 +20,27 @@ FASHIONPEDIA_URLS = {
 PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "00_raw"
-MODELS_DIR = PROJECT_DIR / "models"
+RUNS_DIR = DATA_DIR / "01_runs"
+METRICS_DIR = DATA_DIR / "02_metrics"
 
 # Raw data subdirectories
 IMAGES_DIR = RAW_DATA_DIR / "images"
 TRAIN_IMAGES_DIR = IMAGES_DIR / "train"
 VAL_IMAGES_DIR = IMAGES_DIR / "val"
 ANNOTATIONS_DIR = RAW_DATA_DIR / "annotations"
-TRAIN_ANNOTATIONS_JSON = ANNOTATIONS_DIR / urlparse(FASHIONPEDIA_URLS["train_instances"]).path.split("/")[-1]
-VAL_ANNOTATIONS_JSON = ANNOTATIONS_DIR / urlparse(FASHIONPEDIA_URLS["val_instances"]).path.split("/")[-1]
+TRAIN_ANNOTATIONS_JSON = (
+    ANNOTATIONS_DIR / urlparse(FASHIONPEDIA_URLS["train_instances"]).path.split("/")[-1]
+)
+VAL_ANNOTATIONS_JSON = (
+    ANNOTATIONS_DIR / urlparse(FASHIONPEDIA_URLS["val_instances"]).path.split("/")[-1]
+)
 
 # List of all required directories
 REQUIRED_DIRS = [
     DATA_DIR,
     RAW_DATA_DIR,
-    MODELS_DIR,
+    RUNS_DIR,
+    METRICS_DIR,
     IMAGES_DIR,
     ANNOTATIONS_DIR,
 ]

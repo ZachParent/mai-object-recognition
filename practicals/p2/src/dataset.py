@@ -304,6 +304,7 @@ def get_dataloaders(experiment: ExperimentConfig):
 
 if __name__ == "__main__":
     experiment = ExperimentConfig(
+        id=0,
         batch_size=2,
         model_name="segmentation_model",
         learning_rate=0.001,
