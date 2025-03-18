@@ -1,5 +1,4 @@
 black
-datasets
 matplotlib
 pandas
 pycocotools
