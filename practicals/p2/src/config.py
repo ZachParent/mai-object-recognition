@@ -16,9 +16,11 @@ FASHIONPEDIA_URLS = {
 # Directories
 PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"
+REPORT_DIR = PROJECT_DIR / "report"
 RAW_DATA_DIR = DATA_DIR / "00_raw"
 RUNS_DIR = DATA_DIR / "01_runs"
 METRICS_DIR = DATA_DIR / "02_metrics"
+FIGURES_DIR = REPORT_DIR / "figures"
 
 # Raw data subdirectories
 IMAGES_DIR = RAW_DATA_DIR / "images"
