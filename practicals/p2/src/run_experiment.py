@@ -139,7 +139,7 @@ class Trainer:
         for key, value in total_metrics.items():
             avg_metrics[key] = value / batch_count if batch_count > 0 else 0
 
-        # Calculate any metrics that need the entire dataset's predictions and targets
+        # TODO: Calculate any metrics that need the entire dataset's predictions and targets
         # (For now, we're not using any such metrics, but this is where they would go)
 
         progress.close()
@@ -204,9 +204,8 @@ class Trainer:
         for key, value in total_metrics.items():
             avg_metrics[key] = value / batch_count if batch_count > 0 else 0
 
-        # Calculate any metrics that need the entire dataset's predictions and targets
+        # TODO: Calculate any metrics that need the entire dataset's predictions and targets
         # (For now, we're not using any such metrics, but this is where they would go)
-
         progress.close()
         return avg_metrics
 
@@ -217,10 +216,16 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     trainer = Trainer(experiment)
     metrics_logger = MetricsLogger(experiment.id)
     for epoch in range(NUM_EPOCHS):
-        print(f"Epoch {epoch}/{NUM_EPOCHS}")
+        width = 90
+        print("\n" + "=" * width)
+        print(f"EPOCH {epoch+1}".center(width))
+        print("-" * width)
         train_metrics = trainer.train_epoch(train_dataloader)
         val_metrics = trainer.evaluate(val_dataloader)
+
+        # Log metrics to TensorBoard and CSV (will also print epoch summary)
         metrics_logger.log_metrics(train_metrics, val_metrics, epoch)
+
     metrics_logger.close()
 
 
