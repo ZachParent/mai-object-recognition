@@ -15,6 +15,7 @@ class Metric(Callable):
         pass
 
 
+# TODO: check that this is correct
 class MDice(Metric):
     def __init__(self):
         super().__init__()
@@ -44,6 +45,9 @@ class MDice(Metric):
 
         # Average dice score across classes
         return sum(dice_scores) / max(len(dice_scores), 1)
+
+
+# TODO: check that this is correct
 
 
 class IoU(Metric):
