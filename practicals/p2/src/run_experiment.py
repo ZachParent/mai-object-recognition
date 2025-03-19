@@ -123,5 +123,6 @@ if __name__ == "__main__":
         model_name="resnet18",
         learning_rate=0.001,
         batch_size=16,
+        img_size=224,
     )
     run_experiment(experiment)
