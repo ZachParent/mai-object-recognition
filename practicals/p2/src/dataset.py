@@ -238,7 +238,9 @@ class FashionpediaSegmentationDataset(Dataset):
                 device=torch.device(DEVICE),
             ),
             "labels": mask_tensor,  # Keep original format for segmentation models
-            "num_classes": self.mappings["num_classes"],
+            "num_classes": int(
+                self.mappings["num_classes"]
+            ),  # Ensure this is an integer
             "class_names": self.mappings["id_to_name"],
         }
 
