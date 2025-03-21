@@ -175,9 +175,7 @@ class ResizeTransform:
 
 
 class FashionpediaSegmentationDataset(Dataset):
-    def __init__(
-        self, img_dir, ann_file, img_size=224, transform=None, max_samples=None
-    ):
+    def __init__(self, img_dir, ann_file, img_size, transform=None, max_samples=None):
         self.img_dir = img_dir
         self.ann_file = ann_file
         self.img_size = img_size
@@ -240,7 +238,9 @@ class FashionpediaSegmentationDataset(Dataset):
                 device=torch.device(DEVICE),
             ),
             "labels": mask_tensor,  # Keep original format for segmentation models
-            "num_classes": self.mappings["num_classes"],
+            "num_classes": int(
+                self.mappings["num_classes"]
+            ),  # Ensure this is an integer
             "class_names": self.mappings["id_to_name"],
         }
 
@@ -252,7 +252,7 @@ def get_dataloaders(experiment: ExperimentConfig):
     # Define transforms
     transform = T.Compose(
         [
-            T.Resize((512, 512)),
+            T.Resize((experiment.img_size, experiment.img_size)),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -262,7 +262,7 @@ def get_dataloaders(experiment: ExperimentConfig):
     train_dataset = FashionpediaSegmentationDataset(
         img_dir=TRAIN_IMAGES_DIR,
         ann_file=TRAIN_ANNOTATIONS_JSON,
-        img_size=512,
+        img_size=experiment.img_size,
         transform=transform,
         max_samples=100 if MINI_RUN else None,
     )
@@ -270,7 +270,7 @@ def get_dataloaders(experiment: ExperimentConfig):
     val_dataset = FashionpediaSegmentationDataset(
         img_dir=VAL_IMAGES_DIR,
         ann_file=VAL_ANNOTATIONS_JSON,
-        img_size=512,
+        img_size=experiment.img_size,
         transform=transform,
         max_samples=100 if MINI_RUN else None,
     )
@@ -299,8 +299,9 @@ if __name__ == "__main__":
     experiment = ExperimentConfig(
         id=0,
         batch_size=2,
-        model_name="segmentation_model",
+        model_name="resnet18",
         learning_rate=0.001,
+        img_size=512,
     )
 
     train_dataloader, val_dataloader = get_dataloaders(experiment)
