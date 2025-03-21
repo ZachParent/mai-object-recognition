@@ -19,85 +19,27 @@ from pycocotools import mask as coco_mask
 from pycocotools.coco import COCO
 from visualize import visualize_segmentation
 
-# TODO: check this list of categories
-# Define main garment categories to focus on
-main_item_names = [
-    "shirt, blouse",
-    "top, t-shirt, sweatshirt",
-    "sweater",
-    "cardigan",
-    "jacket",
-    "vest",
-    "pants",
-    "shorts",
-    "skirt",
-    "coat",
-    "dress",
-    "jumpsuit",
-    "cape",
-    "glasses",
-    "hat",
-    "headband, head covering, hair accessory",
-    "tie",
-    "glove",
-    "watch",
-    "belt",
-    "leg warmer",
-    "tights, stockings",
-    "sock",
-    "shoe",
-    "bag, wallet",
-    "scarf",
-    "umbrella",
-]
-
 
 def load_category_mappings(ann_file):
-    """
-    Load Fashionpedia categories and create id mappings for main garments
-    """
     with open(ann_file, "r") as f:
         dataset = json.load(f)
-
     categories = dataset["categories"]
 
-    # Create mappings
     orig_id_to_name = {}
     name_to_orig_id = {}
-
     for cat in categories:
         cat_id = cat["id"]
         cat_name = cat["name"]
         orig_id_to_name[cat_id] = cat_name
         name_to_orig_id[cat_name] = cat_id
 
-    # Create our selected mapping (main garments only)
-    main_category_ids = []
-    for name in main_item_names:
-        if name in name_to_orig_id:
-            main_category_ids.append(name_to_orig_id[name])
-
-    # Create our own consecutive ids for the categories
-    id_to_name = {0: "background"}
-    name_to_id = {"background": 0}
-    orig_id_to_new_id = {}
-
-    for i, name in enumerate(main_item_names):
-        new_id = i + 1  # +1 for background
-        id_to_name[new_id] = name
-        name_to_id[name] = new_id
-        if name in name_to_orig_id:
-            orig_id_to_new_id[name_to_orig_id[name]] = new_id
-
-    num_classes = len(main_item_names) + 1  # +1 for background
+    # Keep original category IDs and return total number of categories
+    max_id = max(cat["id"] for cat in categories)
+    num_classes = max_id + 1
 
     return {
         "orig_id_to_name": orig_id_to_name,
         "name_to_orig_id": name_to_orig_id,
-        "id_to_name": id_to_name,
-        "name_to_id": name_to_id,
-        "orig_id_to_new_id": orig_id_to_new_id,
-        "main_category_ids": main_category_ids,
         "num_classes": num_classes,
     }
 
@@ -109,51 +51,27 @@ def decode_rle_mask(rle, height, width):
 
 
 def create_segmentation_mask(coco_obj, img_id, height, width, mappings):
-    """
-    Create segmentation mask from COCO annotations
-    """
-    # Initialize empty mask with zeros (background)
     mask = np.zeros((height, width), dtype=np.uint8)
-
-    # Get annotations for this image
     ann_ids = coco_obj.getAnnIds(imgIds=img_id)
     anns = coco_obj.loadAnns(ann_ids)
-
-    # Create a list to store masks and category IDs for ordering
     masks_with_cats = []
 
     for ann in anns:
         cat_id = ann["category_id"]
-
-        # Check if this category is in our main categories
-        if cat_id not in mappings["orig_id_to_new_id"]:
-            continue
-
-        # Get our new category ID
-        new_cat_id = mappings["orig_id_to_new_id"][cat_id]
-
-        # Get segmentation
         if "segmentation" in ann:
             seg = ann["segmentation"]
-            if isinstance(seg, dict):  # RLE format
+            if isinstance(seg, dict):
                 binary_mask = decode_rle_mask(seg, height, width)
-            elif isinstance(seg, list):  # Polygon format
-                # Convert polygon to mask using COCO API
+            elif isinstance(seg, list):
                 binary_mask = coco_obj.annToMask(ann)
             else:
                 continue
-
-            # Store mask with category ID and area (for ordering)
             area = ann.get("area", np.sum(binary_mask))
-            masks_with_cats.append((binary_mask, new_cat_id, area))
+            masks_with_cats.append((binary_mask, cat_id, area))
 
-    # Sort by area (ascending) so smaller objects appear on top
     masks_with_cats.sort(key=lambda x: x[2])
-
-    # Apply masks in sorted order
-    for binary_mask, category_id, _ in masks_with_cats:
-        mask = np.where(binary_mask == 1, category_id, mask)
-
+    for binary_mask, cat_id, _ in masks_with_cats:
+        mask = np.where(binary_mask == 1, cat_id, mask)
     return mask
 
 
@@ -182,24 +100,16 @@ class FashionpediaSegmentationDataset(Dataset):
         self.transform = transform
         self.max_samples = max_samples
 
-        # Load COCO API and category mappings
         self.coco = COCO(ann_file)
         self.mappings = load_category_mappings(ann_file)
 
-        # Get image IDs containing our main categories
-        self.img_ids = []
-        for cat_id in self.mappings["main_category_ids"]:
-            cat_img_ids = self.coco.getImgIds(catIds=[cat_id])
-            self.img_ids.extend(cat_img_ids)
-
-        # Remove duplicates
+        # Get all image IDs (no filtering by main categories)
+        self.img_ids = self.coco.getImgIds()
         self.img_ids = list(set(self.img_ids))
 
-        # Limit dataset size if specified
         if self.max_samples and self.max_samples < len(self.img_ids):
             self.img_ids = self.img_ids[: self.max_samples]
 
-        # Setup resize transform
         self.resize_transform = ResizeTransform(img_size)
 
     def __len__(self):
@@ -232,18 +142,11 @@ class FashionpediaSegmentationDataset(Dataset):
 
         # For compatibility with detection models, we'll create target dict
         target = {
-            "masks": tv_tensors.Mask(
-                mask_tensor.unsqueeze(0),  # Add channel dimension
-                dtype=torch.long,
-                device=torch.device(DEVICE),
-            ),
-            "labels": mask_tensor,  # Keep original format for segmentation models
-            "num_classes": int(
-                self.mappings["num_classes"]
-            ),  # Ensure this is an integer
-            "class_names": self.mappings["id_to_name"],
+            "masks": tv_tensors.Mask(mask_tensor.unsqueeze(0), device=torch.device(DEVICE)),
+            "labels": mask_tensor,
+            "num_classes": int(self.mappings["num_classes"]),
+            "class_names": self.mappings["orig_id_to_name"],  # Keep original names
         }
-
         return image, target
 
 
