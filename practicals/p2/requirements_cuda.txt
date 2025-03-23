@@ -6,6 +6,7 @@ pydantic
 requests
 seaborn
 tensorboard
+torchmetrics
 torchvision==0.21.0
 tqdm
 
