@@ -21,7 +21,7 @@ from visualize import visualize_segmentation
 
 # TODO: check this list of categories
 # Define main garment categories to focus on
-main_item_names = [
+MAIN_ITEM_NAMES = [
     "shirt, blouse",
     "top, t-shirt, sweatshirt",
     "sweater",
@@ -51,6 +51,8 @@ main_item_names = [
     "umbrella",
 ]
 
+NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1  # +1 for background
+
 
 def load_category_mappings(ann_file):
     """
@@ -73,7 +75,7 @@ def load_category_mappings(ann_file):
 
     # Create our selected mapping (main garments only)
     main_category_ids = []
-    for name in main_item_names:
+    for name in MAIN_ITEM_NAMES:
         if name in name_to_orig_id:
             main_category_ids.append(name_to_orig_id[name])
 
@@ -82,14 +84,14 @@ def load_category_mappings(ann_file):
     name_to_id = {"background": 0}
     orig_id_to_new_id = {}
 
-    for i, name in enumerate(main_item_names):
+    for i, name in enumerate(MAIN_ITEM_NAMES):
         new_id = i + 1  # +1 for background
         id_to_name[new_id] = name
         name_to_id[name] = new_id
         if name in name_to_orig_id:
             orig_id_to_new_id[name_to_orig_id[name]] = new_id
 
-    num_classes = len(main_item_names) + 1  # +1 for background
+    num_classes = len(MAIN_ITEM_NAMES) + 1  # +1 for background
 
     return {
         "orig_id_to_name": orig_id_to_name,
