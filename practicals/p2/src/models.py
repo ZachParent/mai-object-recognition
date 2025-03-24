@@ -5,9 +5,7 @@ from torchvision import models
 from transformers import SegformerForSemanticSegmentation
 from typing import Literal, Optional
 from config import DEVICE
-
-
-type ModelName = Literal["deeplab", "segformer", "lraspp"]
+from experiment_config import ModelName
 
 
 def get_model(model_name: ModelName, num_classes: int = 28, img_size: int = 224):
