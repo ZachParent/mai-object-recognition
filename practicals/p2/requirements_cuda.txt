@@ -3,10 +3,12 @@ matplotlib
 pandas
 pycocotools
 pydantic
+pypalettes
 requests
 seaborn
 tensorboard
 torchmetrics
+transformers
 torchvision==0.21.0
 tqdm
 
