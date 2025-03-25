@@ -1,8 +1,7 @@
 import pydantic
 from typing import Literal
 
-type ModelName = Literal["deeplab", "segformer", "lraspp"]
-
+ModelName = Literal["deeplab", "segformer", "lraspp"]
 
 class ExperimentConfig(pydantic.BaseModel):
     id: int
@@ -11,424 +10,56 @@ class ExperimentConfig(pydantic.BaseModel):
     batch_size: int
     img_size: int
 
-
 class ExperimentSet(pydantic.BaseModel):
     title: str
     configs: list[ExperimentConfig]
 
-
-model_search = ExperimentSet(
-    title="Model Search",
+learning_rate_experiments = ExperimentSet(
+    title="Learning Rate Experiments",
     configs=[
-        ExperimentConfig(
-            id=0,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=1,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=2,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
+        ExperimentConfig(id=0, model_name="deeplab", learning_rate=0.0001, batch_size=2, img_size=192),
+        ExperimentConfig(id=1, model_name="deeplab", learning_rate=0.001, batch_size=2, img_size=192),
+        ExperimentConfig(id=2, model_name="deeplab", learning_rate=0.01, batch_size=2, img_size=192),
+        ExperimentConfig(id=3, model_name="segformer", learning_rate=0.0001, batch_size=2, img_size=192),
+        ExperimentConfig(id=2, model_name="segformer", learning_rate=0.001, batch_size=2, img_size=192),
+        ExperimentConfig(id=5, model_name="segformer", learning_rate=0.01, batch_size=2, img_size=192),
+        ExperimentConfig(id=6, model_name="lraspp", learning_rate=0.0001, batch_size=2, img_size=192),
+        ExperimentConfig(id=7, model_name="lraspp", learning_rate=0.001, batch_size=2, img_size=192),
+        ExperimentConfig(id=8, model_name="lraspp", learning_rate=0.01, batch_size=2, img_size=192),
     ],
 )
 
-hyperparameter_search = ExperimentSet(
-    title="Hyperparameter Search",
+batch_size_experiments = ExperimentSet(
+    title="Batch Size Experiments",
     configs=[
-        # DeepLab experiments (0-17)
-        ExperimentConfig(
-            id=0,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=1,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=2,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=3,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=4,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=5,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=6,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=7,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=8,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=9,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=10,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=11,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=12,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=13,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=14,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=15,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=16,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=17,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=384,
-        ),
-        # Segformer experiments (18-35)
-        ExperimentConfig(
-            id=18,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=19,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=20,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=21,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=22,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=23,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=24,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=25,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=26,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=27,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=28,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=29,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=30,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=31,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=32,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=33,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=34,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=35,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=384,
-        ),
-        # LRASPP experiments (36-53)
-        ExperimentConfig(
-            id=36,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=37,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=38,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=39,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=40,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=41,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=42,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=43,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=44,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=45,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=46,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=47,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=48,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=49,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=50,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=51,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=52,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=53,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=384,
-        ),
+        ExperimentConfig(id=9, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=10, model_name="deeplab", learning_rate=0.0001, batch_size=32, img_size=192),
+        ExperimentConfig(id=11, model_name="deeplab", learning_rate=0.0001, batch_size=64, img_size=192),
+        ExperimentConfig(id=12, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=13, model_name="segformer", learning_rate=0.0001, batch_size=32, img_size=192),
+        ExperimentConfig(id=14, model_name="segformer", learning_rate=0.0001, batch_size=64, img_size=192),
+        ExperimentConfig(id=15, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=16, model_name="lraspp", learning_rate=0.0001, batch_size=32, img_size=192),
+        ExperimentConfig(id=17, model_name="lraspp", learning_rate=0.0001, batch_size=64, img_size=192),
     ],
 )
 
-EXPERIMENT_SETS = [model_search]
+augmentation_experiments = ExperimentSet(
+    title="Augmentation Experiments",
+    configs=[
+        ExperimentConfig(id=18, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=19, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=20, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=192),
+    ],
+)
+
+resolution_experiments = ExperimentSet(
+    title="Resolution Experiments",
+    configs=[
+        ExperimentConfig(id=21, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=384),
+        ExperimentConfig(id=22, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=384),
+        ExperimentConfig(id=23, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=384),
+    ],
+)
+
+EXPERIMENT_SETS = [learning_rate_experiments, batch_size_experiments, augmentation_experiments, resolution_experiments]

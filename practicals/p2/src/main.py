@@ -3,6 +3,10 @@ from run_experiment import run_experiment
 from pprint import pprint
 from config import MINI_RUN
 
+import torch.multiprocessing as mp
+# Set spawn method at module level before any other multiprocessing operations
+mp.set_start_method('spawn', force=True)
+
 
 def main():
     if MINI_RUN:
