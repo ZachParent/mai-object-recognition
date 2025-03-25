@@ -93,11 +93,17 @@ class Trainer:
             # Forward pass
             outputs = self.model(image)  # Shape: [batch_size, num_classes, H, W]
 
-            if 'out' in outputs:            # DeepLabv3 and LR-ASPP
-                outputs = outputs['out']
-            else:                           # SegFormer
-                outputs = outputs['logits']
-                mask = torch.nn.functional.interpolate(mask.unsqueeze(1).float(), scale_factor=1/4, mode='nearest').squeeze(1).long()
+            if "out" in outputs:  # DeepLabv3 and LR-ASPP
+                outputs = outputs["out"]
+            else:  # SegFormer
+                outputs = outputs["logits"]
+                mask = (
+                    torch.nn.functional.interpolate(
+                        mask.unsqueeze(1).float(), scale_factor=1 / 4, mode="nearest"
+                    )
+                    .squeeze(1)
+                    .long()
+                )
 
             # Calculate loss - CrossEntropyLoss expects [B, C, H, W] outputs and [B, H, W] targets
             loss = self.criterion(outputs, mask)
@@ -128,11 +134,19 @@ class Trainer:
                 # Forward pass
                 outputs = self.model(image)  # Shape: [batch_size, num_classes, H, W]
 
-                if 'out' in outputs:            # DeepLabv3 and LR-ASPP
-                    outputs = outputs['out']
-                else:                           # SegFormer
-                    outputs = outputs['logits']
-                    mask = torch.nn.functional.interpolate(mask.unsqueeze(1).float(), scale_factor=1/4, mode='nearest').squeeze(1).long()
+                if "out" in outputs:  # DeepLabv3 and LR-ASPP
+                    outputs = outputs["out"]
+                else:  # SegFormer
+                    outputs = outputs["logits"]
+                    mask = (
+                        torch.nn.functional.interpolate(
+                            mask.unsqueeze(1).float(),
+                            scale_factor=1 / 4,
+                            mode="nearest",
+                        )
+                        .squeeze(1)
+                        .long()
+                    )
 
                 # Calculate loss - CrossEntropyLoss expects [B, C, H, W] outputs and [B, H, W] targets
                 loss = self.criterion(outputs, mask)
