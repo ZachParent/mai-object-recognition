@@ -7,6 +7,7 @@ pypalettes
 requests
 seaborn
 tensorboard
+transformers
 torchvision==0.21.0
 tqdm
 
