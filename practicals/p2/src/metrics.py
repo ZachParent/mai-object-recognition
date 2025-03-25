@@ -11,9 +11,23 @@ from config import RUNS_DIR, METRICS_DIR
 # Define metrics to use
 def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
     return torchmetrics.MetricCollection(
-        [
-            torchmetrics.segmentation.DiceScore(num_classes=num_classes),
-        ]
+        {
+            "dice": torchmetrics.segmentation.DiceScore(
+                input_format="index", num_classes=num_classes, include_background=False
+            ),
+            "accuracy": torchmetrics.classification.MulticlassAccuracy(
+                num_classes=num_classes
+            ),
+            "precision": torchmetrics.classification.MulticlassPrecision(
+                num_classes=num_classes
+            ),
+            "recall": torchmetrics.classification.MulticlassRecall(
+                num_classes=num_classes
+            ),
+            "f1": torchmetrics.classification.MulticlassF1Score(
+                num_classes=num_classes
+            ),
+        }
     )
 
 
@@ -151,8 +165,12 @@ if __name__ == "__main__":
     val_metrics = get_metric_collection(3)
     metrics_logger = MetricsLogger(69, train_metrics, val_metrics)
 
-    train_metrics.update(torch.randn(3, 3, 10, 10), torch.randn(3, 3, 10, 10))
-    val_metrics.update(torch.randn(3, 3, 10, 10), torch.randn(3, 3, 10, 10))
+    example_output = torch.randn(3, 3, 10, 10)
+    example_target = torch.randint(0, 3, (3, 10, 10))
+    argmax_output = example_output.argmax(dim=1)
+
+    train_metrics.update(argmax_output, example_target)
+    val_metrics.update(argmax_output, example_target)
 
     metrics_logger.update_metrics()
     metrics_logger.log_metrics()

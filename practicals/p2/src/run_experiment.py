@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Dict
 from config import NUM_EPOCHS, DEVICE
-import numpy as np
 from metrics import MetricsLogger, get_metric_collection
 import torchmetrics
 
@@ -96,13 +95,9 @@ class Trainer:
 
             # Calculate loss - CrossEntropyLoss expects [B, C, H, W] outputs and [B, H, W] targets
             loss = self.criterion(outputs, mask)
-            # One-hot encode the mask
-            mask_one_hot = (
-                torch.nn.functional.one_hot(mask, num_classes=NUM_CLASSES)
-                .permute(0, 3, 1, 2)
-                .float()
-            )
-            self.train_metrics_collection.update(outputs, mask_one_hot)
+
+            preds = outputs.argmax(dim=1)
+            self.train_metrics_collection.update(preds, mask)
 
             # Backward pass and optimization
             loss.backward()
@@ -129,13 +124,9 @@ class Trainer:
 
                 # Calculate loss - CrossEntropyLoss expects [B, C, H, W] outputs and [B, H, W] targets
                 loss = self.criterion(outputs, mask)
-                # One-hot encode the mask
-                mask_one_hot = (
-                    torch.nn.functional.one_hot(mask, num_classes=NUM_CLASSES)
-                    .permute(0, 3, 1, 2)
-                    .float()
-                )
-                self.val_metrics_collection.update(outputs, mask_one_hot)
+
+                preds = outputs.argmax(dim=1)
+                self.val_metrics_collection.update(preds, mask)
 
                 # Update progress with current batch metrics
                 progress.update(loss.item())
@@ -155,7 +146,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     for epoch in range(NUM_EPOCHS):
         width = 90
         print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1}".center(width))
+        print(f"EPOCH {epoch+1} / {NUM_EPOCHS}".center(width))
         print("-" * width)
         trainer.train_epoch(train_dataloader)
         trainer.evaluate(val_dataloader)
