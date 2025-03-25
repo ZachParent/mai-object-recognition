@@ -17,15 +17,15 @@ class ExperimentSet(pydantic.BaseModel):
 learning_rate_experiments = ExperimentSet(
     title="Learning Rate Experiments",
     configs=[
-        ExperimentConfig(id=0, model_name="deeplab", learning_rate=0.0001, batch_size=2, img_size=192),
-        ExperimentConfig(id=1, model_name="deeplab", learning_rate=0.001, batch_size=2, img_size=192),
-        ExperimentConfig(id=2, model_name="deeplab", learning_rate=0.01, batch_size=2, img_size=192),
-        ExperimentConfig(id=3, model_name="segformer", learning_rate=0.0001, batch_size=2, img_size=192),
-        ExperimentConfig(id=2, model_name="segformer", learning_rate=0.001, batch_size=2, img_size=192),
-        ExperimentConfig(id=5, model_name="segformer", learning_rate=0.01, batch_size=2, img_size=192),
-        ExperimentConfig(id=6, model_name="lraspp", learning_rate=0.0001, batch_size=2, img_size=192),
-        ExperimentConfig(id=7, model_name="lraspp", learning_rate=0.001, batch_size=2, img_size=192),
-        ExperimentConfig(id=8, model_name="lraspp", learning_rate=0.01, batch_size=2, img_size=192),
+        ExperimentConfig(id=0, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=1, model_name="deeplab", learning_rate=0.001, batch_size=16, img_size=192),
+        ExperimentConfig(id=2, model_name="deeplab", learning_rate=0.01, batch_size=16, img_size=192),
+        ExperimentConfig(id=3, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=4, model_name="segformer", learning_rate=0.001, batch_size=16, img_size=192),
+        ExperimentConfig(id=5, model_name="segformer", learning_rate=0.01, batch_size=16, img_size=192),
+        ExperimentConfig(id=6, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=192),
+        ExperimentConfig(id=7, model_name="lraspp", learning_rate=0.001, batch_size=16, img_size=192),
+        ExperimentConfig(id=8, model_name="lraspp", learning_rate=0.01, batch_size=16, img_size=192),
     ],
 )
 
