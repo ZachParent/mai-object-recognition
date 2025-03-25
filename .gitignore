@@ -179,6 +179,14 @@ cython_debug/
 *.fls
 *.out
 *.synctex.gz
+
+# VSCode
+.vscode/
+
+# MacOS
+.DS_Store
+
+
 practicals/p1/indi/train_dataset/dataset_spec.pb
 practicals/p1/indi/train_dataset/snapshot.metadata
 practicals/p1/indi/train_dataset/16346671039009340475/00000000.shard/00000000.snapshot

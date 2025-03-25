@@ -174,7 +174,6 @@ hyperparameter_search = ExperimentSet(
             batch_size=12,
             img_size=384,
         ),
-        
         # Segformer experiments (18-35)
         ExperimentConfig(
             id=18,
@@ -302,7 +301,6 @@ hyperparameter_search = ExperimentSet(
             batch_size=12,
             img_size=384,
         ),
-        
         # LRASPP experiments (36-53)
         ExperimentConfig(
             id=36,

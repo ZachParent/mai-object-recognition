@@ -2,135 +2,94 @@ from typing import Callable, Literal, Optional, List, Dict
 import torch
 import pandas as pd
 import torch.nn.functional as F
+import torchmetrics
+import torchmetrics.segmentation
 from torch.utils.tensorboard import SummaryWriter
 from config import RUNS_DIR, METRICS_DIR
 
 
-class Metric(Callable):
-    def __init__(self):
-        self.name: str | None = None
-        self.display_name: str | None = None
-
-    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        pass
-
-
-# TODO: check that this is correct
-class MDice(Metric):
-    def __init__(self):
-        super().__init__()
-        self.name = "m_dice"
-        self.display_name = "mDice"
-        self.smooth = 1e-6
-
-    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        preds = outputs.argmax(dim=1)
-        num_classes = outputs.size(1)
-
-        # One-hot encode predictions and targets
-        preds_one_hot = F.one_hot(preds, num_classes).permute(0, 3, 1, 2).float()
-        targets_one_hot = F.one_hot(targets, num_classes).permute(0, 3, 1, 2).float()
-
-        # Calculate dice scores for each class (skip background)
-        dice_scores = []
-        for c in range(1, num_classes):
-            pred_c = preds_one_hot[:, c].contiguous().view(-1)
-            target_c = targets_one_hot[:, c].contiguous().view(-1)
-
-            intersection = (pred_c * target_c).sum()
-            dice = (2.0 * intersection + self.smooth) / (
-                pred_c.sum() + target_c.sum() + self.smooth
-            )
-            dice_scores.append(dice.item())
-
-        # Average dice score across classes
-        return sum(dice_scores) / max(len(dice_scores), 1)
-
-
-# TODO: check that this is correct
-
-
-class IoU(Metric):
-    def __init__(self):
-        super().__init__()
-        self.name = "iou"
-        self.display_name = "IoU"
-        self.smooth = 1e-6
-
-    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        preds = outputs.argmax(dim=1)
-        num_classes = outputs.size(1)
-
-        # One-hot encode predictions and targets
-        preds_one_hot = F.one_hot(preds, num_classes).permute(0, 3, 1, 2).float()
-        targets_one_hot = F.one_hot(targets, num_classes).permute(0, 3, 1, 2).float()
-
-        # Calculate IoU for each class (skip background)
-        iou_scores = []
-        for c in range(1, num_classes):
-            pred_c = preds_one_hot[:, c].contiguous().view(-1)
-            target_c = targets_one_hot[:, c].contiguous().view(-1)
-
-            intersection = (pred_c * target_c).sum()
-            union = pred_c.sum() + target_c.sum() - intersection
-            iou = (intersection + self.smooth) / (union + self.smooth)
-            iou_scores.append(iou.item())
-
-        # Average IoU across classes
-        return sum(iou_scores) / max(len(iou_scores), 1)
-
-
 # Define metrics to use
-ALL_METRICS = [MDice(), IoU()]
+def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
+    return torchmetrics.MetricCollection(
+        {
+            "dice": torchmetrics.segmentation.DiceScore(
+                input_format="index", num_classes=num_classes, include_background=False
+            ),
+            "accuracy": torchmetrics.classification.MulticlassAccuracy(
+                num_classes=num_classes
+            ),
+            "precision": torchmetrics.classification.MulticlassPrecision(
+                num_classes=num_classes
+            ),
+            "recall": torchmetrics.classification.MulticlassRecall(
+                num_classes=num_classes
+            ),
+            "f1": torchmetrics.classification.MulticlassF1Score(
+                num_classes=num_classes
+            ),
+        }
+    )
 
 
-class MetricsLogger:
-    def __init__(self, experiment_id: int, metrics: Optional[List[str]] = None) -> None:
+class MetricLogger:
+    def __init__(
+        self,
+        experiment_id: int,
+        train_metrics: torchmetrics.MetricCollection,
+        val_metrics: torchmetrics.MetricCollection,
+    ) -> None:
         self._create_dirs()
         self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
         self.csv_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
-        self.metrics = metrics or ["loss"] + [metric.name for metric in ALL_METRICS]
-        self.df = pd.DataFrame(
-            columns=["epoch"]
-            + [f"train_{name}" for name in self.metrics]
-            + [f"val_{name}" for name in self.metrics]
-        ).astype({"epoch": int})
+        self.columns = ["epoch"]
+        self.columns.extend([f"train_{name}" for name in train_metrics.keys()])
+        self.columns.extend([f"val_{name}" for name in val_metrics.keys()])
+        self.df = pd.DataFrame(columns=self.columns).astype({"epoch": int})
+        self.train_metrics = train_metrics
+        self.val_metrics = val_metrics
+        self.epoch = 0
 
     def _create_dirs(self) -> None:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
 
+    def update_metrics(self) -> None:
+        self.epoch += 1
+        train_metric_values = self.train_metrics.compute()
+        val_metric_values = self.val_metrics.compute()
+        row = [self.epoch]
+        for name, value in train_metric_values.items():
+            row.append(value.item())
+        for name, value in val_metric_values.items():
+            row.append(value.item())
+        self.df.loc[len(self.df)] = row
+
     def log_metrics(
-        self, train_metrics: Dict[str, float], val_metrics: Dict[str, float], epoch: int
+        self,
     ) -> None:
         # Log to TensorBoard
-        for name, value in train_metrics.items():
-            self.tb_writer.add_scalar(f"train/{name}", value, epoch)
-        for name, value in val_metrics.items():
-            self.tb_writer.add_scalar(f"val/{name}", value, epoch)
+        for col in self.columns[1:]:
+            self.tb_writer.add_scalar(
+                f"{col}".replace("train_", "train/").replace("val_", "val/"),
+                self.df.iloc[-1][col],
+                self.epoch,
+            )
 
         # Log to CSV
-        self.df.loc[len(self.df)] = (
-            [epoch]
-            + [train_metrics.get(name, 0.0) for name in self.metrics]
-            + [val_metrics.get(name, 0.0) for name in self.metrics]
-        )
         self.df["epoch"] = self.df["epoch"].astype(int)
         self.df.to_csv(self.csv_path, index=False)
 
         # Print summary after logging metrics
-        self.print_epoch_summary(train_metrics, val_metrics, epoch)
+        self.print_epoch_summary()
 
-    def print_epoch_summary(
-        self, train_metrics: Dict[str, float], val_metrics: Dict[str, float], epoch: int
-    ) -> None:
+    def print_epoch_summary(self) -> None:
         """
         Print a summary of the current epoch's metrics, with indicators showing
         improvement relative to the previous epoch.
         """
         width = 90
         print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} SUMMARY".center(width))
+        print(f"EPOCH {self.epoch} SUMMARY".center(width))
         print("-" * width)
 
         # Headers
@@ -144,9 +103,9 @@ class MetricsLogger:
             prev_epoch = self.df.iloc[-2]  # Previous epoch's data
 
         # Print each metric with trend indicators
-        for name in self.metrics:
-            train_value = train_metrics.get(name, 0.0)
-            val_value = val_metrics.get(name, 0.0)
+        for name in self.train_metrics.keys():
+            train_value = self.df.iloc[-1][f"train_{name}"]
+            val_value = self.df.iloc[-1][f"val_{name}"]
 
             # Initialize trend indicators
             train_change = "="
@@ -199,3 +158,19 @@ class MetricsLogger:
 
     def close(self) -> None:
         self.tb_writer.close()
+
+
+if __name__ == "__main__":
+    train_metrics = get_metric_collection(3)
+    val_metrics = get_metric_collection(3)
+    metrics_logger = MetricLogger(69, train_metrics, val_metrics)
+
+    example_output = torch.randn(3, 3, 10, 10)
+    example_target = torch.randint(0, 3, (3, 10, 10))
+    argmax_output = example_output.argmax(dim=1)
+
+    train_metrics.update(argmax_output, example_target)
+    val_metrics.update(argmax_output, example_target)
+
+    metrics_logger.update_metrics()
+    metrics_logger.log_metrics()
