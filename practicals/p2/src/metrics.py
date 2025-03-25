@@ -31,7 +31,7 @@ def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
     )
 
 
-class MetricsLogger:
+class MetricLogger:
     def __init__(
         self,
         experiment_id: int,
@@ -163,7 +163,7 @@ class MetricsLogger:
 if __name__ == "__main__":
     train_metrics = get_metric_collection(3)
     val_metrics = get_metric_collection(3)
-    metrics_logger = MetricsLogger(69, train_metrics, val_metrics)
+    metrics_logger = MetricLogger(69, train_metrics, val_metrics)
 
     example_output = torch.randn(3, 3, 10, 10)
     example_target = torch.randint(0, 3, (3, 10, 10))

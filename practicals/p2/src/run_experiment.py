@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Dict
 from config import NUM_EPOCHS, DEVICE
-from metrics import MetricsLogger, get_metric_collection
+from metrics import MetricLogger, get_metric_collection
 import torchmetrics
 
 
@@ -140,7 +140,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     val_metrics_collection = get_metric_collection(NUM_CLASSES)
 
     trainer = Trainer(experiment, train_metrics_collection, val_metrics_collection)
-    metrics_logger = MetricsLogger(
+    metrics_logger = MetricLogger(
         experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
     )
     for epoch in range(NUM_EPOCHS):
