@@ -74,13 +74,16 @@ class Trainer:
         self.train_metrics_collection = train_metrics_collection
         self.val_metrics_collection = val_metrics_collection
 
-    def train_epoch(self, dataloader: DataLoader) -> Dict[str, float]:
+    def train_epoch(self, dataloader: DataLoader) -> float:
         self.model.train()
         progress = TrainingProgress(
             dataloader,
             desc="Training",
         )
         self.train_metrics_collection.reset()
+
+        total_loss = 0.0
+        num_batches = 0
 
         for image, target in dataloader:
             # Move tensors to the correct device
@@ -108,6 +111,10 @@ class Trainer:
             # Calculate loss - CrossEntropyLoss expects [B, C, H, W] outputs and [B, H, W] targets
             loss = self.criterion(outputs, mask)
 
+            # Accumulate loss
+            total_loss += loss.item()
+            num_batches += 1
+
             preds = outputs.argmax(dim=1)
             self.train_metrics_collection.update(preds, mask)
 
@@ -120,10 +127,16 @@ class Trainer:
 
         progress.close()
 
-    def evaluate(self, dataloader: DataLoader) -> Dict[str, float]:
+        # Return average loss for the epoch
+        return total_loss / num_batches
+
+    def evaluate(self, dataloader: DataLoader) -> float:
         self.model.eval()
         progress = TrainingProgress(dataloader, desc="Evaluating")
         self.val_metrics_collection.reset()
+
+        total_loss = 0.0
+        num_batches = 0
 
         with torch.no_grad():
             for image, target in dataloader:
@@ -151,6 +164,10 @@ class Trainer:
                 # Calculate loss - CrossEntropyLoss expects [B, C, H, W] outputs and [B, H, W] targets
                 loss = self.criterion(outputs, mask)
 
+                # Accumulate loss
+                total_loss += loss.item()
+                num_batches += 1
+
                 preds = outputs.argmax(dim=1)
                 self.val_metrics_collection.update(preds, mask)
 
@@ -158,6 +175,9 @@ class Trainer:
                 progress.update(loss.item())
 
         progress.close()
+
+        # Return average loss for the epoch
+        return total_loss / num_batches
 
 
 def run_experiment(experiment: ExperimentConfig) -> None:
@@ -174,11 +194,11 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         print("\n" + "=" * width)
         print(f"EPOCH {epoch+1} / {NUM_EPOCHS}".center(width))
         print("-" * width)
-        trainer.train_epoch(train_dataloader)
-        trainer.evaluate(val_dataloader)
+        train_loss = trainer.train_epoch(train_dataloader)
+        val_loss = trainer.evaluate(val_dataloader)
 
         # Log metrics to TensorBoard and CSV (will also print epoch summary)
-        metrics_logger.update_metrics()
+        metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
 
     metrics_logger.close()
@@ -190,7 +210,7 @@ if __name__ == "__main__":
         id=0,
         model_name="segformer",
         learning_rate=0.001,
-        batch_size=4,
-        img_size=224,
+        batch_size=2,
+        img_size=100,
     )
     run_experiment(experiment)
