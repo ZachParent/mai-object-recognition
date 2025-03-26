@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from config import RUNS_DIR, METRICS_DIR
 
 
-def compile_best_runs_csv(experiment_set, metric="val_dice"):
+def compile_best_runs_csv(experiment_set, metric="dice"):
     best_runs_path = f"{METRICS_DIR}/best_runs.csv"
     column_names = [
         "experiment_set", 
