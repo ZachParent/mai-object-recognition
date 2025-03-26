@@ -7,7 +7,6 @@ import torchmetrics
 import torchmetrics.segmentation
 from torch.utils.tensorboard import SummaryWriter
 from config import RUNS_DIR, METRICS_DIR
-from experiment_config import EXPERIMENT_SETS
 
 
 def compile_best_runs_csv(experiment_set, metric="val_dice"):
