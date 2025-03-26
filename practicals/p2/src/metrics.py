@@ -5,6 +5,7 @@ import pandas as pd
 import torch.nn.functional as F
 import torchmetrics
 import torchmetrics.segmentation
+import torchmetrics.classification
 from torch.utils.tensorboard import SummaryWriter
 from config import RUNS_DIR, METRICS_DIR
 
@@ -71,23 +72,56 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
 def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
     return torchmetrics.MetricCollection(
         {
+            "accuracy_w_bg": torchmetrics.classification.MulticlassAccuracy(
+                num_classes=num_classes
+            ),
+            "accuracy": torchmetrics.classification.MulticlassAccuracy(
+                num_classes=num_classes, ignore_index=0
+            ),
+            "dice_w_bg": torchmetrics.segmentation.DiceScore(
+                input_format="index", num_classes=num_classes
+            ),
             "dice": torchmetrics.segmentation.DiceScore(
                 input_format="index", num_classes=num_classes, include_background=False
             ),
-            "accuracy": torchmetrics.classification.MulticlassAccuracy(
-                num_classes=num_classes
-            ),
-            "precision": torchmetrics.classification.MulticlassPrecision(
-                num_classes=num_classes
-            ),
-            "recall": torchmetrics.classification.MulticlassRecall(
+            "f1_w_bg": torchmetrics.classification.MulticlassF1Score(
                 num_classes=num_classes
             ),
             "f1": torchmetrics.classification.MulticlassF1Score(
+                num_classes=num_classes, ignore_index=0
+            ),
+            "precision_w_bg": torchmetrics.classification.MulticlassPrecision(
                 num_classes=num_classes
+            ),
+            "precision": torchmetrics.classification.MulticlassPrecision(
+                num_classes=num_classes, ignore_index=0
+            ),
+            "recall_w_bg": torchmetrics.classification.MulticlassRecall(
+                num_classes=num_classes
+            ),
+            "recall": torchmetrics.classification.MulticlassRecall(
+                num_classes=num_classes, ignore_index=0
             ),
         }
     )
+
+
+metrics_order = [
+    # Primary metrics
+    "loss",
+    "dice",
+    "f1",
+    "accuracy",
+    # Additional metrics
+    "precision",
+    "recall",
+    # With background metrics
+    "dice_w_bg",
+    "f1_w_bg",
+    "accuracy_w_bg",
+    "precision_w_bg",
+    "recall_w_bg",
+]
 
 
 class MetricLogger:
@@ -101,8 +135,8 @@ class MetricLogger:
         self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
         self.csv_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
         self.columns = ["epoch"]
-        self.columns.extend([f"train_{name}" for name in train_metrics.keys()])
-        self.columns.extend([f"val_{name}" for name in val_metrics.keys()])
+        self.columns.extend([f"train_{name}" for name in metrics_order])
+        self.columns.extend([f"val_{name}" for name in metrics_order])
         self.df = pd.DataFrame(columns=self.columns).astype({"epoch": int})
         self.train_metrics = train_metrics
         self.val_metrics = val_metrics
@@ -112,15 +146,17 @@ class MetricLogger:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
 
-    def update_metrics(self) -> None:
+    def update_metrics(self, train_loss: float, val_loss: float) -> None:
         self.epoch += 1
         train_metric_values = self.train_metrics.compute()
         val_metric_values = self.val_metrics.compute()
         row = [self.epoch]
-        for name, value in train_metric_values.items():
-            row.append(value.item())
-        for name, value in val_metric_values.items():
-            row.append(value.item())
+        row.append(train_loss)
+        for name in metrics_order[1:]:
+            row.append(train_metric_values[name].item())
+        row.append(val_loss)
+        for name in metrics_order[1:]:
+            row.append(val_metric_values[name].item())
         self.df.loc[len(self.df)] = row
 
     def log_metrics(
@@ -152,7 +188,7 @@ class MetricLogger:
         print("-" * width)
 
         # Headers
-        print(f"{'Metric':<12} {'Train':<10} {'Val':<10} {'Train Δ':<15} {'Val Δ':<15}")
+        print(f"{'Metric':<15} {'Train':<10} {'Val':<10} {'Train Δ':<15} {'Val Δ':<15}")
         print("-" * width)
 
         # Get previous epoch's metrics if available
@@ -161,8 +197,11 @@ class MetricLogger:
         if has_prev:
             prev_epoch = self.df.iloc[-2]  # Previous epoch's data
 
-        # Print each metric with trend indicators
-        for name in self.train_metrics.keys():
+        # Print each metric in the defined order
+        for name in metrics_order:
+            if f"train_{name}" not in self.df.columns:
+                continue
+
             train_value = self.df.iloc[-1][f"train_{name}"]
             val_value = self.df.iloc[-1][f"val_{name}"]
 
@@ -210,7 +249,7 @@ class MetricLogger:
             val_indicator = f"{val_diff:+.6f} {val_change}"
 
             print(
-                f"{name:<12} {train_value:.6f}  {val_value:.6f}  {train_indicator:<15}  {val_indicator:<15}"
+                f"{name:<15} {train_value:.6f}  {val_value:.6f}  {train_indicator:<15}  {val_indicator:<15}"
             )
 
         print("=" * width + "\n")
@@ -220,16 +259,20 @@ class MetricLogger:
 
 
 if __name__ == "__main__":
-    train_metrics = get_metric_collection(3)
-    val_metrics = get_metric_collection(3)
+    num_classes = 20
+    batch_size = 16
+    train_metrics = get_metric_collection(num_classes)
+    val_metrics = get_metric_collection(num_classes)
     metrics_logger = MetricLogger(69, train_metrics, val_metrics)
 
-    example_output = torch.randn(3, 3, 10, 10)
-    example_target = torch.randint(0, 3, (3, 10, 10))
+    example_output = torch.randn(batch_size, num_classes, 10, 10)
+    example_target = torch.randint(0, num_classes, (batch_size, 10, 10))
     argmax_output = example_output.argmax(dim=1)
+    train_loss = torch.randn(1).item()
+    val_loss = torch.randn(1).item()
 
     train_metrics.update(argmax_output, example_target)
     val_metrics.update(argmax_output, example_target)
 
-    metrics_logger.update_metrics()
+    metrics_logger.update_metrics(train_loss, val_loss)
     metrics_logger.log_metrics()
