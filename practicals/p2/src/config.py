@@ -53,4 +53,4 @@ DEVICE = torch.device("cuda" if USING_CUDA else "cpu")
 # Set to True to run a mini-run with less data and fewer epochs
 MINI_RUN = not USING_CUDA
 
-NUM_EPOCHS = 1 if MINI_RUN else 4
+NUM_EPOCHS = 1 if MINI_RUN else 5
