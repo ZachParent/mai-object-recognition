@@ -36,7 +36,7 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
 
             # Prepare new row data
             new_row = {
-                "experiment_set": experiment_set.name,
+                "experiment_set": experiment_set.title,
                 "experiment_id": experiment.id,
                 "model_name": experiment.model_name,
                 "learning_rate": experiment.learning_rate,
@@ -46,7 +46,7 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
             }
 
             # Check if this experiment_set and model_name combination already exists
-            mask = (best_runs_df["experiment_set"] == experiment_set.name) & (
+            mask = (best_runs_df["experiment_set"] == experiment_set.title) & (
                 best_runs_df["model_name"] == experiment.model_name
             )
 
