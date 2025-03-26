@@ -49,6 +49,7 @@ def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
 
 metrics_order = [
     # Primary metrics
+    "loss",
     "dice",
     "f1",
     "accuracy",
@@ -75,8 +76,8 @@ class MetricLogger:
         self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
         self.csv_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
         self.columns = ["epoch"]
-        self.columns.extend([f"train_{name}" for name in train_metrics.keys()])
-        self.columns.extend([f"val_{name}" for name in val_metrics.keys()])
+        self.columns.extend([f"train_{name}" for name in metrics_order])
+        self.columns.extend([f"val_{name}" for name in metrics_order])
         self.df = pd.DataFrame(columns=self.columns).astype({"epoch": int})
         self.train_metrics = train_metrics
         self.val_metrics = val_metrics
@@ -86,15 +87,17 @@ class MetricLogger:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
 
-    def update_metrics(self) -> None:
+    def update_metrics(self, train_loss: float, val_loss: float) -> None:
         self.epoch += 1
         train_metric_values = self.train_metrics.compute()
         val_metric_values = self.val_metrics.compute()
         row = [self.epoch]
-        for name, value in train_metric_values.items():
-            row.append(value.item())
-        for name, value in val_metric_values.items():
-            row.append(value.item())
+        row.append(train_loss)
+        for name in metrics_order[1:]:
+            row.append(train_metric_values[name].item())
+        row.append(val_loss)
+        for name in metrics_order[1:]:
+            row.append(val_metric_values[name].item())
         self.df.loc[len(self.df)] = row
 
     def log_metrics(
@@ -137,9 +140,7 @@ class MetricLogger:
 
         # Print each metric in the defined order
         for name in metrics_order:
-            # Skip metrics that don't exist in the collection
             if f"train_{name}" not in self.df.columns:
-                print(f"Metric {name} not found in train metrics")
                 continue
 
             train_value = self.df.iloc[-1][f"train_{name}"]
@@ -208,9 +209,11 @@ if __name__ == "__main__":
     example_output = torch.randn(batch_size, num_classes, 10, 10)
     example_target = torch.randint(0, num_classes, (batch_size, 10, 10))
     argmax_output = example_output.argmax(dim=1)
+    train_loss = torch.randn(1).item()
+    val_loss = torch.randn(1).item()
 
     train_metrics.update(argmax_output, example_target)
     val_metrics.update(argmax_output, example_target)
 
-    metrics_logger.update_metrics()
+    metrics_logger.update_metrics(train_loss, val_loss)
     metrics_logger.log_metrics()
