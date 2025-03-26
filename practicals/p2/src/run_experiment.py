@@ -99,27 +99,25 @@ class Trainer:
         
         # Get a random batch
         dataiter = iter(dataloader)
-        batch = next(dataiter)
+        image, target = next(dataiter)  # Unpack as image, target tuple
         
-        # Move batch to device
-        batch = {k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v 
-                 for k, v in batch.items()}
+        # Move tensors to device
+        image = image.to(DEVICE)
         
         # Select a random image from the batch
-        idx = np.random.randint(0, batch["image"].shape[0])
-        img = batch["image"][idx]
-        true_mask = batch["mask"][idx]
+        idx = np.random.randint(0, image.shape[0])
+        img = image[idx]
+        true_mask = target["labels"][idx].to(DEVICE)
         
         # Get prediction
         with torch.no_grad():
-            if hasattr(self, 'model_name') and self.model_name == "segformer":
-                output = self.model(img.unsqueeze(0))
-                pred_mask = torch.argmax(output, dim=1).squeeze(0)
-            else:
-                output = self.model(img.unsqueeze(0))
-                if isinstance(output, dict) and "out" in output:
+            output = self.model(img.unsqueeze(0))
+            if isinstance(output, dict):
+                if "out" in output:
                     output = output["out"]
-                pred_mask = torch.argmax(output, dim=1).squeeze(0)
+                elif "logits" in output:
+                    output = output["logits"]
+            pred_mask = torch.argmax(output, dim=1).squeeze(0)
         
         # Convert tensors to numpy for visualization
         img_np = img.cpu().detach().permute(1, 2, 0).numpy()
