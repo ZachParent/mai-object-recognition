@@ -4,6 +4,7 @@ import pandas as pd
 import torch.nn.functional as F
 import torchmetrics
 import torchmetrics.segmentation
+import torchmetrics.classification
 from torch.utils.tensorboard import SummaryWriter
 from config import RUNS_DIR, METRICS_DIR
 
@@ -12,23 +13,55 @@ from config import RUNS_DIR, METRICS_DIR
 def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
     return torchmetrics.MetricCollection(
         {
+            "accuracy_w_bg": torchmetrics.classification.MulticlassAccuracy(
+                num_classes=num_classes
+            ),
+            "accuracy": torchmetrics.classification.MulticlassAccuracy(
+                num_classes=num_classes, ignore_index=0
+            ),
+            "dice_w_bg": torchmetrics.segmentation.DiceScore(
+                input_format="index", num_classes=num_classes
+            ),
             "dice": torchmetrics.segmentation.DiceScore(
                 input_format="index", num_classes=num_classes, include_background=False
             ),
-            "accuracy": torchmetrics.classification.MulticlassAccuracy(
-                num_classes=num_classes
-            ),
-            "precision": torchmetrics.classification.MulticlassPrecision(
-                num_classes=num_classes
-            ),
-            "recall": torchmetrics.classification.MulticlassRecall(
+            "f1_w_bg": torchmetrics.classification.MulticlassF1Score(
                 num_classes=num_classes
             ),
             "f1": torchmetrics.classification.MulticlassF1Score(
+                num_classes=num_classes, ignore_index=0
+            ),
+            "precision_w_bg": torchmetrics.classification.MulticlassPrecision(
                 num_classes=num_classes
+            ),
+            "precision": torchmetrics.classification.MulticlassPrecision(
+                num_classes=num_classes, ignore_index=0
+            ),
+            "recall_w_bg": torchmetrics.classification.MulticlassRecall(
+                num_classes=num_classes
+            ),
+            "recall": torchmetrics.classification.MulticlassRecall(
+                num_classes=num_classes, ignore_index=0
             ),
         }
     )
+
+
+metrics_order = [
+    # Primary metrics
+    "dice",
+    "f1",
+    "accuracy",
+    # Additional metrics
+    "precision",
+    "recall",
+    # With background metrics
+    "dice_w_bg",
+    "f1_w_bg",
+    "accuracy_w_bg",
+    "precision_w_bg",
+    "recall_w_bg",
+]
 
 
 class MetricLogger:
@@ -93,7 +126,7 @@ class MetricLogger:
         print("-" * width)
 
         # Headers
-        print(f"{'Metric':<12} {'Train':<10} {'Val':<10} {'Train Δ':<15} {'Val Δ':<15}")
+        print(f"{'Metric':<15} {'Train':<10} {'Val':<10} {'Train Δ':<15} {'Val Δ':<15}")
         print("-" * width)
 
         # Get previous epoch's metrics if available
@@ -102,8 +135,13 @@ class MetricLogger:
         if has_prev:
             prev_epoch = self.df.iloc[-2]  # Previous epoch's data
 
-        # Print each metric with trend indicators
-        for name in self.train_metrics.keys():
+        # Print each metric in the defined order
+        for name in metrics_order:
+            # Skip metrics that don't exist in the collection
+            if f"train_{name}" not in self.df.columns:
+                print(f"Metric {name} not found in train metrics")
+                continue
+
             train_value = self.df.iloc[-1][f"train_{name}"]
             val_value = self.df.iloc[-1][f"val_{name}"]
 
@@ -151,7 +189,7 @@ class MetricLogger:
             val_indicator = f"{val_diff:+.6f} {val_change}"
 
             print(
-                f"{name:<12} {train_value:.6f}  {val_value:.6f}  {train_indicator:<15}  {val_indicator:<15}"
+                f"{name:<15} {train_value:.6f}  {val_value:.6f}  {train_indicator:<15}  {val_indicator:<15}"
             )
 
         print("=" * width + "\n")
@@ -161,12 +199,14 @@ class MetricLogger:
 
 
 if __name__ == "__main__":
-    train_metrics = get_metric_collection(3)
-    val_metrics = get_metric_collection(3)
+    num_classes = 20
+    batch_size = 16
+    train_metrics = get_metric_collection(num_classes)
+    val_metrics = get_metric_collection(num_classes)
     metrics_logger = MetricLogger(69, train_metrics, val_metrics)
 
-    example_output = torch.randn(3, 3, 10, 10)
-    example_target = torch.randint(0, 3, (3, 10, 10))
+    example_output = torch.randn(batch_size, num_classes, 10, 10)
+    example_target = torch.randint(0, num_classes, (batch_size, 10, 10))
     argmax_output = example_output.argmax(dim=1)
 
     train_metrics.update(argmax_output, example_target)
