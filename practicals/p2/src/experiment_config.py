@@ -1,7 +1,24 @@
 import pydantic
 from typing import Literal
+import pandas as pd
+from config import MODELS
+from metrics import METRICS_DIR
 
 ModelName = Literal["deeplab", "segformer", "lraspp"]
+
+def get_best_run_hyperparameter(experiment_set_title, model_name, hyperparameter):
+    try:
+        best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
+        # get best run by experiment set title and model name
+        best_run = best_runs_df[(best_runs_df["experiment_set"] == experiment_set_title) 
+                            & (best_runs_df["model_name"] == model_name)]
+        if best_run.empty:
+            raise Exception("No best runs found, please run experiments first")
+        best_run_hyperparameter_value = best_run[hyperparameter].values[0]
+        return best_run_hyperparameter_value
+    except FileNotFoundError:
+        raise Exception("No best runs found, please run experiments first")
+    
 
 class ExperimentConfig(pydantic.BaseModel):
     id: int
@@ -14,52 +31,63 @@ class ExperimentSet(pydantic.BaseModel):
     title: str
     configs: list[ExperimentConfig]
 
-learning_rate_experiments = ExperimentSet(
-    title="Learning Rate Experiments",
-    configs=[
-        ExperimentConfig(id=0, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=1, model_name="deeplab", learning_rate=0.001, batch_size=16, img_size=192),
-        ExperimentConfig(id=2, model_name="deeplab", learning_rate=0.01, batch_size=16, img_size=192),
-        ExperimentConfig(id=3, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=4, model_name="segformer", learning_rate=0.001, batch_size=16, img_size=192),
-        ExperimentConfig(id=5, model_name="segformer", learning_rate=0.01, batch_size=16, img_size=192),
-        ExperimentConfig(id=6, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=7, model_name="lraspp", learning_rate=0.001, batch_size=16, img_size=192),
-        ExperimentConfig(id=8, model_name="lraspp", learning_rate=0.01, batch_size=16, img_size=192),
-    ],
-)
+def get_learning_rate_experiments():
+    learning_rates = [0.0001, 0.001, 0.01]
+    batch_size = 16
+    img_size = 192
+    id = 0
+    experiment_configs = []
+    for model in MODELS:
+        for lr in learning_rates:
+            experiment_configs.append(ExperimentConfig(id=id, 
+                                                       model_name=model, 
+                                                       learning_rate=lr, 
+                                                       batch_size=batch_size, 
+                                                       img_size=img_size))
+            id += 1
+    return ExperimentSet(title="Learning Rate Experiments", configs=experiment_configs)
 
-batch_size_experiments = ExperimentSet(
-    title="Batch Size Experiments",
-    configs=[
-        ExperimentConfig(id=9, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=10, model_name="deeplab", learning_rate=0.0001, batch_size=32, img_size=192),
-        ExperimentConfig(id=11, model_name="deeplab", learning_rate=0.0001, batch_size=64, img_size=192),
-        ExperimentConfig(id=12, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=13, model_name="segformer", learning_rate=0.0001, batch_size=32, img_size=192),
-        ExperimentConfig(id=14, model_name="segformer", learning_rate=0.0001, batch_size=64, img_size=192),
-        ExperimentConfig(id=15, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=16, model_name="lraspp", learning_rate=0.0001, batch_size=32, img_size=192),
-        ExperimentConfig(id=17, model_name="lraspp", learning_rate=0.0001, batch_size=64, img_size=192),
-    ],
-)
+def get_batch_size_experiments():
+    learning_rate = get_best_run_hyperparameter("Learning Rate Experiments", "deeplab", "learning_rate")
+    batch_sizes = [16, 32, 64]
+    id = 9
+    experiment_configs = []
+    for model in MODELS:
+        for batch_size in batch_sizes:
+            experiment_configs.append(ExperimentConfig(id=id, 
+                                                       model_name=model, 
+                                                       learning_rate=learning_rate, 
+                                                       batch_size=batch_size, 
+                                                       img_size=192))
+            id += 1
+    return ExperimentSet(title="Batch Size Experiments", configs=experiment_configs)
 
-augmentation_experiments = ExperimentSet(
-    title="Augmentation Experiments",
-    configs=[
-        ExperimentConfig(id=18, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=19, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=192),
-        ExperimentConfig(id=20, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=192),
-    ],
-)
+def get_augmentation_experiments():
+    id = 18
+    experiment_configs = []
+    for model in MODELS:
+        learning_rate = get_best_run_hyperparameter("Learning Rate Experiments", model, "learning_rate")
+        batch_size = get_best_run_hyperparameter("Batch Size Experiments", model, "batch_size")
+        experiment_configs.append(ExperimentConfig(id=id, 
+                                                   model_name=model, 
+                                                   learning_rate=learning_rate, 
+                                                   batch_size=batch_size, 
+                                                   img_size=192))
+        id += 1
+    return ExperimentSet(title="Augmentation Experiments", configs=experiment_configs)
 
-resolution_experiments = ExperimentSet(
-    title="Resolution Experiments",
-    configs=[
-        ExperimentConfig(id=21, model_name="deeplab", learning_rate=0.0001, batch_size=16, img_size=384),
-        ExperimentConfig(id=22, model_name="segformer", learning_rate=0.0001, batch_size=16, img_size=384),
-        ExperimentConfig(id=23, model_name="lraspp", learning_rate=0.0001, batch_size=16, img_size=384),
-    ],
-)
+def get_resolution_experiments():
+    id = 21
+    experiment_configs = []
+    for model in MODELS:
+        learning_rate = get_best_run_hyperparameter("Learning Rate Experiments", model, "learning_rate")
+        batch_size = get_best_run_hyperparameter("Batch Size Experiments", model, "batch_size")
+        experiment_configs.append(ExperimentConfig(id=id, 
+                                                   model_name=model, 
+                                                   learning_rate=learning_rate, 
+                                                   batch_size=batch_size, 
+                                                   img_size=384))
+        id += 1
+    return ExperimentSet(title="Resolution Experiments", configs=experiment_configs)
 
-EXPERIMENT_SETS = [learning_rate_experiments, batch_size_experiments, augmentation_experiments, resolution_experiments]
+EXPERIMENT_SETS = [get_learning_rate_experiments, get_batch_size_experiments, get_augmentation_experiments, get_resolution_experiments]
