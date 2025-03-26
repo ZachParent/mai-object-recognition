@@ -210,7 +210,7 @@ if __name__ == "__main__":
         id=0,
         model_name="segformer",
         learning_rate=0.001,
-        batch_size=4,
-        img_size=224,
+        batch_size=2,
+        img_size=100,
     )
     run_experiment(experiment)
