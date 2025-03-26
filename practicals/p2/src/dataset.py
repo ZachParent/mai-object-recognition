@@ -250,22 +250,35 @@ class FashionpediaSegmentationDataset(Dataset):
 
 
 def get_dataloaders(experiment: ExperimentConfig):
-    # TODO: add more preprocessing steps for trying data augmentation
-    # Define transforms
-    transform = T.Compose(
-        [
-            T.Resize((experiment.img_size, experiment.img_size)),
+    # Define transforms for validation (no augmentation)
+    val_transform = T.Compose([
+        T.Resize((experiment.img_size, experiment.img_size)),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    if experiment.augmentation:
+        # Define transforms with augmentation for training
+        train_transform = T.Compose([
+            T.RandomResizedCrop(experiment.img_size, scale=(0.7, 1.0)),
+            T.RandomRotation(15),
+            T.RandomHorizontalFlip(p=0.5),
+            T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+            T.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
+            T.RandomErasing(p=0.2),  # Cutout-like augmentation
+        ])
+    else:
+        # Define transforms without augmentation for training
+        train_transform = val_transform
 
     # Create datasets
     train_dataset = FashionpediaSegmentationDataset(
         img_dir=TRAIN_IMAGES_DIR,
         ann_file=TRAIN_ANNOTATIONS_JSON,
         img_size=experiment.img_size,
-        transform=transform,
+        transform=train_transform,
         max_samples=100 if MINI_RUN else None,
     )
 
@@ -273,7 +286,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         img_dir=VAL_IMAGES_DIR,
         ann_file=VAL_ANNOTATIONS_JSON,
         img_size=experiment.img_size,
-        transform=transform,
+        transform=val_transform,
         max_samples=100 if MINI_RUN else None,
     )
 
