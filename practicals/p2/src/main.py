@@ -5,8 +5,9 @@ from config import MINI_RUN
 from metrics import compile_best_runs_csv
 
 import torch.multiprocessing as mp
+
 # Set spawn method at module level before any other multiprocessing operations
-mp.set_start_method('spawn', force=True)
+mp.set_start_method("spawn", force=True)
 
 
 def main():

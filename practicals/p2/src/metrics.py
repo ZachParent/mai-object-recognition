@@ -12,28 +12,28 @@ from config import RUNS_DIR, METRICS_DIR
 def compile_best_runs_csv(experiment_set, metric="dice"):
     best_runs_path = f"{METRICS_DIR}/best_runs.csv"
     column_names = [
-        "experiment_set", 
-        "experiment_id", 
+        "experiment_set",
+        "experiment_id",
         "model_name",
-        "learning_rate", 
-        "batch_size", 
-        "img_size", 
-        metric
+        "learning_rate",
+        "batch_size",
+        "img_size",
+        metric,
     ]
-    
+
     # Load existing CSV if it exists, otherwise create a new DataFrame
     if os.path.exists(best_runs_path):
         best_runs_df = pd.read_csv(best_runs_path)
     else:
         best_runs_df = pd.DataFrame(columns=column_names)
-    
+
     for experiment in experiment_set.configs:
         csv_path = f"{METRICS_DIR}/experiment_{experiment.id:02d}.csv"
         try:
             df = pd.read_csv(csv_path)
             # Find row with best metric value
             best_row = df[df[f"val_{metric}"] == df[f"val_{metric}"].max()].iloc[0]
-            
+
             # Prepare new row data
             new_row = {
                 "experiment_set": experiment_set.name,
@@ -42,25 +42,30 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
                 "learning_rate": experiment.learning_rate,
                 "batch_size": experiment.batch_size,
                 "img_size": experiment.img_size,
-                metric: best_row[f"val_{metric}"]
+                metric: best_row[f"val_{metric}"],
             }
-            
+
             # Check if this experiment_set and model_name combination already exists
-            mask = (best_runs_df["experiment_set"] == experiment_set.name) & (best_runs_df["model_name"] == experiment.model_name)
-            
+            mask = (best_runs_df["experiment_set"] == experiment_set.name) & (
+                best_runs_df["model_name"] == experiment.model_name
+            )
+
             if mask.any():
                 # If exists, check if new value is better
                 if new_row[metric] > best_runs_df.loc[mask, metric].values[0]:
                     best_runs_df.loc[mask] = new_row
             else:
                 # If doesn't exist, append new row
-                best_runs_df = pd.concat([best_runs_df, pd.DataFrame([new_row])], ignore_index=True)
+                best_runs_df = pd.concat(
+                    [best_runs_df, pd.DataFrame([new_row])], ignore_index=True
+                )
         except (FileNotFoundError, pd.errors.EmptyDataError):
             continue
-    
+
     # Save updated DataFrame
     best_runs_df.to_csv(best_runs_path, index=False)
     return best_runs_df
+
 
 # Define metrics to use
 def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
