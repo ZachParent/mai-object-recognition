@@ -79,10 +79,13 @@ def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
                 num_classes=num_classes, ignore_index=0
             ),
             "dice_w_bg": torchmetrics.segmentation.DiceScore(
-                input_format="index", num_classes=num_classes
+                input_format="index", num_classes=num_classes, average="macro"
             ),
             "dice": torchmetrics.segmentation.DiceScore(
-                input_format="index", num_classes=num_classes, include_background=False
+                input_format="index",
+                num_classes=num_classes,
+                include_background=False,
+                average="macro",
             ),
             "f1_w_bg": torchmetrics.classification.MulticlassF1Score(
                 num_classes=num_classes
