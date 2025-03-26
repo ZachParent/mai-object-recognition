@@ -46,6 +46,7 @@ def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
         }
     )
 
+
 metrics_order = [
     # Primary metrics
     "dice",
@@ -80,8 +81,6 @@ class MetricLogger:
         self.train_metrics = train_metrics
         self.val_metrics = val_metrics
         self.epoch = 0
-
-
 
     def _create_dirs(self) -> None:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
