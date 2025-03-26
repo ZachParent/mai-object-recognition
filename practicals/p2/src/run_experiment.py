@@ -74,6 +74,101 @@ class Trainer:
         self.train_metrics_collection = train_metrics_collection.to(DEVICE)
         self.val_metrics_collection = val_metrics_collection.to(DEVICE)
 
+    def visualize_random_prediction(self, output_path=None, dataloader=None, show=False):
+        """
+        Visualizes a random image with true and predicted segmentation masks side by side
+        and saves the visualization to a file.
+        
+        Args:
+            output_path (str, optional): Path to save the visualization. 
+                                         If None, generates a timestamped filename.
+            dataloader (DataLoader, optional): Dataloader to sample from. Defaults to validation dataloader.
+            show (bool, optional): Whether to display the plot in addition to saving it. Defaults to False.
+            
+        Returns:
+            str: Path to the saved visualization file
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import os
+        from datetime import datetime
+        
+        
+        # Set model to evaluation mode
+        self.model.eval()
+        
+        # Get a random batch
+        dataiter = iter(dataloader)
+        batch = next(dataiter)
+        
+        # Move batch to device
+        batch = {k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v 
+                 for k, v in batch.items()}
+        
+        # Select a random image from the batch
+        idx = np.random.randint(0, batch["image"].shape[0])
+        img = batch["image"][idx]
+        true_mask = batch["mask"][idx]
+        
+        # Get prediction
+        with torch.no_grad():
+            if hasattr(self, 'model_name') and self.model_name == "segformer":
+                output = self.model(img.unsqueeze(0))
+                pred_mask = torch.argmax(output, dim=1).squeeze(0)
+            else:
+                output = self.model(img.unsqueeze(0))
+                if isinstance(output, dict) and "out" in output:
+                    output = output["out"]
+                pred_mask = torch.argmax(output, dim=1).squeeze(0)
+        
+        # Convert tensors to numpy for visualization
+        img_np = img.cpu().detach().permute(1, 2, 0).numpy()
+        true_mask_np = true_mask.cpu().detach().numpy()
+        pred_mask_np = pred_mask.cpu().detach().numpy()
+        
+        # Denormalize image if necessary (assuming ImageNet normalization)
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        img_np = std * img_np + mean
+        img_np = np.clip(img_np, 0, 1)
+        
+        # Create figure
+        fig, axes = plt.subplots(1, 2, figsize=(14, 7))
+        
+        # Plot original image with true segmentation
+        axes[0].imshow(img_np)
+        im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap='viridis')
+        axes[0].set_title('Ground Truth Segmentation')
+        axes[0].axis('off')
+        
+        # Plot original image with predicted segmentation
+        axes[1].imshow(img_np)
+        im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap='viridis')
+        axes[1].set_title('Model Prediction')
+        axes[1].axis('off')
+        
+        # Add colorbar for class interpretation
+        cbar0 = fig.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
+        cbar1 = fig.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
+        
+        plt.tight_layout()
+        
+        # Create output path if not provided
+        if output_path is None:
+            os.makedirs('visualizations', exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = f"visualizations/seg_comparison_{timestamp}.png"
+        
+        # Save figure
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+        
+        return output_path
+
     def train_epoch(self, dataloader: DataLoader) -> float:
         self.model.train()
         progress = TrainingProgress(
@@ -200,6 +295,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         # Log metrics to TensorBoard and CSV (will also print epoch summary)
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
+        trainer.visualize_random_prediction()
 
     metrics_logger.close()
 
