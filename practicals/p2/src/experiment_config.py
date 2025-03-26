@@ -9,7 +9,7 @@ ModelName = Literal["deeplab", "segformer", "lraspp"]
 def get_best_run_hyperparameter(experiment_set_title, model_name, hyperparameter):
     try:
         best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
-        # get best run by experiment set title and model name
+        # get best run by experiment_set.title and model name
         best_run = best_runs_df[(best_runs_df["experiment_set"] == experiment_set_title) 
                             & (best_runs_df["model_name"] == model_name)]
         if best_run.empty:
@@ -32,9 +32,7 @@ class ExperimentSet(pydantic.BaseModel):
     configs: list[ExperimentConfig]
 
 def get_learning_rate_experiments():
-    learning_rates = [0.0001, 0.001, 0.01]
-    batch_size = 16
-    img_size = 192
+    learning_rates = [0.0005, 0.0001, 0.00005]
     id = 0
     experiment_configs = []
     for model in MODELS:
@@ -42,18 +40,20 @@ def get_learning_rate_experiments():
             experiment_configs.append(ExperimentConfig(id=id, 
                                                        model_name=model, 
                                                        learning_rate=lr, 
-                                                       batch_size=batch_size, 
-                                                       img_size=img_size))
+                                                       batch_size=4, 
+                                                       img_size=192))
             id += 1
     return ExperimentSet(title="Learning Rate Experiments", configs=experiment_configs)
 
 def get_batch_size_experiments():
-    learning_rate = get_best_run_hyperparameter("Learning Rate Experiments", "deeplab", "learning_rate")
-    batch_sizes = [16, 32, 64]
+    batch_sizes = [2, 4, 8]
     id = 9
     experiment_configs = []
     for model in MODELS:
         for batch_size in batch_sizes:
+            learning_rate = get_best_run_hyperparameter("Learning Rate Experiments", 
+                                                        model, 
+                                                        "learning_rate")
             experiment_configs.append(ExperimentConfig(id=id, 
                                                        model_name=model, 
                                                        learning_rate=learning_rate, 
