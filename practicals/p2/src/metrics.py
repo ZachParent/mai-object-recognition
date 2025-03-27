@@ -25,6 +25,10 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
     # Load existing CSV if it exists, otherwise create a new DataFrame
     if os.path.exists(best_runs_path):
         best_runs_df = pd.read_csv(best_runs_path)
+        # Ensure all required columns exist
+        for col in column_names:
+            if (col not in best_runs_df.columns):
+                best_runs_df[col] = None
     else:
         best_runs_df = pd.DataFrame(columns=column_names)
 
@@ -54,7 +58,9 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
             if mask.any():
                 # If exists, check if new value is better
                 if new_row[metric] > best_runs_df.loc[mask, metric].values[0]:
-                    best_runs_df.loc[mask] = new_row
+                    # Update each column individually to avoid dimension mismatch
+                    for col, val in new_row.items():
+                        best_runs_df.loc[mask, col] = val
             else:
                 # If doesn't exist, append new row
                 best_runs_df = pd.concat(
