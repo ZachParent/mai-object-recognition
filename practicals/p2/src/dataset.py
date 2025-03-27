@@ -53,6 +53,21 @@ MAIN_ITEM_NAMES = [
 
 NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1  # +1 for background
 
+STANDARD_TRANSFORM = T.Compose([
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+AUGMENTATION_TRANSFORM = T.Compose([
+    T.RandomRotation(15),
+    T.RandomHorizontalFlip(p=0.5),
+    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+    T.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+    T.ToTensor(),
+    T.RandomErasing(p=0.2),
+    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
 
 def load_category_mappings(ann_file):
     """
@@ -250,28 +265,15 @@ class FashionpediaSegmentationDataset(Dataset):
 
 
 def get_dataloaders(experiment: ExperimentConfig):
-    # Define transforms for validation (no augmentation)
-    val_transform = T.Compose([
-        T.Resize((experiment.img_size, experiment.img_size)),
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
-
     if experiment.augmentation:
         # Define transforms with augmentation for training
-        train_transform = T.Compose([
-            T.RandomResizedCrop(experiment.img_size, scale=(0.7, 1.0)),
-            T.RandomRotation(15),
-            T.RandomHorizontalFlip(p=0.5),
-            T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-            T.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            T.RandomErasing(p=0.2),  # Cutout-like augmentation
-        ])
+        train_transform = AUGMENTATION_TRANSFORM
     else:
         # Define transforms without augmentation for training
-        train_transform = val_transform
+        train_transform = STANDARD_TRANSFORM
+
+    # Define transforms for validation (no augmentation)
+    val_transform = STANDARD_TRANSFORM
 
     # Create datasets
     train_dataset = FashionpediaSegmentationDataset(
