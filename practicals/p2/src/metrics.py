@@ -81,7 +81,9 @@ class MetricLogger:
         self._create_dirs()
         self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
         self.metrics_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
-        self.confusion_matrix_path = f"{CONFUSION_MATRICES_DIR}/experiment_{experiment_id:02d}.csv"
+        self.confusion_matrix_path = (
+            f"{CONFUSION_MATRICES_DIR}/experiment_{experiment_id:02d}.csv"
+        )
         self.columns = ["epoch"]
         self.columns.extend([f"train_{name}" for name in metrics_order])
         self.columns.extend([f"val_{name}" for name in metrics_order])
@@ -95,7 +97,7 @@ class MetricLogger:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
         CONFUSION_MATRICES_DIR.mkdir(parents=True, exist_ok=True)
-        
+
     def update_metrics(self, train_loss: float, val_loss: float) -> None:
         self.epoch += 1
         train_metric_values = self.train_metrics.compute()
