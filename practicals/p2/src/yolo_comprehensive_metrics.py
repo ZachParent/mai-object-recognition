@@ -10,6 +10,57 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import cv2
 
+# Define our own Callback base class since it might not be directly available
+class Callback:
+    """Base callback class to create custom callbacks for YOLO training"""
+    def __init__(self):
+        pass
+    
+    def on_train_start(self, trainer):
+        pass
+    
+    def on_train_epoch_start(self, trainer):
+        pass
+    
+    def on_train_batch_start(self, trainer):
+        pass
+    
+    def on_train_batch_end(self, trainer):
+        pass
+    
+    def on_train_epoch_end(self, trainer):
+        pass
+    
+    def on_train_end(self, trainer):
+        pass
+    
+    def on_val_start(self, trainer):
+        pass
+    
+    def on_val_batch_start(self, trainer):
+        pass
+    
+    def on_val_batch_end(self, trainer):
+        pass
+    
+    def on_val_end(self, trainer):
+        pass
+    
+    def on_fit_epoch_end(self, trainer):
+        pass
+    
+    def on_predict_start(self, predictor):
+        pass
+    
+    def on_predict_batch_start(self, predictor):
+        pass
+    
+    def on_predict_batch_end(self, predictor):
+        pass
+    
+    def on_predict_end(self, predictor):
+        pass
+
 class SegmentationMetrics:
     def __init__(self, num_classes, include_background=True):
         """
@@ -348,6 +399,7 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
 class ComprehensiveMetricsCallback(Callback):
     """Custom callback to track comprehensive metrics during training"""
     def __init__(self, num_classes, output_dir=None):
+        super().__init__()
         self.num_classes = num_classes
         self.output_dir = output_dir
         if output_dir:

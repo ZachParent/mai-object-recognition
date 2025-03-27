@@ -1,17 +1,21 @@
 from ultralytics import YOLO
 import yaml
 import os
-from ultralytics.utils.callbacks.base import Callback
 import sys
-
+from pathlib import Path
 # Import our metrics module
 # Assuming you saved the previous code as comprehensive_metrics.py
-sys.path.append('/path/to/your/scripts/folder')
-from yolo_comprehensive_metrics import ComprehensiveMetricsCallback, evaluate_model_comprehensive
 
+from yolo_comprehensive_metrics import ComprehensiveMetricsCallback, evaluate_model_comprehensive
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+from src.config import (
+    DATA_DIR,
+    ANNOTATIONS_DIR
+)
 def train_yolo_with_metrics(
     data_yaml_path,
-    model_name='yolov8n-seg.pt',
+    model_name='yolov11n-seg.pt',
     epochs=100,
     image_size=640,
     batch_size=16,
@@ -98,18 +102,18 @@ def train_yolo_with_metrics(
 
 if __name__ == "__main__":
     # Example usage
-    data_yaml_path = "path/to/output/fashionpedia_yolo/dataset.yaml"
+    data_yaml_path = DATA_DIR / "yolo" / "dataset.yaml"
     
     # Train model with metrics
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
-        model_name='yolov8n-seg.pt',
+        model_name='yolo11n-seg.pt',
         epochs=100,
         image_size=640,
         batch_size=16,
         device=0,
         project_name='fashionpedia_segmentation',
-        output_dir='./comprehensive_metrics_results'
+        output_dir= DATA_DIR / "02_metrics" / "yolo_comprehensive_metrics_results"
     )
     
     print(f"Training complete. Best model: {best_model}")
