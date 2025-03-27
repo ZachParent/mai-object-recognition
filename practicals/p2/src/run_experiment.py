@@ -71,8 +71,8 @@ class Trainer:
         )
         # CrossEntropyLoss for multi-class segmentation
         self.criterion: torch.nn.Module = torch.nn.CrossEntropyLoss()
-        self.train_metrics_collection = train_metrics_collection
-        self.val_metrics_collection = val_metrics_collection
+        self.train_metrics_collection = train_metrics_collection.to(DEVICE)
+        self.val_metrics_collection = val_metrics_collection.to(DEVICE)
 
     def train_epoch(self, dataloader: DataLoader) -> float:
         self.model.train()
