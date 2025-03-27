@@ -14,51 +14,91 @@ import cv2
 class Callback:
     """Base callback class to create custom callbacks for YOLO training"""
     def __init__(self):
-        pass
+        # Initialize any necessary attributes
+        self.training_metrics = {}
+        self.validation_metrics = {}
+        self.epoch = 0
     
     def on_train_start(self, trainer):
-        pass
+        """Called when training starts."""
+        if hasattr(trainer, 'epoch'):
+            self.epoch = trainer.epoch
     
     def on_train_epoch_start(self, trainer):
-        pass
+        """Called at the start of each training epoch."""
+        if hasattr(trainer, 'epoch'):
+            self.epoch = trainer.epoch
     
     def on_train_batch_start(self, trainer):
-        pass
+        """Called at the start of each training batch."""
+        # Access batch information if needed
+        if hasattr(trainer, 'batch_idx'):
+            self.batch_idx = trainer.batch_idx
     
     def on_train_batch_end(self, trainer):
-        pass
+        """Called at the end of each training batch."""
+        # Can be used to collect per-batch metrics
+        if hasattr(trainer, 'loss') and isinstance(trainer.loss, dict):
+            for key, value in trainer.loss.items():
+                if key not in self.training_metrics:
+                    self.training_metrics[key] = []
+                if isinstance(value, (int, float)):
+                    self.training_metrics[key].append(value)
     
     def on_train_epoch_end(self, trainer):
+        """Called at the end of each training epoch."""
+        # Implement specific training epoch end functionality in subclasses
         pass
     
     def on_train_end(self, trainer):
+        """Called when training ends."""
+        # Can be used for final cleanup or reporting
         pass
     
     def on_val_start(self, trainer):
-        pass
+        """Called when validation starts."""
+        # Reset validation metrics for this validation round
+        self.validation_metrics = {}
     
     def on_val_batch_start(self, trainer):
+        """Called at the start of each validation batch."""
         pass
     
     def on_val_batch_end(self, trainer):
-        pass
+        """Called at the end of each validation batch."""
+        # Can be used to collect per-batch validation metrics
+        if hasattr(trainer, 'loss') and isinstance(trainer.loss, dict):
+            for key, value in trainer.loss.items():
+                val_key = f"val_{key}"
+                if val_key not in self.validation_metrics:
+                    self.validation_metrics[val_key] = []
+                if isinstance(value, (int, float)):
+                    self.validation_metrics[val_key].append(value)
     
     def on_val_end(self, trainer):
+        """Called at the end of validation."""
+        # Implement specific validation end functionality in subclasses
         pass
     
     def on_fit_epoch_end(self, trainer):
+        """Called at the end of each fit epoch (after validation)."""
+        # Can be used for end-of-epoch reporting or model saving decisions
         pass
     
     def on_predict_start(self, predictor):
+        """Called when prediction starts."""
         pass
     
     def on_predict_batch_start(self, predictor):
+        """Called at the start of each prediction batch."""
         pass
     
     def on_predict_batch_end(self, predictor):
+        """Called at the end of each prediction batch."""
         pass
     
     def on_predict_end(self, predictor):
+        """Called when prediction ends."""
         pass
 
 class SegmentationMetrics:
