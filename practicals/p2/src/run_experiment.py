@@ -201,6 +201,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
 
+    metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
 
 

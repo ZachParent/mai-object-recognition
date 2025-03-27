@@ -6,7 +6,7 @@ import torchmetrics
 import torchmetrics.segmentation
 import torchmetrics.classification
 from torch.utils.tensorboard import SummaryWriter
-from config import RUNS_DIR, METRICS_DIR
+from config import RUNS_DIR, METRICS_DIR, CONFUSION_MATRICES_DIR
 
 
 # Define metrics to use
@@ -46,6 +46,9 @@ def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
             "recall": torchmetrics.classification.MulticlassRecall(
                 num_classes=num_classes, ignore_index=0
             ),
+            "confusion_matrix": torchmetrics.classification.MulticlassConfusionMatrix(
+                num_classes=num_classes
+            ),
         }
     )
 
@@ -77,19 +80,22 @@ class MetricLogger:
     ) -> None:
         self._create_dirs()
         self.tb_writer = SummaryWriter(f"{RUNS_DIR}/experiment_{experiment_id:02d}")
-        self.csv_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
+        self.metrics_path = f"{METRICS_DIR}/experiment_{experiment_id:02d}.csv"
+        self.confusion_matrix_path = f"{CONFUSION_MATRICES_DIR}/experiment_{experiment_id:02d}.csv"
         self.columns = ["epoch"]
         self.columns.extend([f"train_{name}" for name in metrics_order])
         self.columns.extend([f"val_{name}" for name in metrics_order])
         self.df = pd.DataFrame(columns=self.columns).astype({"epoch": int})
         self.train_metrics = train_metrics
         self.val_metrics = val_metrics
+        self.val_confusion_matrix: torchmetrics.classification.MulticlassConfusionMatrix
         self.epoch = 0
 
     def _create_dirs(self) -> None:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
-
+        CONFUSION_MATRICES_DIR.mkdir(parents=True, exist_ok=True)
+        
     def update_metrics(self, train_loss: float, val_loss: float) -> None:
         self.epoch += 1
         train_metric_values = self.train_metrics.compute()
@@ -102,6 +108,7 @@ class MetricLogger:
         for name in metrics_order[1:]:
             row.append(val_metric_values[name].item())
         self.df.loc[len(self.df)] = row
+        self.val_confusion_matrix = pd.DataFrame(val_metric_values["confusion_matrix"])
 
     def log_metrics(
         self,
@@ -116,7 +123,7 @@ class MetricLogger:
 
         # Log to CSV
         self.df["epoch"] = self.df["epoch"].astype(int)
-        self.df.to_csv(self.csv_path, index=False)
+        self.df.to_csv(self.metrics_path, index=False)
 
         # Print summary after logging metrics
         self.print_epoch_summary()
@@ -198,6 +205,9 @@ class MetricLogger:
 
         print("=" * width + "\n")
 
+    def save_val_confusion_matrix(self) -> None:
+        self.val_confusion_matrix.to_csv(self.confusion_matrix_path)
+
     def close(self) -> None:
         self.tb_writer.close()
 
@@ -220,3 +230,4 @@ if __name__ == "__main__":
 
     metrics_logger.update_metrics(train_loss, val_loss)
     metrics_logger.log_metrics()
+    metrics_logger.save_val_confusion_matrix()
