@@ -27,7 +27,7 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
         best_runs_df = pd.read_csv(best_runs_path)
         # Ensure all required columns exist
         for col in column_names:
-            if (col not in best_runs_df.columns):
+            if col not in best_runs_df.columns:
                 best_runs_df[col] = None
     else:
         best_runs_df = pd.DataFrame(columns=column_names)
