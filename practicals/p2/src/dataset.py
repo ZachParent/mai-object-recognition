@@ -53,6 +53,25 @@ MAIN_ITEM_NAMES = [
 
 NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1  # +1 for background
 
+STANDARD_TRANSFORM = T.Compose(
+    [
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
+AUGMENTATION_TRANSFORM = T.Compose(
+    [
+        T.RandomRotation(15),
+        T.RandomHorizontalFlip(p=0.5),
+        T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        T.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+        T.ToTensor(),
+        T.RandomErasing(p=0.2),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
 
 def load_category_mappings(ann_file):
     """
@@ -250,22 +269,22 @@ class FashionpediaSegmentationDataset(Dataset):
 
 
 def get_dataloaders(experiment: ExperimentConfig):
-    # TODO: add more preprocessing steps for trying data augmentation
-    # Define transforms
-    transform = T.Compose(
-        [
-            T.Resize((experiment.img_size, experiment.img_size)),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
+    if experiment.augmentation:
+        # Define transforms with augmentation for training
+        train_transform = AUGMENTATION_TRANSFORM
+    else:
+        # Define transforms without augmentation for training
+        train_transform = STANDARD_TRANSFORM
+
+    # Define transforms for validation (no augmentation)
+    val_transform = STANDARD_TRANSFORM
 
     # Create datasets
     train_dataset = FashionpediaSegmentationDataset(
         img_dir=TRAIN_IMAGES_DIR,
         ann_file=TRAIN_ANNOTATIONS_JSON,
         img_size=experiment.img_size,
-        transform=transform,
+        transform=train_transform,
         max_samples=100 if MINI_RUN else None,
     )
 
@@ -273,7 +292,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         img_dir=VAL_IMAGES_DIR,
         ann_file=VAL_ANNOTATIONS_JSON,
         img_size=experiment.img_size,
-        transform=transform,
+        transform=val_transform,
         max_samples=100 if MINI_RUN else None,
     )
 

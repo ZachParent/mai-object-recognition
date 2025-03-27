@@ -28,6 +28,7 @@ class ExperimentConfig(pydantic.BaseModel):
     model_name: ModelName
     learning_rate: float
     batch_size: int
+    augmentation: bool = False
     img_size: int
 
 
