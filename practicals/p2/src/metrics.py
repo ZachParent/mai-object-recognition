@@ -178,7 +178,9 @@ class MetricLogger:
         for name in metrics_order[1:]:
             row.append(val_metric_values[name].item())
         self.df.loc[len(self.df)] = row
-        self.val_confusion_matrix = pd.DataFrame(val_metric_values["confusion_matrix"].cpu())
+        self.val_confusion_matrix = pd.DataFrame(
+            val_metric_values["confusion_matrix"].cpu()
+        )
 
     def log_metrics(
         self,
