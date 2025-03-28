@@ -5,10 +5,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
+
+plt.style.use("default")
 sys.path.append("..")
 sys.path.append("../src")
 
-from src.config import METRICS_DIR, DATA_DIR
+from src.config import METRICS_DIR, DATA_DIR, FIGURES_DIR
 from src.dataset import MAIN_ITEM_NAMES
 
 CONFUSION_MATRICES_DIR = DATA_DIR / "03_confusion_matrices"
@@ -25,38 +27,62 @@ for path in CONFUSION_MATRICES_DIR.glob("experiment_*.csv"):
 
 
 # %%
-# compute confusion matrix
+# normalize confusion matrix
 
 cm = confusion_matrix_dfs["experiment_11"]
-# normalize the predictions by the true counts
-true_counts = cm.sum(axis=1)
-cm = cm.div(true_counts, axis=0)
+# normalize the predictions by the positive counts
+positive_counts = cm.sum(axis=1)
+cm = cm.div(positive_counts, axis=0)
 
-# sort the labels by the true counts
-sorted_indices = true_counts.sort_values(ascending=False).index
-cm = cm.iloc[sorted_indices, sorted_indices]
-sorted_labels = [labels[i] for i in sorted_indices]
-
-# %% 
-# plot confusion matrix
-fig, ax = plt.subplots(1,1, figsize=(12,10))
-sns.heatmap(cm, cmap="Blues", fmt="d", ax=ax, xticklabels=sorted_labels, yticklabels=sorted_labels, linewidths=0.5, linecolor="lightgrey")
-ax.set_title("Confusion Matrix")
-ax.set_xlabel("Predicted")
-ax.set_ylabel("True")
-plt.show()
-
-# %% 
-# compute tp-sorted confusion matrix
+# %%
+# sort by the positive counts
+sorted_indices = positive_counts.sort_values(ascending=False).index
+positive_sorted_cm = cm.iloc[sorted_indices, sorted_indices]
+positive_sorted_labels = [labels[i] for i in sorted_indices]
+# %%
+# sort by the true positive counts
 tp_counts = cm.values.diagonal()
 tp_sorted_indices = tp_counts.argsort()[::-1]
 tp_sorted_cm = cm.iloc[tp_sorted_indices, tp_sorted_indices]
 tp_sorted_labels = [labels[i] for i in tp_sorted_indices]
 
 # %%
-# plot tp-sorted confusion matrix
-fig, ax = plt.subplots(1,1, figsize=(12,10))
-sns.heatmap(tp_sorted_cm, cmap="Blues", fmt="d", ax=ax, xticklabels=tp_sorted_labels, yticklabels=tp_sorted_labels, linewidths=0.5, linecolor="lightgrey")
-ax.set_title("TP-Sorted Confusion Matrix")
-ax.set_xlabel("Predicted")
-ax.set_ylabel("True")
+# plot both confusion matrices
+fig, ax = plt.subplots(1, 2, figsize=(30, 14), width_ratios=[1, 1.25])
+sns.heatmap(
+    tp_sorted_cm,
+    cmap="Blues",
+    fmt="d",
+    ax=ax[0],
+    xticklabels=tp_sorted_labels,
+    yticklabels=tp_sorted_labels,
+    linewidths=0.5,
+    linecolor="lightgrey",
+    cbar=False,
+)
+ax[0].set_title("True Positive-Sorted Confusion Matrix")
+ax[0].set_xlabel("Predicted")
+ax[0].set_ylabel("True")
+
+sns.heatmap(
+    positive_sorted_cm,
+    cmap="Blues",
+    fmt="d",
+    ax=ax[1],
+    xticklabels=positive_sorted_labels,
+    yticklabels=positive_sorted_labels,
+    linewidths=0.5,
+    linecolor="lightgrey",
+)
+ax[1].set_title("Positive-Sorted Confusion Matrix")
+ax[1].set_xlabel("Predicted")
+ax[1].set_ylabel("True")
+
+plt.suptitle("Confusion Matrices, normalized by positive counts", fontsize=20)
+plt.tight_layout()
+
+plt.savefig(FIGURES_DIR / "confusion_matrices_experiment_11.png", dpi=300)
+plt.show()
+
+# %%
+# plot the metrics
