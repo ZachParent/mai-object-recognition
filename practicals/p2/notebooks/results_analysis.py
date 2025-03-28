@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
+from typing import List, Tuple
+from pathlib import Path
 
 plt.style.use("default")
 sys.path.append("..")
@@ -86,3 +88,29 @@ plt.show()
 
 # %%
 # plot the metrics
+def plot_metrics(metrics_df: pd.DataFrame, metrics: List[Tuple[str, str, str]], title: str, save_path: Path):
+    plt.figure(figsize=(12, 6))
+    epochs = metrics_df.index
+    for metric_name, metric_label, metric_color in metrics:
+        plt.plot(epochs, metrics_df[metric_name], label=metric_label, marker='o', color=metric_color)
+
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Metrics')
+    plt.xticks(epochs)
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+# %%
+metrics_df = metrics_dfs["experiment_11"]
+metrics: List[Tuple[str, str, str]] = [
+    ("val_f1", "Validation F1 Score", "#FF0000"),
+    ("val_dice", "Validation Dice Score", "#FF00FF"),
+    ("val_loss", "Validation Loss", "#0000FF"),
+]
+plot_metrics(metrics_df, metrics, "Validation Metrics During Training", FIGURES_DIR / "validation_metrics_experiment_11.png")
+# %%
