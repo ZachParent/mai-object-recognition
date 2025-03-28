@@ -4,4 +4,4 @@ Learning Rate Experiments,4,segformer,0.0001,4,192,0.0532241351902484
 Learning Rate Experiments,6,lraspp,0.0005,4,192,0.0484318435192108
 Batch Size Experiments,11,deeplab,5e-05,16,192,0.0641268938779831
 Batch Size Experiments,12,segformer,0.0001,4,192,0.0548015907406806
-Batch Size Experiments,16,lraspp,0.0005,8,192,0.0466893836855888
+Batch Size Experiments,17,lraspp,0.0005,16,192,0.0511750355362892
