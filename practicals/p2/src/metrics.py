@@ -22,6 +22,9 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
         metric,
     ]
 
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(best_runs_path), exist_ok=True)
+
     # Load existing CSV if it exists, otherwise create a new DataFrame
     if os.path.exists(best_runs_path):
         best_runs_df = pd.read_csv(best_runs_path)
@@ -31,6 +34,8 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
                 best_runs_df[col] = None
     else:
         best_runs_df = pd.DataFrame(columns=column_names)
+        # Create the file immediately
+        best_runs_df.to_csv(best_runs_path, index=False)
 
     for experiment in experiment_set.configs:
         csv_path = f"{METRICS_DIR}/experiment_{experiment.id:02d}.csv"
@@ -62,10 +67,8 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
                     for col, val in new_row.items():
                         best_runs_df.loc[mask, col] = val
             else:
-                # If doesn't exist, append new row
-                best_runs_df = pd.concat(
-                    [best_runs_df, pd.DataFrame([new_row])], ignore_index=True
-                )
+                # If doesn't exist, append new row using pandas loc with length as index
+                best_runs_df.loc[len(best_runs_df)] = new_row
         except (FileNotFoundError, pd.errors.EmptyDataError):
             continue
 
