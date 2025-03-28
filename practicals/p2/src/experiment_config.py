@@ -57,7 +57,7 @@ def get_learning_rate_experiments():
 
 
 def get_batch_size_experiments():
-    batch_sizes = [2, 4, 8]
+    batch_sizes = [4, 8, 16]
     id = 9
     experiment_configs = []
     for model in MODELS:
