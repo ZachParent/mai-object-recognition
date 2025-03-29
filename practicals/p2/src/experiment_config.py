@@ -16,6 +16,7 @@ class ExperimentConfig(pydantic.BaseModel):
     batch_size: int
     augmentation: bool = False
     img_size: int
+    visualize: bool = False # TODO Add visualize=True for running best model
 
 
 class ExperimentSet(pydantic.BaseModel):
