@@ -8,14 +8,6 @@ ModelName = Literal["deeplab", "segformer", "lraspp"]
 # Model names
 MODELS = ["deeplab", "segformer", "lraspp"]
 
-EXPERIMENT_SETS = [
-    get_learning_rate_experiments,
-    get_batch_size_experiments,
-    get_augmentation_experiments,
-    get_resolution_experiments,
-]
-
-
 class ExperimentConfig(pydantic.BaseModel):
     id: int
     model_name: ModelName
@@ -147,3 +139,12 @@ def get_best_run_hyperparameter(experiment_set_title, model_name, hyperparameter
         return best_run_hyperparameter_value
     except FileNotFoundError:
         raise Exception("No best runs found, please run experiments first")
+
+
+EXPERIMENT_SETS = [
+    get_learning_rate_experiments,
+    get_batch_size_experiments,
+    get_augmentation_experiments,
+    get_resolution_experiments,
+]
+
