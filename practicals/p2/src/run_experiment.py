@@ -281,7 +281,6 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
         if epoch == NUM_EPOCHS - 1 and experiment.visualize:
-            # trainer.visualize_random_prediction(epoch)
             trainer.visualize_lowest_dice_predictions(worst_img_idxs=worst_img_idxs)
 
     metrics_logger.close()
