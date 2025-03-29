@@ -219,20 +219,19 @@ add_background = True
 # Get category names from filtered categories
 category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id + 1}
 
+# Create YAML with proper format for segmentation task
 yaml_content = f"""# YOLOv5 dataset config
-path: {output_dir.absolute()}
-train: images/train
-val: images/val
-
-# Task
-task: segment
-
+path: {output_dir.absolute()}  # dataset root dir
+train: images/train  # train images (relative to 'path')
+val: images/val  # val images (relative to 'path')
+test:  # test images (optional)
 
 # Classes
-names:
+nc: {len(category_names)}  # number of classes
+names:  # class names
 """
 
-# Add background class if needed
+# Add class names
 if add_background:
     yaml_content += f"  0: background\n"
     

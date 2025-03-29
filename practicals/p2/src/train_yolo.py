@@ -42,7 +42,7 @@ def train_yolo_with_metrics(
     # Load dataset info to get number of classes
     with open(data_yaml_path, 'r') as f:
         dataset_info = yaml.safe_load(f)
-    num_classes = len(dataset_info['names']) + 1  # +1 for background class
+    num_classes = len(dataset_info['names'])  # Number of classes in the dataset
     
     # Initialize model
     model = YOLO(model_name)
@@ -68,7 +68,8 @@ def train_yolo_with_metrics(
         name='with_comprehensive_metrics',
         save=True,
         patience=50,  # Early stopping patience
-        verbose=True
+        verbose=True,
+        task='segment'  # Explicitly specify segmentation task
     )
     
     # Get best model path
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     # Train model with metrics
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
-        model_name='yolo11n-seg.pt',
+        model_name='yolov11n-seg.pt',  # Make sure this is the correct model name
         epochs=100,
         image_size=640,
         batch_size=16,
