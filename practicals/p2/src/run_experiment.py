@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+
 class TrainingProgress:
     def __init__(
         self,
@@ -145,7 +146,6 @@ class Trainer:
         dice_scores = []  # To store Dice scores for each image
         worst_images = []  # To store information about the worst-performing images
 
-
         with torch.no_grad():
             for img_idx, (image, target) in enumerate(dataloader):
                 # Move tensors to the correct device
@@ -179,10 +179,11 @@ class Trainer:
                 preds = outputs.argmax(dim=1)
                 self.val_metrics_collection.update(preds, mask)
 
-                dice_metric = torchmetrics.segmentation.DiceScore(input_format="index", num_classes=NUM_CLASSES)
+                dice_metric = torchmetrics.segmentation.DiceScore(
+                    input_format="index", num_classes=NUM_CLASSES
+                )
                 dice_score = dice_metric(preds.unsqueeze(0), mask.unsqueeze(0)).item()
                 dice_scores.append((dice_score, img_idx))
-
 
                 # Update progress with current batch metrics
                 progress.update(loss.item())
@@ -190,21 +191,25 @@ class Trainer:
         progress.close()
 
         dice_scores.sort(key=lambda x: x[0])  # Sort by Dice score (ascending)
-        worst_images = [index for _, index in dice_scores[:5]]  # Extract the indices of the 5 lowest scores
+        worst_images = [
+            index for _, index in dice_scores[:5]
+        ]  # Extract the indices of the 5 lowest scores
 
         print("Indices of the 5 worst-performing images:", worst_images)
 
         # Return average loss for the epoch
         return total_loss / num_batches, worst_images
 
-    def visualize_lowest_dice_predictions(self, dataloader=None, output_dir="visualizations", worst_img_idxs=None) -> None:
-    
+    def visualize_lowest_dice_predictions(
+        self, dataloader=None, output_dir="visualizations", worst_img_idxs=None
+    ) -> None:
+
         # Access the dataset directly from the dataloader
         dataset = dataloader.dataset
 
         for idx in worst_img_idxs:
 
-        # Get the image and target by index
+            # Get the image and target by index
             img, target = dataset[idx]
 
             # Move tensors to the correct device
@@ -237,15 +242,15 @@ class Trainer:
 
             # Plot original image with true segmentation
             axes[0].imshow(img_np)
-            im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap='viridis')
-            axes[0].set_title('Ground Truth Segmentation')
-            axes[0].axis('off')
+            im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap="viridis")
+            axes[0].set_title("Ground Truth Segmentation")
+            axes[0].axis("off")
 
             # Plot original image with predicted segmentation
             axes[1].imshow(img_np)
-            im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap='viridis')
-            axes[1].set_title('Model Prediction')
-            axes[1].axis('off')
+            im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap="viridis")
+            axes[1].set_title("Model Prediction")
+            axes[1].axis("off")
 
             # Add colorbars
             fig.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
@@ -256,7 +261,8 @@ class Trainer:
             # Save figure
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"prediction_idx_{idx}.png")
-            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
 
 def run_experiment(experiment: ExperimentConfig) -> None:
     train_dataloader, val_dataloader = get_dataloaders(experiment)
@@ -279,7 +285,9 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
         if epoch == NUM_EPOCHS - 1 and experiment.visualize:
-            trainer.visualize_lowest_dice_predictions(dataloader=val_dataloader, worst_img_idxs=worst_img_idxs)
+            trainer.visualize_lowest_dice_predictions(
+                dataloader=val_dataloader, worst_img_idxs=worst_img_idxs
+            )
 
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
