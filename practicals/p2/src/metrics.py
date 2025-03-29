@@ -243,7 +243,7 @@ class MetricLogger:
         for name in metrics_order:
             train_col = f"{PREFIX_TRAIN}{name}"
             val_col = f"{PREFIX_VAL}{name}"
-            
+
             if train_col not in self.df.columns:
                 continue
 

@@ -15,6 +15,7 @@ EXPERIMENT_SETS = [
     get_resolution_experiments,
 ]
 
+
 class ExperimentConfig(pydantic.BaseModel):
     id: int
     model_name: ModelName
@@ -28,7 +29,10 @@ class ExperimentSet(pydantic.BaseModel):
     title: str
     configs: list[ExperimentConfig]
 
+
 LEARNING_RATE_EXPERIMENTS_NAME = "Learning Rate Experiments"
+
+
 def get_learning_rate_experiments():
     learning_rates = [0.0005, 0.0001, 0.00005]
     id = 0
@@ -45,9 +49,14 @@ def get_learning_rate_experiments():
                 )
             )
             id += 1
-    return ExperimentSet(title=LEARNING_RATE_EXPERIMENTS_NAME, configs=experiment_configs)
+    return ExperimentSet(
+        title=LEARNING_RATE_EXPERIMENTS_NAME, configs=experiment_configs
+    )
+
 
 BATCH_SIZE_EXPERIMENTS_NAME = "Batch Size Experiments"
+
+
 def get_batch_size_experiments():
     batch_sizes = [4, 8, 16]
     id = 9
@@ -69,7 +78,10 @@ def get_batch_size_experiments():
             id += 1
     return ExperimentSet(title=BATCH_SIZE_EXPERIMENTS_NAME, configs=experiment_configs)
 
+
 AUGMENTATION_EXPERIMENTS_NAME = "Augmentation Experiments"
+
+
 def get_augmentation_experiments():
     id = 18
     experiment_configs = []
@@ -90,9 +102,14 @@ def get_augmentation_experiments():
             )
         )
         id += 1
-    return ExperimentSet(title=AUGMENTATION_EXPERIMENTS_NAME, configs=experiment_configs)
+    return ExperimentSet(
+        title=AUGMENTATION_EXPERIMENTS_NAME, configs=experiment_configs
+    )
+
 
 RESOLUTION_EXPERIMENTS_NAME = "Resolution Experiments"
+
+
 def get_resolution_experiments():
     id = 21
     experiment_configs = []
@@ -114,6 +131,7 @@ def get_resolution_experiments():
         )
         id += 1
     return ExperimentSet(title=RESOLUTION_EXPERIMENTS_NAME, configs=experiment_configs)
+
 
 def get_best_run_hyperparameter(experiment_set_title, model_name, hyperparameter):
     try:
