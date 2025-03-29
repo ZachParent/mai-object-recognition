@@ -13,7 +13,7 @@ from src.config import (
     ANNOTATIONS_DIR
 )
 
-def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_dir, use_segments=True, max_class_id=25):
+def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_dir, use_segments=True, max_class_id=27, add_background=True):
     """
     Convert COCO format annotations to YOLO format.
     
@@ -24,9 +24,10 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
         labels_dst_dir (Path): Destination directory for YOLO labels
         use_segments (bool): Whether to include segmentation masks
         max_class_id (int): Maximum class ID to include (0-indexed)
+        add_background (bool): Whether to add a background class and shift other classes up
     
     Returns:
-        int: Number of processed images
+        tuple: (processed_count, categories)
     """
     # Ensure directories exist
     images_dst_dir.mkdir(exist_ok=True, parents=True)
@@ -50,7 +51,7 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
     filtered_count = 0
     for ann in data["annotations"]:
         # Only include annotations with category_id <= max_class_id + 1 (COCO is 1-indexed)
-        if ann["category_id"] <= max_class_id:
+        if ann["category_id"] <= max_class_id + 1:
             annotations[ann["image_id"]].append(ann)
         else:
             filtered_count += 1
@@ -91,8 +92,11 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
             if box[2] <= 0 or box[3] <= 0:  # Skip invalid boxes
                 continue
             
-            # Class ID (0-indexed in YOLO)
-            cls = ann["category_id"] - 1
+            # Class ID - add 1 to make room for background class
+            if add_background:
+                cls = ann["category_id"]  # Original is 1-indexed, so add 0 to shift up by 1
+            else:
+                cls = ann["category_id"] - 1  # Original conversion (COCO 1-indexed to YOLO 0-indexed)
             
             # Format for YOLO: [class, x_center, y_center, width, height]
             box = [cls] + box.tolist()
@@ -155,8 +159,8 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
     
     print(f"Images with annotations after filtering: {images_with_annotations}")
     
-    # Filter categories to include only the first 27
-    filtered_categories = [cat for cat in data["categories"] if cat["id"] <= max_class_id]
+    # Filter categories to include only up to max_class_id
+    filtered_categories = [cat for cat in data["categories"] if cat["id"] <= max_class_id + 1]
     
     return processed_count, filtered_categories
 
@@ -193,7 +197,8 @@ train_count, categories = convert_coco_to_yolo(
     train_images_dst, 
     train_labels_dst,
     use_segments=True,
-    max_class_id=26
+    max_class_id=27,
+    add_background=True
 )
 
 # Convert validation set
@@ -203,24 +208,41 @@ val_count, _ = convert_coco_to_yolo(
     val_images_dst, 
     val_labels_dst,
     use_segments=True,
-    max_class_id=26
+    max_class_id=27,
+    add_background=True
 )
 
 # Create dataset.yaml
-max_class_id = 26  # 0-indexed, so this will include classes 0-27
-category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id}
+max_class_id = 27  # 0-indexed
+add_background = True
+
+# Get category names from filtered categories
+category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id + 1}
 
 yaml_content = f"""# YOLOv5 dataset config
 path: {output_dir.absolute()}
 train: images/train
 val: images/val
 
+# Task
+task: segment
+
+
 # Classes
 names:
 """
 
-for cat_id in sorted(category_names.keys()):
-    yaml_content += f"  {cat_id-1}: {category_names[cat_id]}\n" 
+# Add background class if needed
+if add_background:
+    yaml_content += f"  0: background\n"
+    
+    # Add other classes with shifted IDs
+    for cat_id in sorted(category_names.keys()):
+        yaml_content += f"  {cat_id}: {category_names[cat_id]}\n"
+else:
+    # Original class mapping (0-indexed)
+    for cat_id in sorted(category_names.keys()):
+        yaml_content += f"  {cat_id-1}: {category_names[cat_id]}\n"
 
 yaml_path = output_dir / "dataset.yaml"
 with open(yaml_path, "w", encoding="utf-8") as f:
