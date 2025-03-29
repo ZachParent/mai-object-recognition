@@ -113,6 +113,8 @@ class SegmentationMetrics:
         self.num_classes = num_classes
         self.include_background = include_background
         self.reset()
+        self.update_counter = 0
+        self.has_nonzero_masks = False
         
     def reset(self):
         """Reset all metrics"""
@@ -130,6 +132,26 @@ class SegmentationMetrics:
             pred_mask (np.ndarray): Prediction mask with class indices
             gt_mask (np.ndarray): Ground truth mask with class indices
         """
+        self.update_counter += 1
+        
+        # Debug information
+        pred_classes = np.unique(pred_mask)
+        gt_classes = np.unique(gt_mask)
+        
+        print(f"[Metrics Debug] Update #{self.update_counter}")
+        print(f"[Metrics Debug] Pred mask shape: {pred_mask.shape}, unique classes: {pred_classes}")
+        print(f"[Metrics Debug] GT mask shape: {gt_mask.shape}, unique classes: {gt_classes}")
+        
+        # Check if masks contain any non-background pixels
+        has_pred_segments = len(pred_classes) > 1 or (len(pred_classes) == 1 and pred_classes[0] != 0)
+        has_gt_segments = len(gt_classes) > 1 or (len(gt_classes) == 1 and gt_classes[0] != 0)
+        
+        print(f"[Metrics Debug] Pred mask has segments: {has_pred_segments}")
+        print(f"[Metrics Debug] GT mask has segments: {has_gt_segments}")
+        
+        if has_pred_segments or has_gt_segments:
+            self.has_nonzero_masks = True
+            
         # Flatten masks
         pred_flat = pred_mask.flatten()
         gt_flat = gt_mask.flatten()
@@ -137,19 +159,31 @@ class SegmentationMetrics:
         # Update confusion matrix
         for i in range(self.num_classes):
             for j in range(self.num_classes):
-                self.confusion_matrix[i, j] += np.sum((gt_flat == i) & (pred_flat == j))
+                pixels_in_cell = np.sum((gt_flat == i) & (pred_flat == j))
+                self.confusion_matrix[i, j] += pixels_in_cell
+                if pixels_in_cell > 0:
+                    print(f"[Metrics Debug] Confusion matrix cell [{i},{j}] updated with {pixels_in_cell} pixels")
                 
         # Update total pixels
         self.total_pixels += gt_flat.size
         
         # Update total pixels per class
         for i in range(self.num_classes):
-            self.total_pixels_per_class[i] += np.sum(gt_flat == i)
+            pixels_of_class = np.sum(gt_flat == i)
+            self.total_pixels_per_class[i] += pixels_of_class
+            if pixels_of_class > 0:
+                print(f"[Metrics Debug] Class {i} has {pixels_of_class} pixels in GT")
             
         # Update intersection and union for Dice and IoU
         for i in range(self.num_classes):
-            self.intersection[i] += np.sum((pred_flat == i) & (gt_flat == i))
-            self.union[i] += np.sum((pred_flat == i) | (gt_flat == i))
+            intersection = np.sum((pred_flat == i) & (gt_flat == i))
+            union = np.sum((pred_flat == i) | (gt_flat == i))
+            
+            self.intersection[i] += intersection
+            self.union[i] += union
+            
+            if intersection > 0 or union > 0:
+                print(f"[Metrics Debug] Class {i} - Intersection: {intersection}, Union: {union}")
         
     def compute_metrics(self):
         """
@@ -158,6 +192,18 @@ class SegmentationMetrics:
         Returns:
             dict: Dictionary with all metrics
         """
+        # Check if any updates happened
+        if self.update_counter == 0:
+            print("[Metrics Debug] WARNING: No updates occurred before computing metrics!")
+            
+        # Check if any non-zero masks were found
+        if not self.has_nonzero_masks:
+            print("[Metrics Debug] WARNING: All masks were empty or background only!")
+            
+        # Print confusion matrix summary
+        print(f"[Metrics Debug] Confusion matrix sum: {np.sum(self.confusion_matrix)}")
+        print(f"[Metrics Debug] Confusion matrix diagonal sum: {np.sum(np.diag(self.confusion_matrix))}")
+            
         # Determine which classes to include
         classes_range = range(self.num_classes)
         if not self.include_background:
@@ -175,17 +221,20 @@ class SegmentationMetrics:
             # Dice coefficient (2*TP / (2*TP + FP + FN))
             if self.union[i] > 0:
                 dice_per_class[i] = 2 * self.intersection[i] / self.union[i]
+                print(f"[Metrics Debug] Class {i} - Dice: {dice_per_class[i]:.4f} (Intersection: {self.intersection[i]}, Union: {self.union[i]})")
                 
             # Precision (TP / (TP + FP))
             true_positive = self.confusion_matrix[i, i]
             false_positive = np.sum(self.confusion_matrix[:, i]) - true_positive
             if (true_positive + false_positive) > 0:
                 precision_per_class[i] = true_positive / (true_positive + false_positive)
+                print(f"[Metrics Debug] Class {i} - Precision: {precision_per_class[i]:.4f} (TP: {true_positive}, FP: {false_positive})")
                 
             # Recall (TP / (TP + FN))
             false_negative = np.sum(self.confusion_matrix[i, :]) - true_positive
             if (true_positive + false_negative) > 0:
                 recall_per_class[i] = true_positive / (true_positive + false_negative)
+                print(f"[Metrics Debug] Class {i} - Recall: {recall_per_class[i]:.4f} (TP: {true_positive}, FN: {false_negative})")
                 
             # F1 Score (2 * Precision * Recall / (Precision + Recall))
             if (precision_per_class[i] + recall_per_class[i]) > 0:
@@ -196,6 +245,12 @@ class SegmentationMetrics:
             denominator = true_positive + true_negative + false_positive + false_negative
             if denominator > 0:
                 accuracy_per_class[i] = (true_positive + true_negative) / denominator
+        
+        # Print whether any non-zero metrics were found        
+        if np.sum(dice_per_class) > 0:
+            print(f"[Metrics Debug] Found non-zero Dice coefficients!")
+        else:
+            print(f"[Metrics Debug] WARNING: All Dice coefficients are zero!")
                 
         # Calculate averaged metrics
         metrics = {}
@@ -229,6 +284,12 @@ class SegmentationMetrics:
         metrics['f1_per_class'] = f1_per_class
         metrics['accuracy_per_class'] = accuracy_per_class
         
+        # Print final metrics summary
+        print(f"[Metrics Debug] Final metrics summary:")
+        for k, v in metrics.items():
+            if isinstance(v, (int, float)):
+                print(f"[Metrics Debug] {k}: {v:.4f}")
+        
         return metrics
         
 def convert_yolo_masks_to_semantic_mask(results, img_shape, num_classes):
@@ -246,25 +307,59 @@ def convert_yolo_masks_to_semantic_mask(results, img_shape, num_classes):
     height, width = img_shape
     semantic_mask = np.zeros((height, width), dtype=np.uint8)
     
-    # If no masks detected, return empty mask
-    if results.masks is None or len(results.masks) == 0:
+    # Print debug info
+    print(f"[Debug] Converting YOLO masks to semantic mask, image shape: {img_shape}")
+    
+    # Check if results have masks
+    if not hasattr(results, 'masks') or results.masks is None:
+        print(f"[Debug] No masks in results! results.masks is None")
         return semantic_mask
+        
+    # More advanced check
+    if len(results.masks) == 0:
+        print(f"[Debug] Empty masks in results! results.masks has length 0")
+        return semantic_mask
+        
+    print(f"[Debug] Found {len(results.masks)} mask instances in results")
+    print(f"[Debug] First mask shape: {results.masks.data[0].shape if len(results.masks) > 0 else 'N/A'}")
     
     # Process each instance
+    masks_processed = 0
     for i, (mask, cls) in enumerate(zip(results.masks.data, results.boxes.cls)):
-        # Convert tensor mask to numpy
-        mask_np = mask.cpu().numpy()[0]
-        
-        # Resize mask if needed
-        if mask_np.shape != (height, width):
-            mask_np = cv2.resize(mask_np, (width, height))
-        
-        # Get class index
-        class_idx = int(cls.item()) + 1  # Add 1 because 0 is background in semantic segmentation
-        
-        # Update semantic mask (higher class indices override lower ones)
-        # This handles overlapping instances of different classes
-        semantic_mask = np.where(mask_np > 0.5, class_idx, semantic_mask)
+        try:
+            # Convert tensor mask to numpy
+            mask_np = mask.cpu().numpy()
+            
+            # Print debug info
+            print(f"[Debug] Processing mask {i}, class: {cls.item()}, mask shape: {mask_np.shape}")
+            
+            # Resize mask if needed
+            if mask_np.shape != (height, width):
+                print(f"[Debug] Resizing mask from {mask_np.shape} to {(height, width)}")
+                mask_np = cv2.resize(mask_np, (width, height))
+            
+            # Get class index
+            class_idx = int(cls.item()) + 1  # Add 1 because 0 is background in semantic segmentation
+            
+            # Get mask statistics to check if it's valid
+            mask_pixels = np.sum(mask_np > 0.5)
+            print(f"[Debug] Mask {i} has {mask_pixels} pixels above threshold (class {class_idx})")
+            
+            if mask_pixels > 0:
+                # Update semantic mask (higher class indices override lower ones)
+                # This handles overlapping instances of different classes
+                semantic_mask = np.where(mask_np > 0.5, class_idx, semantic_mask)
+                masks_processed += 1
+            else:
+                print(f"[Debug] Warning: Mask {i} has no pixels above threshold, skipping")
+                
+        except Exception as e:
+            print(f"[Debug] Error processing mask {i}: {str(e)}")
+    
+    # Report final stats
+    unique_classes = np.unique(semantic_mask)
+    print(f"[Debug] Processed {masks_processed} masks successfully")
+    print(f"[Debug] Final semantic mask shape: {semantic_mask.shape}, unique classes: {unique_classes}")
     
     return semantic_mask
 
@@ -283,14 +378,27 @@ def parse_yolo_labels_to_semantic_mask(label_path, img_shape, num_classes):
     height, width = img_shape
     semantic_mask = np.zeros((height, width), dtype=np.uint8)
     
+    # Print debug info
+    print(f"[Debug] Parsing YOLO labels from {label_path}, img shape: {img_shape}")
+    
     if not os.path.exists(label_path):
+        print(f"[Debug] Warning: Label file does not exist: {label_path}")
         return semantic_mask
     
     # Read YOLO format labels
+    polygons_parsed = 0
+    polygons_processed = 0
+    total_lines = 0
+    
     with open(label_path, 'r') as f:
-        for line in f:
+        lines = f.readlines()
+        total_lines = len(lines)
+        print(f"[Debug] Found {total_lines} lines in label file")
+        
+        for line_idx, line in enumerate(lines):
             parts = line.strip().split()
             if len(parts) < 5:  # Skip if not enough points for polygon
+                print(f"[Debug] Warning: Line {line_idx+1} has only {len(parts)} parts, not enough for a polygon")
                 continue
                 
             # Get class index
@@ -299,6 +407,15 @@ def parse_yolo_labels_to_semantic_mask(label_path, img_shape, num_classes):
             # Get segmentation points
             seg_points = list(map(float, parts[1:]))
             
+            # Check number of points
+            if len(seg_points) % 2 != 0:
+                print(f"[Debug] Warning: Line {line_idx+1} has odd number of coordinates ({len(seg_points)}), should be even")
+                continue
+                
+            # Output first few points for debug
+            print(f"[Debug] Line {line_idx+1}, class {class_idx}, points: {seg_points[:6]}...")
+            polygons_parsed += 1
+                
             # Convert normalized coordinates to absolute coordinates
             points = []
             for i in range(0, len(seg_points), 2):
@@ -306,14 +423,34 @@ def parse_yolo_labels_to_semantic_mask(label_path, img_shape, num_classes):
                 y = int(seg_points[i+1] * height)
                 points.append([x, y])
             
+            # Check for valid polygon
+            if len(points) < 3:  # Need at least 3 points for a polygon
+                print(f"[Debug] Warning: Line {line_idx+1} has only {len(points)} points, need at least 3 for a polygon")
+                continue
+                
             # Convert points to mask
-            if len(points) > 2:  # Need at least 3 points for a polygon
+            try:
                 instance_mask = np.zeros((height, width), dtype=np.uint8)
                 points_array = np.array([points], dtype=np.int32)
                 cv2.fillPoly(instance_mask, points_array, 1)
                 
-                # Update semantic mask (higher class indices override lower ones)
-                semantic_mask = np.where(instance_mask > 0, class_idx, semantic_mask)
+                # Check mask validity
+                mask_pixels = np.sum(instance_mask)
+                print(f"[Debug] Polygon {line_idx+1} filled with {mask_pixels} pixels")
+                
+                if mask_pixels > 0:
+                    # Update semantic mask (higher class indices override lower ones)
+                    semantic_mask = np.where(instance_mask > 0, class_idx, semantic_mask)
+                    polygons_processed += 1
+                else:
+                    print(f"[Debug] Warning: Polygon {line_idx+1} created an empty mask")
+            except Exception as e:
+                print(f"[Debug] Error processing polygon in line {line_idx+1}: {str(e)}")
+    
+    # Report final stats
+    unique_classes = np.unique(semantic_mask)
+    print(f"[Debug] Lines: {total_lines}, Polygons parsed: {polygons_parsed}, Polygons processed: {polygons_processed}")
+    print(f"[Debug] Final semantic mask shape: {semantic_mask.shape}, unique classes: {unique_classes}")
     
     return semantic_mask
 
