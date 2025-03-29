@@ -198,9 +198,7 @@ class Trainer:
         return total_loss / num_batches, worst_images
 
     def visualize_lowest_dice_predictions(self, dataloader=None, output_dir="visualizations", worst_img_idxs=None) -> None:
-        if dataloader is None:
-            dataloader = get_dataloaders(self.experiment)[1]  # Default to validation dataloader
-
+    
         # Access the dataset directly from the dataloader
         dataset = dataloader.dataset
 
@@ -281,7 +279,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
         if epoch == NUM_EPOCHS - 1 and experiment.visualize:
-            trainer.visualize_lowest_dice_predictions(worst_img_idxs=worst_img_idxs)
+            trainer.visualize_lowest_dice_predictions(dataloader=val_dataloader, worst_img_idxs=worst_img_idxs)
 
     metrics_logger.close()
 
