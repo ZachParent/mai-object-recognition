@@ -36,6 +36,7 @@ def compile_best_runs_csv(experiment_set, metric=METRIC_DICE):
         "model_name",
         "learning_rate",
         "batch_size",
+        "augmentation",
         "img_size",
         metric,
     ]
@@ -70,6 +71,7 @@ def compile_best_runs_csv(experiment_set, metric=METRIC_DICE):
                 "model_name": experiment.model_name,
                 "learning_rate": experiment.learning_rate,
                 "batch_size": experiment.batch_size,
+                "augmentation": experiment.augmentation,
                 "img_size": experiment.img_size,
                 metric: best_row[f"val_{metric}"],
             }
