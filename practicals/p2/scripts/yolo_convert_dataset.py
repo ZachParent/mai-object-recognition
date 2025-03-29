@@ -124,24 +124,19 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
                         s = [cls] + s
                         segments.append(s)
         
-        # Skip images with no annotations after filtering
-        if not bboxes:
+        # Skip images with no segment annotations after filtering
+        if not segments:
             continue
             
         images_with_annotations += 1
         
-        # Write label file
+        # Write label file - for segmentation, we need to ensure we're writing segment data
         with open(label_file, "w", encoding="utf-8") as file:
-            for i in range(len(bboxes)):
-                if use_segments and i < len(segments):
-                    # Write segments
-                    values = segments[i]
-                    line = " ".join([f"{x}" for x in values])
-                else:
-                    # Write bounding box
-                    values = bboxes[i]
-                    line = " ".join([f"{x}" for x in values])
-                
+            # When doing segmentation, we need to make sure we're writing segment data
+            for i in range(len(segments)):
+                # Write segments - each line should be: class_id x1 y1 x2 y2 ... xn yn
+                values = segments[i]
+                line = " ".join([f"{x}" for x in values])
                 file.write(line + "\n")
         
         # Create symlink for image
@@ -220,11 +215,14 @@ add_background = True
 category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id + 1}
 
 # Create YAML with proper format for segmentation task
-yaml_content = f"""# YOLOv5 dataset config
+yaml_content = f"""# YOLOv8 Segmentation dataset config
 path: {output_dir.absolute()}  # dataset root dir
 train: images/train  # train images (relative to 'path')
 val: images/val  # val images (relative to 'path')
 test:  # test images (optional)
+
+# Task (required for segmentation)
+task: segment
 
 # Classes
 nc: {len(category_names)}  # number of classes
