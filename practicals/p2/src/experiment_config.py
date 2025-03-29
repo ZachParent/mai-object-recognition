@@ -127,7 +127,9 @@ def get_resolution_experiments() -> ExperimentSet:
     return ExperimentSet(title=RESOLUTION_EXPERIMENTS_NAME, configs=experiment_configs)
 
 
-def get_best_run_hyperparameter(experiment_set_title: str, model_name: str, hyperparameter: str) -> float:
+def get_best_run_hyperparameter(
+    experiment_set_title: str, model_name: str, hyperparameter: str
+) -> float:
     try:
         best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
         # get best run by experiment_set.title and model name
