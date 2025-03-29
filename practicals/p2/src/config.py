@@ -13,9 +13,6 @@ FASHIONPEDIA_URLS = {
     "val_attributes": "https://s3.amazonaws.com/ifashionist-dataset/annotations/attributes_val2020.json",
 }
 
-# Model names
-MODELS = ["deeplab", "segformer", "lraspp"]
-
 # Directories
 PROJECT_DIR = Path(__file__).parent.parent
 DATA_DIR = PROJECT_DIR / "data"

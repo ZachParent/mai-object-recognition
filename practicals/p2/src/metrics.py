@@ -9,8 +9,26 @@ import torchmetrics.classification
 from torch.utils.tensorboard import SummaryWriter
 from config import RUNS_DIR, METRICS_DIR, CONFUSION_MATRICES_DIR
 
+# Metric name constants
+METRIC_LOSS = "loss"
+METRIC_ACCURACY = "accuracy"
+METRIC_ACCURACY_W_BG = "accuracy_w_bg"
+METRIC_DICE = "dice"
+METRIC_DICE_W_BG = "dice_w_bg"
+METRIC_F1 = "f1"
+METRIC_F1_W_BG = "f1_w_bg"
+METRIC_PRECISION = "precision"
+METRIC_PRECISION_W_BG = "precision_w_bg"
+METRIC_RECALL = "recall"
+METRIC_RECALL_W_BG = "recall_w_bg"
+METRIC_CONFUSION_MATRIX = "confusion_matrix"
 
-def compile_best_runs_csv(experiment_set, metric="dice"):
+# Prefixes
+PREFIX_TRAIN = "train_"
+PREFIX_VAL = "val_"
+
+
+def compile_best_runs_csv(experiment_set, metric=METRIC_DICE):
     best_runs_path = f"{METRICS_DIR}/best_runs.csv"
     column_names = [
         "experiment_set",
@@ -42,7 +60,8 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
         try:
             df = pd.read_csv(csv_path)
             # Find row with best metric value
-            best_row = df[df[f"val_{metric}"] == df[f"val_{metric}"].max()].iloc[0]
+            val_metric_col = f"{PREFIX_VAL}{metric}"
+            best_row = df[df[val_metric_col] == df[val_metric_col].max()].iloc[0]
 
             # Prepare new row data
             new_row = {
@@ -81,40 +100,40 @@ def compile_best_runs_csv(experiment_set, metric="dice"):
 def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
     return torchmetrics.MetricCollection(
         {
-            "accuracy_w_bg": torchmetrics.classification.MulticlassAccuracy(
+            METRIC_ACCURACY_W_BG: torchmetrics.classification.MulticlassAccuracy(
                 num_classes=num_classes
             ),
-            "accuracy": torchmetrics.classification.MulticlassAccuracy(
+            METRIC_ACCURACY: torchmetrics.classification.MulticlassAccuracy(
                 num_classes=num_classes, ignore_index=0
             ),
-            "dice_w_bg": torchmetrics.segmentation.DiceScore(
+            METRIC_DICE_W_BG: torchmetrics.segmentation.DiceScore(
                 input_format="index", num_classes=num_classes, average="macro"
             ),
-            "dice": torchmetrics.segmentation.DiceScore(
+            METRIC_DICE: torchmetrics.segmentation.DiceScore(
                 input_format="index",
                 num_classes=num_classes,
                 include_background=False,
                 average="macro",
             ),
-            "f1_w_bg": torchmetrics.classification.MulticlassF1Score(
+            METRIC_F1_W_BG: torchmetrics.classification.MulticlassF1Score(
                 num_classes=num_classes
             ),
-            "f1": torchmetrics.classification.MulticlassF1Score(
+            METRIC_F1: torchmetrics.classification.MulticlassF1Score(
                 num_classes=num_classes, ignore_index=0
             ),
-            "precision_w_bg": torchmetrics.classification.MulticlassPrecision(
+            METRIC_PRECISION_W_BG: torchmetrics.classification.MulticlassPrecision(
                 num_classes=num_classes
             ),
-            "precision": torchmetrics.classification.MulticlassPrecision(
+            METRIC_PRECISION: torchmetrics.classification.MulticlassPrecision(
                 num_classes=num_classes, ignore_index=0
             ),
-            "recall_w_bg": torchmetrics.classification.MulticlassRecall(
+            METRIC_RECALL_W_BG: torchmetrics.classification.MulticlassRecall(
                 num_classes=num_classes
             ),
-            "recall": torchmetrics.classification.MulticlassRecall(
+            METRIC_RECALL: torchmetrics.classification.MulticlassRecall(
                 num_classes=num_classes, ignore_index=0
             ),
-            "confusion_matrix": torchmetrics.classification.MulticlassConfusionMatrix(
+            METRIC_CONFUSION_MATRIX: torchmetrics.classification.MulticlassConfusionMatrix(
                 num_classes=num_classes
             ),
         }
@@ -123,19 +142,19 @@ def get_metric_collection(num_classes: int) -> torchmetrics.MetricCollection:
 
 metrics_order = [
     # Primary metrics
-    "loss",
-    "dice",
-    "f1",
-    "accuracy",
+    METRIC_LOSS,
+    METRIC_DICE,
+    METRIC_F1,
+    METRIC_ACCURACY,
     # Additional metrics
-    "precision",
-    "recall",
+    METRIC_PRECISION,
+    METRIC_RECALL,
     # With background metrics
-    "dice_w_bg",
-    "f1_w_bg",
-    "accuracy_w_bg",
-    "precision_w_bg",
-    "recall_w_bg",
+    METRIC_DICE_W_BG,
+    METRIC_F1_W_BG,
+    METRIC_ACCURACY_W_BG,
+    METRIC_PRECISION_W_BG,
+    METRIC_RECALL_W_BG,
 ]
 
 
@@ -153,12 +172,12 @@ class MetricLogger:
             f"{CONFUSION_MATRICES_DIR}/experiment_{experiment_id:02d}.csv"
         )
         self.columns = ["epoch"]
-        self.columns.extend([f"train_{name}" for name in metrics_order])
-        self.columns.extend([f"val_{name}" for name in metrics_order])
+        self.columns.extend([f"{PREFIX_TRAIN}{name}" for name in metrics_order])
+        self.columns.extend([f"{PREFIX_VAL}{name}" for name in metrics_order])
         self.df = pd.DataFrame(columns=self.columns).astype({"epoch": int})
         self.train_metrics = train_metrics
         self.val_metrics = val_metrics
-        self.val_confusion_matrix: torchmetrics.classification.MulticlassConfusionMatrix
+        self.val_confusion_matrix: pd.DataFrame
         self.epoch = 0
 
     def _create_dirs(self) -> None:
@@ -179,7 +198,7 @@ class MetricLogger:
             row.append(val_metric_values[name].item())
         self.df.loc[len(self.df)] = row
         self.val_confusion_matrix = pd.DataFrame(
-            val_metric_values["confusion_matrix"].cpu()
+            val_metric_values[METRIC_CONFUSION_MATRIX].cpu()
         )
 
     def log_metrics(
@@ -188,7 +207,7 @@ class MetricLogger:
         # Log to TensorBoard
         for col in self.columns[1:]:
             self.tb_writer.add_scalar(
-                f"{col}".replace("train_", "train/").replace("val_", "val/"),
+                f"{col}".replace(PREFIX_TRAIN, "train/").replace(PREFIX_VAL, "val/"),
                 self.df.iloc[-1][col],
                 self.epoch,
             )
@@ -222,11 +241,14 @@ class MetricLogger:
 
         # Print each metric in the defined order
         for name in metrics_order:
-            if f"train_{name}" not in self.df.columns:
+            train_col = f"{PREFIX_TRAIN}{name}"
+            val_col = f"{PREFIX_VAL}{name}"
+            
+            if train_col not in self.df.columns:
                 continue
 
-            train_value = self.df.iloc[-1][f"train_{name}"]
-            val_value = self.df.iloc[-1][f"val_{name}"]
+            train_value = self.df.iloc[-1][train_col]
+            val_value = self.df.iloc[-1][val_col]
 
             # Initialize trend indicators
             train_change = "="
@@ -237,14 +259,14 @@ class MetricLogger:
             val_diff = 0.0
 
             if has_prev:
-                prev_train = prev_epoch[f"train_{name}"]
-                prev_val = prev_epoch[f"val_{name}"]
+                prev_train = prev_epoch[train_col]
+                prev_val = prev_epoch[val_col]
 
                 train_diff = train_value - prev_train
                 val_diff = val_value - prev_val
 
                 # Determine if change is good or bad
-                if name == "loss":  # For loss, lower is better
+                if name == METRIC_LOSS:  # For loss, lower is better
                     train_change = (
                         "↓ (good)"
                         if train_diff < 0
