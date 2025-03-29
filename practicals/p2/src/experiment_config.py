@@ -8,6 +8,7 @@ ModelName = Literal["deeplab", "segformer", "lraspp"]
 # Model names
 MODELS = ["deeplab", "segformer", "lraspp"]
 
+
 class ExperimentConfig(pydantic.BaseModel):
     id: int
     model_name: ModelName
@@ -147,4 +148,3 @@ EXPERIMENT_SETS = [
     get_augmentation_experiments,
     get_resolution_experiments,
 ]
-
