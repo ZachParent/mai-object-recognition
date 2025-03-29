@@ -27,7 +27,7 @@ class ExperimentSet(pydantic.BaseModel):
 LEARNING_RATE_EXPERIMENTS_NAME = "Learning Rate Experiments"
 
 
-def get_learning_rate_experiments():
+def get_learning_rate_experiments() -> ExperimentSet:
     learning_rates = [0.0005, 0.0001, 0.00005]
     id = 0
     experiment_configs = []
@@ -51,7 +51,7 @@ def get_learning_rate_experiments():
 BATCH_SIZE_EXPERIMENTS_NAME = "Batch Size Experiments"
 
 
-def get_batch_size_experiments():
+def get_batch_size_experiments() -> ExperimentSet:
     batch_sizes = [4, 8, 16]
     id = 9
     experiment_configs = []
@@ -76,7 +76,7 @@ def get_batch_size_experiments():
 AUGMENTATION_EXPERIMENTS_NAME = "Augmentation Experiments"
 
 
-def get_augmentation_experiments():
+def get_augmentation_experiments() -> ExperimentSet:
     id = 18
     experiment_configs = []
     for model in MODELS:
@@ -104,7 +104,7 @@ def get_augmentation_experiments():
 RESOLUTION_EXPERIMENTS_NAME = "Resolution Experiments"
 
 
-def get_resolution_experiments():
+def get_resolution_experiments() -> ExperimentSet:
     id = 21
     experiment_configs = []
     for model in MODELS:
@@ -127,7 +127,7 @@ def get_resolution_experiments():
     return ExperimentSet(title=RESOLUTION_EXPERIMENTS_NAME, configs=experiment_configs)
 
 
-def get_best_run_hyperparameter(experiment_set_title, model_name, hyperparameter):
+def get_best_run_hyperparameter(experiment_set_title: str, model_name: str, hyperparameter: str) -> float:
     try:
         best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
         # get best run by experiment_set.title and model name
