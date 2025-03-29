@@ -108,7 +108,7 @@ if __name__ == "__main__":
     # Train model with metrics
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
-        model_name='yolov11n-seg.pt',  # Make sure this is the correct model name
+        model_name='yolo11n-seg.pt',  # Make sure this is the correct model name
         epochs=100,
         image_size=640,
         batch_size=16,
