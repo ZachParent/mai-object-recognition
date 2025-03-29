@@ -14,7 +14,7 @@ class ExperimentConfig(pydantic.BaseModel):
     model_name: ModelName
     learning_rate: float
     batch_size: int
-    augmentation: bool = True
+    augmentation: bool = False
     img_size: int
     visualize: bool = False  # TODO Add visualize=True for running best model
 
