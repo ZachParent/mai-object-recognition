@@ -445,6 +445,7 @@ class ComprehensiveMetricsCallback(Callback):
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
         self.reset()
+        self.all_metrics = {}  # Store metrics here instead of trying to modify trainer.metrics
         
     def reset(self):
         self.metrics_with_bg = SegmentationMetrics(self.num_classes, include_background=True)
@@ -455,13 +456,13 @@ class ComprehensiveMetricsCallback(Callback):
         # Compute metrics from training data
         train_metrics = self._compute_metrics()
         
-        # Add metrics to trainer
+        # Store metrics in our object instead of modifying trainer.metrics
         for name, value in train_metrics.items():
             if isinstance(value, (int, float)):
-                trainer.metrics[name] = value
+                self.all_metrics[name] = value
         
         # Log to console
-        print(f"\nTrain metrics:")
+        print(f"\nEpoch {trainer.epoch} - Train metrics:")
         for name, value in train_metrics.items():
             if isinstance(value, (int, float)):
                 print(f"{name}: {value:.4f}")
@@ -469,27 +470,33 @@ class ComprehensiveMetricsCallback(Callback):
         # Reset for next epoch
         self.reset()
         
-    def on_val_end(self, trainer):
+    def on_val_end(self, validator):
         """Called at the end of validation"""
+        # Get the current epoch from validator if available
+        epoch = getattr(validator.trainer, 'epoch', 0) if hasattr(validator, 'trainer') else 0
+        
         # Compute metrics from validation data
         val_metrics = self._compute_metrics(prefix='val_')
         
-        # Add metrics to trainer
+        # Store metrics in our object instead of modifying trainer.metrics
         for name, value in val_metrics.items():
             if isinstance(value, (int, float)):
-                trainer.metrics[name] = value
+                self.all_metrics[name] = value
         
         # Log to console
-        print(f"\nValidation metrics:")
+        print(f"\nEpoch {epoch} - Validation metrics:")
         for name, value in val_metrics.items():
             if isinstance(value, (int, float)):
                 print(f"{name}: {value:.4f}")
         
         # Log to tensorboard if available
-        if hasattr(trainer, 'tb') and trainer.tb:
+        if hasattr(validator, 'tb') and validator.tb:
             for name, value in val_metrics.items():
                 if isinstance(value, (int, float)):
-                    trainer.tb.add_scalar(f'Metrics/{name}', value, trainer.epoch)
+                    validator.tb.add_scalar(f'Metrics/{name}', value, epoch)
+                    
+        # Save metrics to CSV after each validation
+        self._save_metrics_to_csv(epoch)
         
         # Reset for next validation
         self.reset()
@@ -510,8 +517,12 @@ class ComprehensiveMetricsCallback(Callback):
             f'{prefix}f1_w_bg': metrics_bg['f1_w_bg'],
             f'{prefix}accuracy_w_bg': metrics_bg['accuracy_w_bg'],
             f'{prefix}precision_w_bg': metrics_bg['precision_w_bg'],
-            f'{prefix}recall_w_bg': metrics_bg['recall_w_bg'],
-            # Per-class metrics (these won't be logged to tensorboard)
+            f'{prefix}recall_w_bg': metrics_bg['recall_w_bg']
+        }
+        
+        # Don't include per-class metrics in the final dict to avoid tensorboard issues
+        # Just store the class-wise metrics separately
+        self.class_metrics = {
             f'{prefix}dice_per_class': metrics_no_bg['dice_per_class'],
             f'{prefix}f1_per_class': metrics_no_bg['f1_per_class'],
             f'{prefix}accuracy_per_class': metrics_no_bg['accuracy_per_class'],
@@ -520,6 +531,30 @@ class ComprehensiveMetricsCallback(Callback):
         }
         
         return final_metrics
+    
+    def _save_metrics_to_csv(self, epoch):
+        """Save current metrics to CSV file"""
+        if self.output_dir:
+            # Create a dictionary with epoch and all scalar metrics
+            metrics_dict = {'epoch': epoch}
+            for name, value in self.all_metrics.items():
+                if isinstance(value, (int, float)):
+                    metrics_dict[name] = value
+            
+            # Convert to DataFrame
+            import pandas as pd
+            metrics_df = pd.DataFrame([metrics_dict])
+            
+            # Save to CSV (append mode)
+            csv_path = os.path.join(self.output_dir, 'training_metrics.csv')
+            
+            # Check if file exists to handle header correctly
+            if os.path.exists(csv_path):
+                metrics_df.to_csv(csv_path, mode='a', header=False, index=False)
+            else:
+                metrics_df.to_csv(csv_path, index=False)
+
+
 
 if __name__ == "__main__":
     # Example usage

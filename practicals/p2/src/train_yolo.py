@@ -15,7 +15,7 @@ from src.config import (
 )
 def train_yolo_with_metrics(
     data_yaml_path,
-    model_name='yolov11n-seg.pt',
+    model_name='yolov8n-seg.pt',
     epochs=100,
     image_size=640,
     batch_size=16,
@@ -50,7 +50,7 @@ def train_yolo_with_metrics(
     # Create metrics callback
     metrics_callback = ComprehensiveMetricsCallback(
         num_classes=num_classes,
-        output_dir=os.path.join(output_dir, 'visualizations')
+        output_dir=os.path.join(output_dir, 'metrics_log')
     )
     
     # Register the callbacks
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     # Train model with metrics
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
-        model_name='yolo11n-seg.pt',  # Make sure this is the correct model name
+        model_name='yolo11n-seg.pt',  # Using YOLOv8n-seg which is definitely available
         epochs=100,
         image_size=640,
         batch_size=16,
