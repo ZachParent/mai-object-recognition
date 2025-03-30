@@ -13,7 +13,7 @@ from src.config import (
     ANNOTATIONS_DIR
 )
 
-def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_dir, use_segments=True, max_class_id=27, add_background=True):
+def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_dir, use_segments=True, max_class_id=25, add_background=True):
     """
     Convert COCO format annotations to YOLO format.
     
@@ -92,11 +92,15 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
             if box[2] <= 0 or box[3] <= 0:  # Skip invalid boxes
                 continue
             
-            # Class ID - add 1 to make room for background class
+            # Class ID handling
+            # If adding background class, shift all class IDs up by 1 (background will be 0)
             if add_background:
-                cls = ann["category_id"]  # Original is 1-indexed, so add 0 to shift up by 1
+                # Original COCO is 1-indexed, so subtract 1 to convert to 0-indexed
+                # Then add 1 to shift up for background class
+                cls = ann["category_id"] - 1 + 1  
             else:
-                cls = ann["category_id"] - 1  # Original conversion (COCO 1-indexed to YOLO 0-indexed)
+                # Just convert COCO 1-indexed to YOLO 0-indexed
+                cls = ann["category_id"] - 1  
             
             # Format for YOLO: [class, x_center, y_center, width, height]
             box = [cls] + box.tolist()
@@ -185,6 +189,10 @@ val_images_dst = output_dir / "images" / "val"
 train_labels_dst = output_dir / "labels" / "train"
 val_labels_dst = output_dir / "labels" / "val"
 
+# Set the maximum class ID (0-indexed)
+max_class_id = 25  
+add_background = True
+
 # Convert training set
 train_count, categories = convert_coco_to_yolo(
     train_json, 
@@ -192,8 +200,8 @@ train_count, categories = convert_coco_to_yolo(
     train_images_dst, 
     train_labels_dst,
     use_segments=True,
-    max_class_id=25,
-    add_background=True
+    max_class_id=max_class_id,
+    add_background=add_background
 )
 
 # Convert validation set
@@ -203,16 +211,17 @@ val_count, _ = convert_coco_to_yolo(
     val_images_dst, 
     val_labels_dst,
     use_segments=True,
-    max_class_id=25,
-    add_background=True
+    max_class_id=max_class_id,
+    add_background=add_background
 )
 
-# Create dataset.yaml
-max_class_id = 25  # 0-indexed
-add_background = True
-
 # Get category names from filtered categories
-category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id}
+category_names = {}
+for cat in categories:
+    if cat["id"] <= max_class_id + 1:
+        # Convert from COCO 1-indexed to 0-indexed
+        cat_id = cat["id"] - 1
+        category_names[cat_id] = cat["name"]
 
 # Create YAML with proper format for segmentation task
 yaml_content = f"""# YOLOv8 Segmentation dataset config
@@ -225,9 +234,14 @@ test:  # test images (optional)
 task: segment
 
 # Classes
-nc: {len(category_names)}  # number of classes
-names:  # class names
 """
+
+# Calculate the number of classes (original categories + background if added)
+num_classes = len(category_names)
+if add_background:
+    num_classes += 1
+
+yaml_content += f"nc: {num_classes}  # number of classes\nnames:  # class names\n"
 
 # Add class names
 if add_background:
