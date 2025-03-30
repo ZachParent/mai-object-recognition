@@ -296,8 +296,8 @@ def train_yolo_with_metrics(
         val_data_path=val_data_path,
         dataset_yaml=data_yaml_path,
         output_dir=os.path.join(output_dir, 'final_visualizations'),
-        conf_threshold=0.01,  # Try a much lower threshold
-        iou_threshold=0.3     # Also lower this
+        conf_threshold=0.001,  # Try a much lower threshold
+        iou_threshold=0.1     # Also lower this
     )
     
     # Save final metrics to CSV

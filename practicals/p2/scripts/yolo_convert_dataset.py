@@ -235,11 +235,11 @@ if add_background:
     
     # Add other classes with shifted IDs
     for cat_id in sorted(category_names.keys()):
-        yaml_content += f"  {cat_id}: {category_names[cat_id]}\n"
+        yaml_content += f"  {cat_id+1}: {category_names[cat_id]}\n"
 else:
     # Original class mapping (0-indexed)
     for cat_id in sorted(category_names.keys()):
-        yaml_content += f"  {cat_id-1}: {category_names[cat_id]}\n"
+        yaml_content += f"  {cat_id}: {category_names[cat_id]}\n"
 
 yaml_path = output_dir / "dataset.yaml"
 with open(yaml_path, "w", encoding="utf-8") as f:
