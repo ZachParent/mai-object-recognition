@@ -123,6 +123,11 @@ class SegmentationMetrics:
         """
         self.update_counter += 1
         
+        if self.update_counter % 10 == 0:
+            print(f"Metrics update #{self.update_counter}")
+            print(f"  Pred mask shape: {pred_mask.shape}, unique values: {np.unique(pred_mask)}")
+            print(f"  GT mask shape: {gt_mask.shape}, unique values: {np.unique(gt_mask)}")
+
         # Flatten masks
         pred_flat = pred_mask.flatten()
         gt_flat = gt_mask.flatten()
