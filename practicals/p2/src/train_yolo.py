@@ -151,6 +151,7 @@ def train_yolo_with_metrics(
     device=0,
     project_name='fashionpedia_segmentation',
     output_dir='./results',
+    metrics_eval_fraction=0.1,  # Fraction of validation set to use for per-epoch metrics
     debug=True
 ):
     """
@@ -165,6 +166,7 @@ def train_yolo_with_metrics(
         device (int): Device number (0 for first GPU, 'cpu' for CPU)
         project_name (str): Project name for saving results
         output_dir (str): Directory to save metrics and visualizations
+        metrics_eval_fraction (float): Fraction of validation data to use for per-epoch metrics
         debug (bool): Whether to enable debug mode
     """
     # Create output directories
@@ -187,7 +189,10 @@ def train_yolo_with_metrics(
             else:
                 print(f"names: {len(value)} classes")
     
-    num_classes = len(dataset_info['names'])  # Number of classes in the dataset
+    num_classes = len(dataset_info['names']) + 1  # Add 1 for background class
+    
+    # Get validation data path for metrics calculation
+    val_data_path = os.path.join(os.path.dirname(data_yaml_path), dataset_info['val'])
     
     # Initialize model
     if debug:
@@ -204,47 +209,22 @@ def train_yolo_with_metrics(
         print(f"Failed to load model: {str(e)}")
         raise e
     
+    # Create run directory within the project
+    run_name = f"with_comprehensive_metrics_{int(time.time()) % 100}"
+    run_dir = os.path.join(output_dir, run_name)
+    os.makedirs(run_dir, exist_ok=True)
+    
     # Create metrics callback
     metrics_callback = ComprehensiveMetricsCallback(
         num_classes=num_classes,
-        output_dir=os.path.join(output_dir, 'metrics_log')
+        output_dir=os.path.join(run_dir, 'metrics_log'),
+        dataset_yaml=data_yaml_path,
+        val_data_path=val_data_path,
+        eval_fraction=metrics_eval_fraction
     )
     
-    def debug_callback(trainer):
-        # This will confirm if callbacks are being called
-        print("Callback triggered during training!")
-        
-        # Check what's available in the trainer object
-        if hasattr(trainer, 'batch'):
-            if isinstance(trainer.batch, dict):
-                print(f"Batch keys: {list(trainer.batch.keys())}")
-                
-                # Check if 'mask' is in the batch
-                if 'mask' in trainer.batch:
-                    print(f"Mask shape: {trainer.batch['mask'].shape}")
-                    print(f"Mask unique values: {torch.unique(trainer.batch['mask']).tolist()}")
-                else:
-                    print("No 'mask' key found in batch")
-            else:
-                # If it's not a dict, see what type it is
-                print(f"Batch is not a dict, it's: {type(trainer.batch)}")
-                
-                # If it's a list or tuple, check the first item
-                if isinstance(trainer.batch, (list, tuple)) and len(trainer.batch) > 0:
-                    print(f"First batch item type: {type(trainer.batch[0])}")
-        else:
-            print("Trainer has no 'batch' attribute")
-            
-        # Also check for loss values
-        if hasattr(trainer, 'loss'):
-            print(f"Loss: {trainer.loss}")
-    
-    # Register the debug callback
-    model.add_callback("on_train_batch_end", debug_callback)
-    model.add_callback("on_train_epoch_end", lambda trainer: print(f"\n=== End of training epoch {trainer.epoch} ===\n"))
-    
-
     # Register the callbacks
+    model.add_callback("on_train_start", metrics_callback.on_train_start)
     model.add_callback("on_train_epoch_end", metrics_callback.on_train_epoch_end)
     model.add_callback("on_val_end", metrics_callback.on_val_end)
     
@@ -254,6 +234,7 @@ def train_yolo_with_metrics(
         print(f"Epochs: {epochs}")
         print(f"Image size: {image_size}")
         print(f"Batch size: {batch_size}")
+        print(f"Metrics evaluation: {metrics_eval_fraction:.1%} of validation set")
     
     # Check for CUDA/GPU
     if device != 'cpu' and not torch.cuda.is_available():
@@ -263,17 +244,17 @@ def train_yolo_with_metrics(
     try:
         results = model.train(
             data=data_yaml_path,
-            epochs=2, #epochs,
+            epochs=epochs,
             imgsz=image_size,
             batch=batch_size,
             device=device,
             project=project_name,
-            name='with_comprehensive_metrics',
+            name=run_name,
             save=True,
             patience=50,  # Early stopping patience
             verbose=True,
-            task='segment',  # Explicitly specify segmentation task
-            fraction=0.04  # Use 10% of data instead of 1%
+            task='segment',
+            fraction=0.04  # Use small fraction of data if in debug mode
         )
         
         if debug:
@@ -285,31 +266,82 @@ def train_yolo_with_metrics(
     # Get best model path
     best_model_path = model.trainer.best
     
-    # Run comprehensive evaluation on best model
+    # Run comprehensive evaluation on best model with full validation set
     if debug:
         print(f"\n=== Evaluating best model: {best_model_path} ===")
-    
-    val_data_path = os.path.join(os.path.dirname(data_yaml_path), dataset_info['val'])
     
     final_metrics = evaluate_model_comprehensive(
         model_path=best_model_path,
         val_data_path=val_data_path,
         dataset_yaml=data_yaml_path,
-        output_dir=os.path.join(output_dir, 'final_visualizations'),
-        conf_threshold=0.001,  # Lower threshold to capture more predictions
-        iou_threshold=0.1     # Lower threshold to be more lenient with overlaps
+        output_dir=os.path.join(run_dir, 'final_visualizations'),
+        conf_threshold=0.25,  # Standard threshold
+        iou_threshold=0.7     # Standard threshold
     )
     
     # Save final metrics to CSV
-    import pandas as pd
     metrics_df = pd.DataFrame({k: [v] for k, v in final_metrics.items() if isinstance(v, (int, float))})
-    metrics_df.to_csv(os.path.join(output_dir, "final_metrics.csv"), index=False)
+    metrics_df.to_csv(os.path.join(run_dir, "final_metrics.csv"), index=False)
     
     # Print final results
     print("\nFinal Metrics:")
     for name, value in final_metrics.items():
         if isinstance(value, (int, float)):
             print(f"{name}: {value:.4f}")
+    
+    # Plot metrics history if available
+    if os.path.exists(os.path.join(run_dir, 'metrics_log', 'training_metrics.csv')):
+        try:
+            # Load metrics history
+            history_df = pd.read_csv(os.path.join(run_dir, 'metrics_log', 'training_metrics.csv'))
+            
+            # Plot key metrics over epochs
+            plt.figure(figsize=(12, 8))
+            
+            # Plot Dice score
+            if 'val_dice' in history_df.columns:
+                plt.subplot(2, 2, 1)
+                plt.plot(history_df['epoch'], history_df['val_dice'], 'b-', label='Dice Score')
+                plt.title('Dice Score')
+                plt.xlabel('Epoch')
+                plt.ylabel('Score')
+                plt.grid(True)
+            
+            # Plot IoU
+            if 'val_iou' in history_df.columns:
+                plt.subplot(2, 2, 2)
+                plt.plot(history_df['epoch'], history_df['val_iou'], 'g-', label='IoU')
+                plt.title('IoU (Jaccard Index)')
+                plt.xlabel('Epoch')
+                plt.ylabel('Score')
+                plt.grid(True)
+            
+            # Plot Precision and Recall
+            if 'val_precision' in history_df.columns and 'val_recall' in history_df.columns:
+                plt.subplot(2, 2, 3)
+                plt.plot(history_df['epoch'], history_df['val_precision'], 'r-', label='Precision')
+                plt.plot(history_df['epoch'], history_df['val_recall'], 'y-', label='Recall')
+                plt.title('Precision and Recall')
+                plt.xlabel('Epoch')
+                plt.ylabel('Score')
+                plt.legend()
+                plt.grid(True)
+            
+            # Plot F1 Score
+            if 'val_f1' in history_df.columns:
+                plt.subplot(2, 2, 4)
+                plt.plot(history_df['epoch'], history_df['val_f1'], 'm-', label='F1 Score')
+                plt.title('F1 Score')
+                plt.xlabel('Epoch')
+                plt.ylabel('Score')
+                plt.grid(True)
+            
+            plt.tight_layout()
+            plt.savefig(os.path.join(run_dir, 'metrics_history.png'))
+            print(f"Metrics history plot saved to {os.path.join(run_dir, 'metrics_history.png')}")
+            
+        except Exception as e:
+            print(f"Error plotting metrics history: {str(e)}")
     
     return best_model_path, final_metrics
 
