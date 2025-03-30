@@ -330,7 +330,7 @@ def parse_yolo_labels_to_semantic_mask(label_path, img_shape, num_classes):
     return semantic_mask
 
 def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output_dir=None, conf_threshold=0.25, 
-                               iou_threshold=0.7, max_samples=None):
+                               iou_threshold=0.7, max_samples=None, device=None):
     """
     Evaluate a trained YOLO segmentation model using comprehensive metrics
     
@@ -342,13 +342,17 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
         conf_threshold (float): Confidence threshold for predictions
         iou_threshold (float): IoU threshold for predictions
         max_samples (int): Maximum number of samples to evaluate (optional)
+        device (str): Device to run the model on (None for auto, 'cpu', or device number)
     
     Returns:
         dict: Dictionary with all metrics
     """
     # Load model
     model = YOLO(model_path)
-    model.to('cpu')  # Force CPU to avoid device issues
+    
+    # Set device
+    if device is not None:
+        model.to(device)
     
     # Load dataset info
     import yaml
@@ -431,13 +435,14 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
 
 class ComprehensiveMetricsCallback(Callback):
     """Custom callback to track comprehensive metrics during training"""
-    def __init__(self, num_classes, output_dir=None, dataset_yaml=None, val_data_path=None, eval_fraction=0.1):
+    def __init__(self, num_classes, output_dir=None, dataset_yaml=None, val_data_path=None, eval_fraction=0.1, device=None):
         super().__init__()
         self.num_classes = num_classes
         self.output_dir = output_dir
         self.dataset_yaml = dataset_yaml
         self.val_data_path = val_data_path
         self.eval_fraction = eval_fraction  # Fraction of validation set to use
+        self.device = device
         
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
@@ -505,6 +510,9 @@ class ComprehensiveMetricsCallback(Callback):
             # Reset metrics for this epoch
             self.reset()
             
+            # Get the device the model is on
+            device = next(self.model.parameters()).device if hasattr(self.model, 'parameters') else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            
             # Process each validation image
             for img_path in tqdm(self.val_images, desc=f"Evaluating epoch {epoch}"):
                 # Get corresponding label path (YOLO format)
@@ -523,7 +531,7 @@ class ComprehensiveMetricsCallback(Callback):
                 # Run inference with current model weights
                 with torch.no_grad():
                     img_tensor = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0  # HWC to CHW
-                    img_tensor = img_tensor.unsqueeze(0)  # Add batch dimension
+                    img_tensor = img_tensor.unsqueeze(0).to(device)  # Add batch dimension and move to device
                     results = self.model(img_tensor)
                 
 
@@ -638,6 +646,9 @@ if __name__ == "__main__":
     dataset_yaml = "path/to/output/fashionpedia_yolo/dataset.yaml"
     output_dir = "path/to/visualizations"
     
+    # Get device
+    device = 0 if torch.cuda.is_available() else 'cpu'
+    
     # Run evaluation
     metrics = evaluate_model_comprehensive(
         model_path=model_path,
@@ -645,7 +656,8 @@ if __name__ == "__main__":
         dataset_yaml=dataset_yaml,
         output_dir=output_dir,
         conf_threshold=0.25,
-        iou_threshold=0.7
+        iou_threshold=0.7,
+        device=device
     )
     
     # Print results
@@ -658,7 +670,7 @@ if __name__ == "__main__":
     metrics_df = pd.DataFrame({k: [v] for k, v in metrics.items() if isinstance(v, (int, float))})
     metrics_df.to_csv("yolo_segmentation_metrics.csv", index=False)
     
-    # Generate visualizations
+            # Generate visualizations
     plt.figure(figsize=(12, 8))
     
     # Plot metrics comparison

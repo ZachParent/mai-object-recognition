@@ -41,7 +41,7 @@ def train_yolo_with_metrics(
         epochs (int): Number of training epochs
         image_size (int): Input image size
         batch_size (int): Batch size
-        device (int): Device number (0 for first GPU, 'cpu' for CPU)
+        device (int or str): Device number (0 for first GPU, 'cpu' for CPU)
         project_name (str): Project name for saving results
         output_dir (str): Directory to save metrics and visualizations
         metrics_eval_fraction (float): Fraction of validation data to use for per-epoch metrics
@@ -50,6 +50,10 @@ def train_yolo_with_metrics(
     # Create output directories
     os.makedirs(output_dir, exist_ok=True)
     
+    # Get appropriate device
+    if isinstance(device, int) and device >= 0 and not torch.cuda.is_available():
+        print("CUDA not available, falling back to CPU")
+        device = 'cpu'
     
     # Load dataset info to get number of classes
     with open(data_yaml_path, 'r') as f:
@@ -94,7 +98,8 @@ def train_yolo_with_metrics(
         output_dir=os.path.join(run_dir, 'metrics_log'),
         dataset_yaml=data_yaml_path,
         val_data_path=val_data_path,
-        eval_fraction=metrics_eval_fraction
+        eval_fraction=metrics_eval_fraction,
+        device=device
     )
     
     # Register the callbacks
@@ -108,13 +113,9 @@ def train_yolo_with_metrics(
         print(f"Epochs: {epochs}")
         print(f"Image size: {image_size}")
         print(f"Batch size: {batch_size}")
+        print(f"Device: {device}")
         print(f"Metrics evaluation: {metrics_eval_fraction:.1%} of validation set")
     
-    # Check for CUDA/GPU
-    if device != 'cpu' and not torch.cuda.is_available():
-        print("Warning: CUDA is not available, falling back to CPU")
-        device = 'cpu'
-
     try:
         results = model.train(
             data=data_yaml_path,
@@ -128,7 +129,7 @@ def train_yolo_with_metrics(
             patience=50,  # Early stopping patience
             verbose=True,
             task='segment',
-            fraction=0.001  # Use small fraction of data if in debug mode
+            fraction=0.001 if debug else 1.0  # Use small fraction of data if in debug mode
         )
         
         if debug:
@@ -136,6 +137,7 @@ def train_yolo_with_metrics(
     except Exception as e:
         print(f"\nError during training: {str(e)}")
         raise e
+        
     # Get best model path
     best_model_path = model.trainer.best
     
@@ -150,7 +152,8 @@ def train_yolo_with_metrics(
         output_dir=os.path.join(run_dir, 'final_visualizations'),
         conf_threshold=0.25,  # Standard threshold
         iou_threshold=0.7,     # Standard threshold
-        max_samples=10
+        max_samples=10,
+        device=device  # Use the same device for evaluation
     )
     
     # Save final metrics to CSV
@@ -227,6 +230,12 @@ if __name__ == "__main__":
     print(f"PyTorch version: {torch.__version__}")
     print(f"CUDA available: {torch.cuda.is_available()}")
     print(f"CUDA version: {torch.version.cuda if torch.cuda.is_available() else 'Not available'}")
+    if torch.cuda.is_available():
+        print(f"CUDA device count: {torch.cuda.device_count()}")
+        print(f"CUDA device name: {torch.cuda.get_device_name(0)}")
+    
+    # Set device - use GPU if available, otherwise CPU
+    device = 0 if torch.cuda.is_available() else 'cpu'
     
     # Train model with metrics and debugging enabled
     best_model, metrics = train_yolo_with_metrics(
@@ -235,7 +244,7 @@ if __name__ == "__main__":
         epochs=1,#100,                   # Train for more epochs
         image_size=640,
         batch_size=16,
-        device='cpu',                 # Use CPU for compatibility 
+        device=device,                # Use GPU if available
         project_name='fashionpedia_segmentation',
         output_dir= DATA_DIR / "02_metrics" / "yolo_comprehensive_metrics_results",
         debug=True
