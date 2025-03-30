@@ -41,7 +41,9 @@ class FashionpediaDataset(Dataset):
     def __init__(self, img_dir, ann_file, img_size, transform=None, max_samples=None):
         self.coco, self.mappings = COCO(ann_file), load_category_mappings(ann_file) # loading annotations into memory...
         self.img_ids = [i for c in self.mappings["orig_to_new_id"] for i in self.coco.getImgIds(catIds=c)][:max_samples]
-        self.img_dir, self.img_size, self.transform = img_dir, img_size, transform
+        self.img_dir = img_dir
+        self.img_size = img_size
+        self.transform = transform
 
     def __len__(self): return len(self.img_ids)
     
