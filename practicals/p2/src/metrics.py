@@ -186,6 +186,7 @@ class MetricLogger:
         RUNS_DIR.mkdir(parents=True, exist_ok=True)
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
         CONFUSION_MATRICES_DIR.mkdir(parents=True, exist_ok=True)
+        CONFUSION_MATRICES_DIR.mkdir(parents=True, exist_ok=True)
 
     def update_metrics(self, train_loss: float, val_loss: float) -> None:
         self.epoch += 1
