@@ -18,7 +18,29 @@ MAIN_ITEM_NAMES = [
     "tie", "glove", "watch", "belt", "leg warmer", "tights, stockings", "sock", "shoe", "bag, wallet", "scarf",
     "umbrella"
 ]
-NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1
+
+
+NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1  # +1 for background
+
+STANDARD_TRANSFORM = T.Compose(
+    [
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
+AUGMENTATION_TRANSFORM = T.Compose(
+    [
+        T.RandomRotation(15),
+        T.RandomHorizontalFlip(p=0.5),
+        T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        T.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+        T.ToTensor(),
+        T.RandomErasing(p=0.2),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
 
 def load_category_mappings(ann_file):
     with open(ann_file, "r") as f:
@@ -56,11 +78,57 @@ class FashionpediaDataset(Dataset):
         return self.transform(image) if self.transform else image, {"masks": tv_tensors.Mask(torch.tensor(mask).unsqueeze(0)), "labels": torch.tensor(mask), "num_classes": NUM_CLASSES, "class_names": self.mappings["id_to_name"]}
 
 def get_dataloaders(experiment: ExperimentConfig):
-    transform = T.Compose([T.ToTensor(), T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    return (
-        DataLoader(FashionpediaDataset(TRAIN_IMAGES_DIR, TRAIN_ANNOTATIONS_JSON, experiment.img_size, transform, max_samples=100 if MINI_RUN else None), batch_size=experiment.batch_size, shuffle=True, num_workers=2, drop_last=True),
-        DataLoader(FashionpediaDataset(VAL_IMAGES_DIR, VAL_ANNOTATIONS_JSON, experiment.img_size, transform, max_samples=100 if MINI_RUN else None), batch_size=experiment.batch_size, shuffle=False, num_workers=2)
+    if experiment.augmentation:
+        # Define transforms with augmentation for training
+        train_transform = AUGMENTATION_TRANSFORM
+    else:
+        # Define transforms without augmentation for training
+        train_transform = T.Compose([
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+    # Define transforms for validation (no augmentation)
+    val_transform = T.Compose([
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    # Create datasets
+    train_dataset = FashionpediaDataset(
+        img_dir=TRAIN_IMAGES_DIR,
+        ann_file=TRAIN_ANNOTATIONS_JSON,
+        img_size=experiment.img_size,
+        transform=train_transform,
+        max_samples=100 if MINI_RUN else None,
     )
+
+    val_dataset = FashionpediaDataset(
+        img_dir=VAL_IMAGES_DIR,
+        ann_file=VAL_ANNOTATIONS_JSON,
+        img_size=experiment.img_size,
+        transform=val_transform,
+        max_samples=100 if MINI_RUN else None,
+    )
+
+    # Create data loaders
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+        num_workers=2,
+        drop_last=True,
+    )
+
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=False,
+        num_workers=2,
+    )
+
+    return train_dataloader, val_dataloader
+
 
 if __name__ == "__main__":
     experiment = ExperimentConfig(id=0, batch_size=2, model_name="deeplab", learning_rate=0.001, img_size=512)
