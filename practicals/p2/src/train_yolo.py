@@ -210,6 +210,40 @@ def train_yolo_with_metrics(
         output_dir=os.path.join(output_dir, 'metrics_log')
     )
     
+    def debug_callback(trainer):
+        # This will confirm if callbacks are being called
+        print("Callback triggered during training!")
+        
+        # Check what's available in the trainer object
+        if hasattr(trainer, 'batch'):
+            if isinstance(trainer.batch, dict):
+                print(f"Batch keys: {list(trainer.batch.keys())}")
+                
+                # Check if 'mask' is in the batch
+                if 'mask' in trainer.batch:
+                    print(f"Mask shape: {trainer.batch['mask'].shape}")
+                    print(f"Mask unique values: {torch.unique(trainer.batch['mask']).tolist()}")
+                else:
+                    print("No 'mask' key found in batch")
+            else:
+                # If it's not a dict, see what type it is
+                print(f"Batch is not a dict, it's: {type(trainer.batch)}")
+                
+                # If it's a list or tuple, check the first item
+                if isinstance(trainer.batch, (list, tuple)) and len(trainer.batch) > 0:
+                    print(f"First batch item type: {type(trainer.batch[0])}")
+        else:
+            print("Trainer has no 'batch' attribute")
+            
+        # Also check for loss values
+        if hasattr(trainer, 'loss'):
+            print(f"Loss: {trainer.loss}")
+    
+    # Register the debug callback
+    model.add_callback("on_train_batch_end", debug_callback)
+    model.add_callback("on_train_epoch_end", lambda trainer: print(f"\n=== End of training epoch {trainer.epoch} ===\n"))
+    
+
     # Register the callbacks
     model.add_callback("on_train_epoch_end", metrics_callback.on_train_epoch_end)
     model.add_callback("on_val_end", metrics_callback.on_val_end)
@@ -229,7 +263,7 @@ def train_yolo_with_metrics(
     try:
         results = model.train(
             data=data_yaml_path,
-            epochs=4, #epochs,
+            epochs=2, #epochs,
             imgsz=image_size,
             batch=batch_size,
             device=device,
