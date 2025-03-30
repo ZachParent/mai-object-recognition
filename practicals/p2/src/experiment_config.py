@@ -139,19 +139,19 @@ def get_best_run_hyperparameter(
 ) -> float | bool:
     try:
         best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
-        
+
         if hyperparameter == "augmentation":
             # Filter dataframe for the given model
-            model_df = best_runs_df[best_runs_df['model_name'] == model_name]
-            
+            model_df = best_runs_df[best_runs_df["model_name"] == model_name]
+
             # Get the row with the highest dice score
-            best_run = model_df.loc[model_df['dice'].idxmax()]
-            
+            best_run = model_df.loc[model_df["dice"].idxmax()]
+
             if best_run.empty:
                 raise ValueError("No best runs found, please run experiments first")
-            
-            return True if best_run['augmentation'].lower() == 'true' else False
-        
+
+            return best_run["augmentation"]
+
         # get best run by experiment_set.title and model name
         best_run = best_runs_df[
             (best_runs_df["experiment_set"] == experiment_set_title)
@@ -163,6 +163,16 @@ def get_best_run_hyperparameter(
         return best_run_hyperparameter_value
     except FileNotFoundError:
         raise ValueError("No best runs found, please run experiments first")
+
+
+best_model_experiment = ExperimentConfig(
+    id=99,
+    model_name="deeplab",
+    batch_size=16,
+    learning_rate=0.0001,
+    augmentation=False,
+    img_size=384
+)
 
 
 EXPERIMENT_SETS = [
