@@ -192,7 +192,7 @@ train_count, categories = convert_coco_to_yolo(
     train_images_dst, 
     train_labels_dst,
     use_segments=True,
-    max_class_id=26,
+    max_class_id=25,
     add_background=True
 )
 
@@ -203,12 +203,12 @@ val_count, _ = convert_coco_to_yolo(
     val_images_dst, 
     val_labels_dst,
     use_segments=True,
-    max_class_id=26,
+    max_class_id=25,
     add_background=True
 )
 
 # Create dataset.yaml
-max_class_id = 26  # 0-indexed
+max_class_id = 25  # 0-indexed
 add_background = True
 
 # Get category names from filtered categories
