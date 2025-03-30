@@ -1,18 +1,17 @@
-import datetime
 from experiment_config import ExperimentConfig
 from models import get_model
 from dataset import get_dataloaders, NUM_CLASSES
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import Dict
-from config import NUM_EPOCHS, DEVICE
+from config import DEVICE
 from metrics import MetricLogger, get_metric_collection
 import torchmetrics
-from config import FIGURES_DIR
+from config import MODELS_DIR
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+
 
 class TrainingProgress:
     def __init__(
@@ -145,7 +144,6 @@ class Trainer:
         dice_scores = []  # To store Dice scores for each image
         worst_images = []  # To store information about the worst-performing images
 
-
         with torch.no_grad():
             for img_idx, (image, target) in enumerate(dataloader):
                 # Move tensors to the correct device
@@ -179,10 +177,11 @@ class Trainer:
                 preds = outputs.argmax(dim=1)
                 self.val_metrics_collection.update(preds, mask)
 
-                dice_metric = torchmetrics.segmentation.DiceScore(input_format="index", num_classes=NUM_CLASSES)
+                dice_metric = torchmetrics.segmentation.DiceScore(
+                    input_format="index", num_classes=NUM_CLASSES
+                )
                 dice_score = dice_metric(preds.unsqueeze(0), mask.unsqueeze(0)).item()
                 dice_scores.append((dice_score, img_idx))
-
 
                 # Update progress with current batch metrics
                 progress.update(loss.item())
@@ -190,21 +189,25 @@ class Trainer:
         progress.close()
 
         dice_scores.sort(key=lambda x: x[0])  # Sort by Dice score (ascending)
-        worst_images = [index for _, index in dice_scores[:5]]  # Extract the indices of the 5 lowest scores
+        worst_images = [
+            index for _, index in dice_scores[:5]
+        ]  # Extract the indices of the 5 lowest scores
 
         print("Indices of the 5 worst-performing images:", worst_images)
 
         # Return average loss for the epoch
         return total_loss / num_batches, worst_images
 
-    def visualize_lowest_dice_predictions(self, dataloader=None, output_dir="visualizations", worst_img_idxs=None) -> None:
-    
+    def visualize_lowest_dice_predictions(
+        self, dataloader=None, output_dir="visualizations", worst_img_idxs=None
+    ) -> None:
+
         # Access the dataset directly from the dataloader
         dataset = dataloader.dataset
 
         for idx in worst_img_idxs:
 
-        # Get the image and target by index
+            # Get the image and target by index
             img, target = dataset[idx]
 
             # Move tensors to the correct device
@@ -237,15 +240,15 @@ class Trainer:
 
             # Plot original image with true segmentation
             axes[0].imshow(img_np)
-            im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap='viridis')
-            axes[0].set_title('Ground Truth Segmentation')
-            axes[0].axis('off')
+            im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap="viridis")
+            axes[0].set_title("Ground Truth Segmentation")
+            axes[0].axis("off")
 
             # Plot original image with predicted segmentation
             axes[1].imshow(img_np)
-            im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap='viridis')
-            axes[1].set_title('Model Prediction')
-            axes[1].axis('off')
+            im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap="viridis")
+            axes[1].set_title("Model Prediction")
+            axes[1].axis("off")
 
             # Add colorbars
             fig.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
@@ -256,7 +259,16 @@ class Trainer:
             # Save figure
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"prediction_idx_{idx}.png")
-            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    def save_model(self) -> None:
+        """Save the model weights to disk."""
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        path = f"{MODELS_DIR}/{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
+
+        torch.save(self.model.state_dict(), path)
+        print(f"Model saved to {path}")
+
 
 def run_experiment(experiment: ExperimentConfig) -> None:
     train_dataloader, val_dataloader = get_dataloaders(experiment)
@@ -267,10 +279,11 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     metrics_logger = MetricLogger(
         experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
     )
-    for epoch in range(NUM_EPOCHS):
+
+    for epoch in range(experiment.epochs):
         width = 90
         print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} / {NUM_EPOCHS}".center(width))
+        print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
         print("-" * width)
         train_loss = trainer.train_epoch(train_dataloader)
         val_loss, worst_img_idxs = trainer.evaluate(val_dataloader)
@@ -278,11 +291,16 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         # Log metrics to TensorBoard and CSV (will also print epoch summary)
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
-        if epoch == NUM_EPOCHS - 1 and experiment.visualize:
-            trainer.visualize_lowest_dice_predictions(dataloader=val_dataloader, worst_img_idxs=worst_img_idxs)
+        if epoch == experiment.epochs - 1 and experiment.visualize:
+            trainer.visualize_lowest_dice_predictions(
+                dataloader=val_dataloader, worst_img_idxs=worst_img_idxs
+            )
 
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
+
+    if experiment.save_weights:
+        trainer.save_model()
 
 
 # Use this to run a quick test

@@ -22,6 +22,7 @@ RUNS_DIR = DATA_DIR / "01_runs"
 METRICS_DIR = DATA_DIR / "02_metrics"
 CONFUSION_MATRICES_DIR = DATA_DIR / "03_confusion_matrices"
 FIGURES_DIR = REPORT_DIR / "figures"
+MODELS_DIR = DATA_DIR / "04_models"
 
 # Raw data subdirectories
 IMAGES_DIR = RAW_DATA_DIR / "images"
@@ -51,4 +52,4 @@ DEVICE = torch.device("cuda" if USING_CUDA else "cpu")
 # Set to True to run a mini-run with less data and fewer epochs
 MINI_RUN = not USING_CUDA
 
-NUM_EPOCHS = 1 if MINI_RUN else 4
+NUM_EPOCHS = 1 if MINI_RUN else 5
