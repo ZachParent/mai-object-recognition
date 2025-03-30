@@ -39,6 +39,7 @@ def get_learning_rate_experiments() -> ExperimentSet:
                     model_name=model,
                     learning_rate=lr,
                     batch_size=4,
+                    augmentation=False,
                     img_size=192,
                 )
             )
@@ -66,6 +67,7 @@ def get_batch_size_experiments() -> ExperimentSet:
                     model_name=model,
                     learning_rate=learning_rate,
                     batch_size=batch_size,
+                    augmentation=False,
                     img_size=192,
                 )
             )
@@ -92,6 +94,7 @@ def get_augmentation_experiments() -> ExperimentSet:
                 model_name=model,
                 learning_rate=learning_rate,
                 batch_size=batch_size,
+                augmentation=True,
                 img_size=192,
             )
         )
@@ -114,12 +117,16 @@ def get_resolution_experiments() -> ExperimentSet:
         batch_size = get_best_run_hyperparameter(
             BATCH_SIZE_EXPERIMENTS_NAME, model, "batch_size"
         )
+        augmentation = get_best_run_hyperparameter(
+            AUGMENTATION_EXPERIMENTS_NAME, model, "augmentation"
+        )
         experiment_configs.append(
             ExperimentConfig(
                 id=id,
                 model_name=model,
                 learning_rate=learning_rate,
                 batch_size=batch_size,
+                augmentation=augmentation,
                 img_size=384,
             )
         )
