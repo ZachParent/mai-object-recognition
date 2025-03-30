@@ -314,13 +314,32 @@ def get_dataloaders(experiment: ExperimentConfig):
 
     return train_dataloader, val_dataloader
 
+def get_aux_dataloader(experiment: ExperimentConfig):
+
+    val_dataset = FashionpediaSegmentationDataset(
+        img_dir=VAL_IMAGES_DIR,
+        ann_file=VAL_ANNOTATIONS_JSON,
+        img_size=experiment.img_size,
+        transform=STANDARD_TRANSFORM,
+        max_samples=100 if MINI_RUN else None,
+    )
+
+    aux_dataloader = DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=1,
+    )
+
+    return aux_dataloader
+
 
 # Use this to run a quick test
 if __name__ == "__main__":
     experiment = ExperimentConfig(
         id=0,
         batch_size=2,
-        model_name="resnet18",
+        model_name="deeplab",
         learning_rate=0.001,
         img_size=512,
     )
