@@ -51,8 +51,6 @@ MAIN_ITEM_NAMES = [
     "umbrella",
 ]
 
-NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1  # +1 for background
-
 STANDARD_TRANSFORM = T.Compose(
     [
         T.ToTensor(),
@@ -73,7 +71,7 @@ AUGMENTATION_TRANSFORM = T.Compose(
 )
 
 
-def load_category_mappings(ann_file):
+def load_category_mappings(ann_file, item_names=MAIN_ITEM_NAMES):
     """
     Load Fashionpedia categories and create id mappings for main garments
     """
@@ -94,7 +92,7 @@ def load_category_mappings(ann_file):
 
     # Create our selected mapping (main garments only)
     main_category_ids = []
-    for name in MAIN_ITEM_NAMES:
+    for name in item_names:
         if name in name_to_orig_id:
             main_category_ids.append(name_to_orig_id[name])
 
@@ -103,14 +101,14 @@ def load_category_mappings(ann_file):
     name_to_id = {"background": 0}
     orig_id_to_new_id = {}
 
-    for i, name in enumerate(MAIN_ITEM_NAMES):
+    for i, name in enumerate(item_names):
         new_id = i + 1  # +1 for background
         id_to_name[new_id] = name
         name_to_id[name] = new_id
         if name in name_to_orig_id:
             orig_id_to_new_id[name_to_orig_id[name]] = new_id
 
-    num_classes = len(MAIN_ITEM_NAMES) + 1  # +1 for background
+    num_classes = len(item_names) + 1  # +1 for background
 
     return {
         "orig_id_to_name": orig_id_to_name,
@@ -196,7 +194,7 @@ class ResizeTransform:
 
 
 class FashionpediaSegmentationDataset(Dataset):
-    def __init__(self, img_dir, ann_file, img_size, transform=None, max_samples=None):
+    def __init__(self, img_dir, ann_file, img_size, transform=None, max_samples=None, item_names=MAIN_ITEM_NAMES):
         self.img_dir = img_dir
         self.ann_file = ann_file
         self.img_size = img_size
@@ -205,7 +203,7 @@ class FashionpediaSegmentationDataset(Dataset):
 
         # Load COCO API and category mappings
         self.coco = COCO(ann_file)
-        self.mappings = load_category_mappings(ann_file)
+        self.mappings = load_category_mappings(ann_file, item_names)
 
         # Get image IDs containing our main categories
         self.img_ids = []
@@ -268,7 +266,7 @@ class FashionpediaSegmentationDataset(Dataset):
         return image, target
 
 
-def get_dataloaders(experiment: ExperimentConfig):
+def get_dataloaders(experiment: ExperimentConfig, item_names=MAIN_ITEM_NAMES):
     if experiment.augmentation:
         # Define transforms with augmentation for training
         train_transform = AUGMENTATION_TRANSFORM
@@ -286,6 +284,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         img_size=experiment.img_size,
         transform=train_transform,
         max_samples=100 if MINI_RUN else None,
+        item_names=item_names,
     )
 
     val_dataset = FashionpediaSegmentationDataset(
@@ -294,6 +293,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         img_size=experiment.img_size,
         transform=val_transform,
         max_samples=100 if MINI_RUN else None,
+        item_names=item_names,
     )
 
     # Create data loaders
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     experiment = ExperimentConfig(
         id=0,
         batch_size=2,
-        model_name="resnet18",
+        model_name="deeplab",
         learning_rate=0.001,
         img_size=512,
     )

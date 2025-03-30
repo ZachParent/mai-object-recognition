@@ -1,6 +1,6 @@
 from experiment_config import ExperimentConfig
 from models import get_model
-from dataset import get_dataloaders, NUM_CLASSES
+from dataset import get_dataloaders, MAIN_ITEM_NAMES
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -141,9 +141,6 @@ class Trainer:
         total_loss = 0.0
         num_batches = 0
 
-        dice_scores = []  # To store Dice scores for each image
-        worst_images = []  # To store information about the worst-performing images
-
         with torch.no_grad():
             for img_idx, (image, target) in enumerate(dataloader):
                 # Move tensors to the correct device
@@ -177,26 +174,13 @@ class Trainer:
                 preds = outputs.argmax(dim=1)
                 self.val_metrics_collection.update(preds, mask)
 
-                dice_metric = torchmetrics.segmentation.DiceScore(
-                    input_format="index", num_classes=NUM_CLASSES
-                )
-                dice_score = dice_metric(preds.unsqueeze(0), mask.unsqueeze(0)).item()
-                dice_scores.append((dice_score, img_idx))
-
                 # Update progress with current batch metrics
                 progress.update(loss.item())
 
         progress.close()
 
-        dice_scores.sort(key=lambda x: x[0])  # Sort by Dice score (ascending)
-        worst_images = [
-            index for _, index in dice_scores[:5]
-        ]  # Extract the indices of the 5 lowest scores
-
-        print("Indices of the 5 worst-performing images:", worst_images)
-
         # Return average loss for the epoch
-        return total_loss / num_batches, worst_images
+        return total_loss / num_batches
 
     def visualize_lowest_dice_predictions(
         self, dataloader=None, output_dir="visualizations", worst_img_idxs=None
@@ -269,11 +253,20 @@ class Trainer:
         torch.save(self.model.state_dict(), path)
         print(f"Model saved to {path}")
 
+    def load_previous_model(self) -> None:
+        """Load the model weights from disk."""
+        path = f"{MODELS_DIR}/{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
+        self.model.load_state_dict(torch.load(path, map_location=DEVICE))
+        self.model.to(DEVICE)
+        print(f"Model loaded from {path}")
+        return self.model
+
 
 def run_experiment(experiment: ExperimentConfig) -> None:
-    train_dataloader, val_dataloader = get_dataloaders(experiment)
-    train_metrics_collection = get_metric_collection(NUM_CLASSES)
-    val_metrics_collection = get_metric_collection(NUM_CLASSES)
+    train_dataloader, val_dataloader = get_dataloaders(experiment, MAIN_ITEM_NAMES)
+    num_classes = len(MAIN_ITEM_NAMES) + 1  # +1 for background class
+    train_metrics_collection = get_metric_collection(num_classes)
+    val_metrics_collection = get_metric_collection(num_classes)
 
     trainer = Trainer(experiment, train_metrics_collection, val_metrics_collection)
     metrics_logger = MetricLogger(
@@ -286,15 +279,11 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
         print("-" * width)
         train_loss = trainer.train_epoch(train_dataloader)
-        val_loss, worst_img_idxs = trainer.evaluate(val_dataloader)
+        val_loss = trainer.evaluate(val_dataloader)
 
         # Log metrics to TensorBoard and CSV (will also print epoch summary)
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
-        if epoch == experiment.epochs - 1 and experiment.visualize:
-            trainer.visualize_lowest_dice_predictions(
-                dataloader=val_dataloader, worst_img_idxs=worst_img_idxs
-            )
 
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
