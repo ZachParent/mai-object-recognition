@@ -229,7 +229,7 @@ def train_yolo_with_metrics(
     try:
         results = model.train(
             data=data_yaml_path,
-            epochs=epochs,
+            epochs=4, #epochs,
             imgsz=image_size,
             batch=batch_size,
             device=device,
@@ -239,7 +239,7 @@ def train_yolo_with_metrics(
             patience=50,  # Early stopping patience
             verbose=True,
             task='segment',  # Explicitly specify segmentation task
-            fraction=0.1  # Use 10% of data instead of 1%
+            fraction=0.04  # Use 10% of data instead of 1%
         )
         
         if debug:
