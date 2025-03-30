@@ -22,6 +22,7 @@ RUNS_DIR = DATA_DIR / "01_runs"
 METRICS_DIR = DATA_DIR / "02_metrics"
 CONFUSION_MATRICES_DIR = DATA_DIR / "03_confusion_matrices"
 FIGURES_DIR = REPORT_DIR / "figures"
+MODELS_DIR = DATA_DIR / "04_models"
 
 # Raw data subdirectories
 IMAGES_DIR = RAW_DATA_DIR / "images"

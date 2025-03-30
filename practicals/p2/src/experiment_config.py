@@ -2,6 +2,7 @@ import pydantic
 from typing import Literal
 import pandas as pd
 from metrics import METRICS_DIR
+from config import NUM_EPOCHS
 
 ModelName = Literal["deeplab", "segformer", "lraspp"]
 
@@ -16,7 +17,9 @@ class ExperimentConfig(pydantic.BaseModel):
     batch_size: int
     augmentation: bool = False
     img_size: int
-    visualize: bool = False  # TODO Add visualize=True for running best model
+    visualize: bool = False
+    save_weights: bool = False
+    epochs: int = NUM_EPOCHS
 
 
 class ExperimentSet(pydantic.BaseModel):
@@ -166,12 +169,14 @@ def get_best_run_hyperparameter(
 
 
 best_model_experiment = ExperimentConfig(
-    id=99,
+    id=24,
     model_name="deeplab",
     batch_size=16,
     learning_rate=0.0001,
     augmentation=False,
-    img_size=384
+    img_size=384,
+    epochs=8,
+    save_weights=True,
 )
 
 

@@ -263,17 +263,16 @@ class Trainer:
             output_path = os.path.join(output_dir, f"prediction_idx_{idx}.png")
             plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
-    def save_model(self, path=None):
+    def save_model(self) -> None:
         """Save the model weights to disk."""
-        if path is None:
-            os.makedirs("models", exist_ok=True)
-            path = f"models/deeplab_b16_lr0001_img384.pt"
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        path = f"{MODELS_DIR}/{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
         
         torch.save(self.model.state_dict(), path)
         print(f"Model saved to {path}")
 
 
-def run_experiment(experiment: ExperimentConfig, save_weights=False, epochs=None) -> None:
+def run_experiment(experiment: ExperimentConfig) -> None:
     train_dataloader, val_dataloader = get_dataloaders(experiment)
     train_metrics_collection = get_metric_collection(NUM_CLASSES)
     val_metrics_collection = get_metric_collection(NUM_CLASSES)
@@ -282,10 +281,11 @@ def run_experiment(experiment: ExperimentConfig, save_weights=False, epochs=None
     metrics_logger = MetricLogger(
         experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
     )
-    for epoch in range(NUM_EPOCHS if epochs is None else epochs):
+    
+    for epoch in range(experiment.epochs):
         width = 90
         print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} / {NUM_EPOCHS}".center(width))
+        print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
         print("-" * width)
         train_loss = trainer.train_epoch(train_dataloader)
         val_loss, worst_img_idxs = trainer.evaluate(val_dataloader)
@@ -293,7 +293,7 @@ def run_experiment(experiment: ExperimentConfig, save_weights=False, epochs=None
         # Log metrics to TensorBoard and CSV (will also print epoch summary)
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
-        if epoch == NUM_EPOCHS - 1 and experiment.visualize:
+        if epoch == experiment.epochs - 1 and experiment.visualize:
             trainer.visualize_lowest_dice_predictions(
                 dataloader=val_dataloader, worst_img_idxs=worst_img_idxs
             )
@@ -301,11 +301,9 @@ def run_experiment(experiment: ExperimentConfig, save_weights=False, epochs=None
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
     
-    if save_weights:
-        trainer.save_model(
-            path=f"models/{experiment.model_name}_lr{experiment.learning_rate}_img{experiment.img_size}.pt"
-        )
-    
+    if experiment.save_weights:
+        trainer.save_model()
+
 
 # Use this to run a quick test
 if __name__ == "__main__":
