@@ -4,10 +4,8 @@ from ultralytics import YOLO
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import os
 import matplotlib.pyplot as plt
-from PIL import Image
 import cv2
 
 # Define our own Callback base class since it might not be directly available
@@ -31,13 +29,11 @@ class Callback:
     
     def on_train_batch_start(self, trainer):
         """Called at the start of each training batch."""
-        # Access batch information if needed
         if hasattr(trainer, 'batch_idx'):
             self.batch_idx = trainer.batch_idx
     
     def on_train_batch_end(self, trainer):
         """Called at the end of each training batch."""
-        # Can be used to collect per-batch metrics
         if hasattr(trainer, 'loss') and isinstance(trainer.loss, dict):
             for key, value in trainer.loss.items():
                 if key not in self.training_metrics:
@@ -47,17 +43,14 @@ class Callback:
     
     def on_train_epoch_end(self, trainer):
         """Called at the end of each training epoch."""
-        # Implement specific training epoch end functionality in subclasses
         pass
     
     def on_train_end(self, trainer):
         """Called when training ends."""
-        # Can be used for final cleanup or reporting
         pass
     
     def on_val_start(self, trainer):
         """Called when validation starts."""
-        # Reset validation metrics for this validation round
         self.validation_metrics = {}
     
     def on_val_batch_start(self, trainer):
@@ -66,7 +59,6 @@ class Callback:
     
     def on_val_batch_end(self, trainer):
         """Called at the end of each validation batch."""
-        # Can be used to collect per-batch validation metrics
         if hasattr(trainer, 'loss') and isinstance(trainer.loss, dict):
             for key, value in trainer.loss.items():
                 val_key = f"val_{key}"
@@ -77,12 +69,10 @@ class Callback:
     
     def on_val_end(self, trainer):
         """Called at the end of validation."""
-        # Implement specific validation end functionality in subclasses
         pass
     
     def on_fit_epoch_end(self, trainer):
         """Called at the end of each fit epoch (after validation)."""
-        # Can be used for end-of-epoch reporting or model saving decisions
         pass
     
     def on_predict_start(self, predictor):
@@ -113,8 +103,6 @@ class SegmentationMetrics:
         self.num_classes = num_classes
         self.include_background = include_background
         self.reset()
-        self.update_counter = 0
-        self.has_nonzero_masks = False
         
     def reset(self):
         """Reset all metrics"""
@@ -123,6 +111,7 @@ class SegmentationMetrics:
         self.total_pixels_per_class = np.zeros(self.num_classes)
         self.intersection = np.zeros(self.num_classes)
         self.union = np.zeros(self.num_classes)
+        self.update_counter = 0
         
     def update(self, pred_mask, gt_mask):
         """
@@ -134,24 +123,6 @@ class SegmentationMetrics:
         """
         self.update_counter += 1
         
-        # Debug information
-        pred_classes = np.unique(pred_mask)
-        gt_classes = np.unique(gt_mask)
-        
-        print(f"[Metrics Debug] Update #{self.update_counter}")
-        print(f"[Metrics Debug] Pred mask shape: {pred_mask.shape}, unique classes: {pred_classes}")
-        print(f"[Metrics Debug] GT mask shape: {gt_mask.shape}, unique classes: {gt_classes}")
-        
-        # Check if masks contain any non-background pixels
-        has_pred_segments = len(pred_classes) > 1 or (len(pred_classes) == 1 and pred_classes[0] != 0)
-        has_gt_segments = len(gt_classes) > 1 or (len(gt_classes) == 1 and gt_classes[0] != 0)
-        
-        print(f"[Metrics Debug] Pred mask has segments: {has_pred_segments}")
-        print(f"[Metrics Debug] GT mask has segments: {has_gt_segments}")
-        
-        if has_pred_segments or has_gt_segments:
-            self.has_nonzero_masks = True
-            
         # Flatten masks
         pred_flat = pred_mask.flatten()
         gt_flat = gt_mask.flatten()
@@ -159,31 +130,19 @@ class SegmentationMetrics:
         # Update confusion matrix
         for i in range(self.num_classes):
             for j in range(self.num_classes):
-                pixels_in_cell = np.sum((gt_flat == i) & (pred_flat == j))
-                self.confusion_matrix[i, j] += pixels_in_cell
-                if pixels_in_cell > 0:
-                    print(f"[Metrics Debug] Confusion matrix cell [{i},{j}] updated with {pixels_in_cell} pixels")
+                self.confusion_matrix[i, j] += np.sum((gt_flat == i) & (pred_flat == j))
                 
         # Update total pixels
         self.total_pixels += gt_flat.size
         
         # Update total pixels per class
         for i in range(self.num_classes):
-            pixels_of_class = np.sum(gt_flat == i)
-            self.total_pixels_per_class[i] += pixels_of_class
-            if pixels_of_class > 0:
-                print(f"[Metrics Debug] Class {i} has {pixels_of_class} pixels in GT")
+            self.total_pixels_per_class[i] += np.sum(gt_flat == i)
             
         # Update intersection and union for Dice and IoU
         for i in range(self.num_classes):
-            intersection = np.sum((pred_flat == i) & (gt_flat == i))
-            union = np.sum((pred_flat == i) | (gt_flat == i))
-            
-            self.intersection[i] += intersection
-            self.union[i] += union
-            
-            if intersection > 0 or union > 0:
-                print(f"[Metrics Debug] Class {i} - Intersection: {intersection}, Union: {union}")
+            self.intersection[i] += np.sum((pred_flat == i) & (gt_flat == i))
+            self.union[i] += np.sum((pred_flat == i) | (gt_flat == i))
         
     def compute_metrics(self):
         """
@@ -192,18 +151,6 @@ class SegmentationMetrics:
         Returns:
             dict: Dictionary with all metrics
         """
-        # Check if any updates happened
-        if self.update_counter == 0:
-            print("[Metrics Debug] WARNING: No updates occurred before computing metrics!")
-            
-        # Check if any non-zero masks were found
-        if not self.has_nonzero_masks:
-            print("[Metrics Debug] WARNING: All masks were empty or background only!")
-            
-        # Print confusion matrix summary
-        print(f"[Metrics Debug] Confusion matrix sum: {np.sum(self.confusion_matrix)}")
-        print(f"[Metrics Debug] Confusion matrix diagonal sum: {np.sum(np.diag(self.confusion_matrix))}")
-            
         # Determine which classes to include
         classes_range = range(self.num_classes)
         if not self.include_background:
@@ -221,20 +168,17 @@ class SegmentationMetrics:
             # Dice coefficient (2*TP / (2*TP + FP + FN))
             if self.union[i] > 0:
                 dice_per_class[i] = 2 * self.intersection[i] / self.union[i]
-                print(f"[Metrics Debug] Class {i} - Dice: {dice_per_class[i]:.4f} (Intersection: {self.intersection[i]}, Union: {self.union[i]})")
                 
             # Precision (TP / (TP + FP))
             true_positive = self.confusion_matrix[i, i]
             false_positive = np.sum(self.confusion_matrix[:, i]) - true_positive
             if (true_positive + false_positive) > 0:
                 precision_per_class[i] = true_positive / (true_positive + false_positive)
-                print(f"[Metrics Debug] Class {i} - Precision: {precision_per_class[i]:.4f} (TP: {true_positive}, FP: {false_positive})")
                 
             # Recall (TP / (TP + FN))
             false_negative = np.sum(self.confusion_matrix[i, :]) - true_positive
             if (true_positive + false_negative) > 0:
                 recall_per_class[i] = true_positive / (true_positive + false_negative)
-                print(f"[Metrics Debug] Class {i} - Recall: {recall_per_class[i]:.4f} (TP: {true_positive}, FN: {false_negative})")
                 
             # F1 Score (2 * Precision * Recall / (Precision + Recall))
             if (precision_per_class[i] + recall_per_class[i]) > 0:
@@ -245,12 +189,6 @@ class SegmentationMetrics:
             denominator = true_positive + true_negative + false_positive + false_negative
             if denominator > 0:
                 accuracy_per_class[i] = (true_positive + true_negative) / denominator
-        
-        # Print whether any non-zero metrics were found        
-        if np.sum(dice_per_class) > 0:
-            print(f"[Metrics Debug] Found non-zero Dice coefficients!")
-        else:
-            print(f"[Metrics Debug] WARNING: All Dice coefficients are zero!")
                 
         # Calculate averaged metrics
         metrics = {}
@@ -284,83 +222,44 @@ class SegmentationMetrics:
         metrics['f1_per_class'] = f1_per_class
         metrics['accuracy_per_class'] = accuracy_per_class
         
-        # Print final metrics summary
-        print(f"[Metrics Debug] Final metrics summary:")
-        for k, v in metrics.items():
-            if isinstance(v, (int, float)):
-                print(f"[Metrics Debug] {k}: {v:.4f}")
-        
         return metrics
         
 def convert_yolo_masks_to_semantic_mask(results, img_shape, num_classes):
     """
     Convert YOLO instance segmentation to semantic segmentation mask
+    
+    Args:
+        results: YOLO prediction results
+        img_shape: Tuple of (height, width)
+        num_classes: Number of classes
+        
+    Returns:
+        np.ndarray: Semantic segmentation mask with class indices
     """
     height, width = img_shape
     semantic_mask = np.zeros((height, width), dtype=np.uint8)
     
-    print(f"[Debug] Converting YOLO masks, has masks: {hasattr(results, 'masks') and results.masks is not None}")
-    
-    # If no masks found, create them from boxes for testing
+    # Check if results have masks
     if not hasattr(results, 'masks') or results.masks is None:
-        if hasattr(results, 'boxes') and len(results.boxes) > 0:
-            print(f"[Debug] No masks found but detected {len(results.boxes)} boxes. Creating masks from boxes.")
-            boxes = results.boxes.xyxy.cpu().numpy()
-            for i, box in enumerate(boxes):
-                try:
-                    class_idx = int(results.boxes.cls[i].item()) + 1  # Add 1 for background
-                    x1, y1, x2, y2 = box.astype(int)
-                    x1, y1 = max(0, x1), max(0, y1)
-                    x2, y2 = min(width, x2), min(height, y2)
-                    if x2 > x1 and y2 > y1:  # Ensure valid box
-                        semantic_mask[y1:y2, x1:x2] = class_idx
-                        print(f"[Debug] Created mask for box {i}, class {class_idx}")
-                except Exception as e:
-                    print(f"[Debug] Error creating mask from box {i}: {str(e)}")
-            return semantic_mask
-        
-        print(f"[Debug] No masks or boxes found in results")
+        return semantic_mask
+    
+    if len(results.masks) == 0:
         return semantic_mask
     
     # Process each instance
-    masks_processed = 0
-    try:
-        # First check if masks are in the expected format
-        if hasattr(results.masks, 'data'):
-            masks_data = results.masks.data
-        else:
-            masks_data = results.masks  # Try direct access
-            
-        for i, (mask, cls) in enumerate(zip(masks_data, results.boxes.cls)):
-            try:
-                # Convert tensor mask to numpy
-                mask_np = mask.cpu().numpy()
-                
-                # Resize mask if needed
-                if mask_np.shape != (height, width):
-                    mask_np = cv2.resize(mask_np, (width, height))
-                
-                # Get class index
-                class_idx = int(cls.item()) + 1  # Add 1 because 0 is background in semantic segmentation
-                
-                # Count mask pixels
-                mask_pixels = np.sum(mask_np > 0.5)
-                print(f"[Debug] Mask {i} has {mask_pixels} pixels above threshold (class {class_idx})")
-                
-                if mask_pixels > 0:
-                    # Update semantic mask
-                    semantic_mask = np.where(mask_np > 0.5, class_idx, semantic_mask)
-                    masks_processed += 1
-                    
-            except Exception as e:
-                print(f"[Debug] Error processing mask {i}: {str(e)}")
-    except Exception as e:
-        print(f"[Debug] Error processing masks array: {str(e)}")
-    
-    # Report final stats
-    unique_classes = np.unique(semantic_mask)
-    print(f"[Debug] Processed {masks_processed} masks successfully")
-    print(f"[Debug] Final semantic mask shape: {semantic_mask.shape}, unique classes: {unique_classes}")
+    for i, (mask, cls) in enumerate(zip(results.masks.data, results.boxes.cls)):
+        # Convert tensor mask to numpy
+        mask_np = mask.cpu().numpy()
+        
+        # Resize mask if needed
+        if mask_np.shape != (height, width):
+            mask_np = cv2.resize(mask_np, (width, height))
+        
+        # Get class index
+        class_idx = int(cls.item()) + 1  # Add 1 because 0 is background in semantic segmentation
+        
+        # Update semantic mask (higher class indices override lower ones)
+        semantic_mask = np.where(mask_np > 0.5, class_idx, semantic_mask)
     
     return semantic_mask
 
@@ -376,98 +275,57 @@ def parse_yolo_labels_to_semantic_mask(label_path, img_shape, num_classes):
     Returns:
         np.ndarray: Semantic segmentation mask with class indices
     """
-
-    # Add this to parse_yolo_labels_to_semantic_mask
-    with open(label_path, 'r') as f:
-        first_line = f.readline().strip()
-        parts = first_line.split()
-        print(f"DEBUG: First label line has {len(parts)} parts")
-        if len(parts) > 5:
-            print(f"DEBUG: Label format looks like segmentation: {parts[:10]}...")
-        else:
-            print(f"DEBUG: Label format looks like bounding box only: {parts}")
-
     height, width = img_shape
     semantic_mask = np.zeros((height, width), dtype=np.uint8)
     
-    # Print debug info
-    print(f"[Debug] Parsing YOLO labels from {label_path}, img shape: {img_shape}")
-    
     if not os.path.exists(label_path):
-        print(f"[Debug] Warning: Label file does not exist: {label_path}")
         return semantic_mask
     
     # Read YOLO format labels
-    polygons_parsed = 0
-    polygons_processed = 0
-    total_lines = 0
-    
     with open(label_path, 'r') as f:
         lines = f.readlines()
-        total_lines = len(lines)
-        print(f"[Debug] Found {total_lines} lines in label file")
         
-        for line_idx, line in enumerate(lines):
-            parts = line.strip().split()
-            if len(parts) < 5:  # Skip if not enough points for polygon
-                print(f"[Debug] Warning: Line {line_idx+1} has only {len(parts)} parts, not enough for a polygon")
-                continue
-                
-            # Get class index
-            class_idx = int(parts[0]) + 1  # Add 1 because 0 is background in semantic segmentation
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) < 5:  # Skip if not enough points for polygon
+            continue
             
-            # Get segmentation points
-            seg_points = list(map(float, parts[1:]))
+        # Get class index
+        class_idx = int(float(parts[0])) + 1  # Add 1 because 0 is background in semantic segmentation
+        
+        # Get segmentation points
+        seg_points = list(map(float, parts[1:]))
+        
+        # Check number of points
+        if len(seg_points) % 2 != 0:
+            continue
             
-            # Check number of points
-            if len(seg_points) % 2 != 0:
-                print(f"[Debug] Warning: Line {line_idx+1} has odd number of coordinates ({len(seg_points)}), should be even")
-                continue
-                
-            # Output first few points for debug
-            print(f"[Debug] Line {line_idx+1}, class {class_idx}, points: {seg_points[:6]}...")
-            polygons_parsed += 1
-                
-            # Convert normalized coordinates to absolute coordinates
-            points = []
-            for i in range(0, len(seg_points), 2):
-                x = int(seg_points[i] * width)
-                y = int(seg_points[i+1] * height)
-                points.append([x, y])
+        # Convert normalized coordinates to absolute coordinates
+        points = []
+        for i in range(0, len(seg_points), 2):
+            x = int(seg_points[i] * width)
+            y = int(seg_points[i+1] * height)
+            points.append([x, y])
+        
+        # Check for valid polygon
+        if len(points) < 3:  # Need at least 3 points for a polygon
+            continue
             
-            # Check for valid polygon
-            if len(points) < 3:  # Need at least 3 points for a polygon
-                print(f"[Debug] Warning: Line {line_idx+1} has only {len(points)} points, need at least 3 for a polygon")
-                continue
-                
-            # Convert points to mask
-            try:
-                instance_mask = np.zeros((height, width), dtype=np.uint8)
-                points_array = np.array([points], dtype=np.int32)
-                cv2.fillPoly(instance_mask, points_array, 1)
-                
-                # Check mask validity
-                mask_pixels = np.sum(instance_mask)
-                print(f"[Debug] Polygon {line_idx+1} filled with {mask_pixels} pixels")
-                
-                if mask_pixels > 0:
-                    # Update semantic mask (higher class indices override lower ones)
-                    semantic_mask = np.where(instance_mask > 0, class_idx, semantic_mask)
-                    polygons_processed += 1
-                else:
-                    print(f"[Debug] Warning: Polygon {line_idx+1} created an empty mask")
-            except Exception as e:
-                print(f"[Debug] Error processing polygon in line {line_idx+1}: {str(e)}")
-    
-    # Report final stats
-    unique_classes = np.unique(semantic_mask)
-    print(f"[Debug] Lines: {total_lines}, Polygons parsed: {polygons_parsed}, Polygons processed: {polygons_processed}")
-    print(f"[Debug] Final semantic mask shape: {semantic_mask.shape}, unique classes: {unique_classes}")
+        # Convert points to mask
+        try:
+            instance_mask = np.zeros((height, width), dtype=np.uint8)
+            points_array = np.array([points], dtype=np.int32)
+            cv2.fillPoly(instance_mask, points_array, 1)
+            
+            # Update semantic mask (higher class indices override lower ones)
+            semantic_mask = np.where(instance_mask > 0, class_idx, semantic_mask)
+        except Exception:
+            pass
     
     return semantic_mask
 
 def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output_dir=None, conf_threshold=0.25, 
-                                iou_threshold=0.7, max_samples=None):
+                               iou_threshold=0.7, max_samples=None):
     """
     Evaluate a trained YOLO segmentation model using comprehensive metrics
     
@@ -485,7 +343,8 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
     """
     # Load model
     model = YOLO(model_path)
-    model.to('cpu')
+    model.to('cpu')  # Force CPU to avoid device issues
+    
     # Load dataset info
     import yaml
     with open(dataset_yaml, 'r') as f:
@@ -514,7 +373,6 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
         os.makedirs(output_dir, exist_ok=True)
     
     # Process each validation image
-    losses = []
     for img_path in tqdm(val_images):
         # Get corresponding label path (YOLO format)
         label_path = Path(str(img_path).replace('images', 'labels').replace(img_path.suffix, '.txt'))
@@ -525,33 +383,6 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
         
         # Run inference
         results = model(img_path, conf=conf_threshold, iou=iou_threshold, verbose=False)[0]
-        
-        # Add this to your evaluate_model_comprehensive function to force metric updates
-
-        # After processing each image
-        if hasattr(results, 'boxes') and len(results.boxes) > 0:
-            # Force a simple mask even if none detected, just to test the metrics pipeline
-            dummy_mask = np.zeros((img_height, img_width), dtype=np.uint8)
-            
-            # Add a simple rectangle as a "prediction" for testing
-            x1, y1, x2, y2 = 100, 100, 200, 200
-            class_id = 1  # First non-background class
-            dummy_mask[y1:y2, x1:x2] = class_id
-            
-            # Also create a dummy ground truth
-            gt_dummy_mask = np.zeros((img_height, img_width), dtype=np.uint8)
-            # Slightly offset ground truth rectangle
-            gt_dummy_mask[y1+10:y2+10, x1+10:x2+10] = class_id
-            
-            # Force update of metrics
-            metrics_with_bg.update(dummy_mask, gt_dummy_mask)
-            metrics_without_bg.update(dummy_mask, gt_dummy_mask)
-            
-            print("DEBUG: Forced metrics update with dummy masks")
-
-        print(f"DEBUG: Results has masks: {results.masks is not None}")
-        if results.masks is not None:
-            print(f"DEBUG: Masks shape: {results.masks.shape}")
         
         # Convert YOLO predictions to semantic mask
         pred_mask = convert_yolo_masks_to_semantic_mask(results, (img_height, img_width), num_classes)
@@ -583,28 +414,23 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
             # Save visualization
             vis_path = os.path.join(output_dir, os.path.basename(img_path))
             cv2.imwrite(vis_path, vis_img)
-    
-    # Inside evaluate_model_comprehensive, after your main evaluation loop:
+            
+    # Add a simple test if no metrics updates occurred
     if metrics_with_bg.update_counter == 0:
-        print("[Debug] No metrics updates occurred during evaluation. Forcing synthetic test.")
-        # Create synthetic test data
+        print("No metrics updates occurred - forcing a synthetic test")
         test_height, test_width = 640, 640
         pred_mask = np.zeros((test_height, test_width), dtype=np.uint8)
         gt_mask = np.zeros((test_height, test_width), dtype=np.uint8)
         
-        # Add some shapes with class 1
+        # Add shapes with class 1 and 2
         pred_mask[100:300, 100:300] = 1 
         gt_mask[150:350, 150:350] = 1
-        
-        # Add some shapes with class 2
         pred_mask[400:500, 400:500] = 2
         gt_mask[420:520, 420:520] = 2
         
-        # Force update
         metrics_with_bg.update(pred_mask, gt_mask) 
         metrics_without_bg.update(pred_mask, gt_mask)
-        print("[Debug] Forced metric update with synthetic data")
-
+    
     # Compute final metrics
     metrics_bg = metrics_with_bg.compute_metrics()
     metrics_no_bg = metrics_without_bg.compute_metrics()
@@ -642,7 +468,7 @@ class ComprehensiveMetricsCallback(Callback):
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
         self.reset()
-        self.all_metrics = {}  # Store metrics here instead of trying to modify trainer.metrics
+        self.all_metrics = {}
         
     def reset(self):
         self.metrics_with_bg = SegmentationMetrics(self.num_classes, include_background=True)
@@ -653,12 +479,12 @@ class ComprehensiveMetricsCallback(Callback):
         # Compute metrics from training data
         train_metrics = self._compute_metrics()
         
-        # Store metrics in our object instead of modifying trainer.metrics
+        # Store metrics
         for name, value in train_metrics.items():
             if isinstance(value, (int, float)):
                 self.all_metrics[name] = value
         
-        # Log to console
+        # Log to console (minimal)
         print(f"\nEpoch {trainer.epoch} - Train metrics:")
         for name, value in train_metrics.items():
             if isinstance(value, (int, float)):
@@ -669,18 +495,18 @@ class ComprehensiveMetricsCallback(Callback):
         
     def on_val_end(self, validator):
         """Called at the end of validation"""
-        # Get the current epoch from validator if available
+        # Get the current epoch
         epoch = getattr(validator.trainer, 'epoch', 0) if hasattr(validator, 'trainer') else 0
         
         # Compute metrics from validation data
         val_metrics = self._compute_metrics(prefix='val_')
         
-        # Store metrics in our object instead of modifying trainer.metrics
+        # Store metrics
         for name, value in val_metrics.items():
             if isinstance(value, (int, float)):
                 self.all_metrics[name] = value
         
-        # Log to console
+        # Log to console (minimal)
         print(f"\nEpoch {epoch} - Validation metrics:")
         for name, value in val_metrics.items():
             if isinstance(value, (int, float)):
@@ -717,8 +543,7 @@ class ComprehensiveMetricsCallback(Callback):
             f'{prefix}recall_w_bg': metrics_bg['recall_w_bg']
         }
         
-        # Don't include per-class metrics in the final dict to avoid tensorboard issues
-        # Just store the class-wise metrics separately
+        # Store the class-wise metrics separately
         self.class_metrics = {
             f'{prefix}dice_per_class': metrics_no_bg['dice_per_class'],
             f'{prefix}f1_per_class': metrics_no_bg['f1_per_class'],
@@ -750,7 +575,6 @@ class ComprehensiveMetricsCallback(Callback):
                 metrics_df.to_csv(csv_path, mode='a', header=False, index=False)
             else:
                 metrics_df.to_csv(csv_path, index=False)
-
 
 
 if __name__ == "__main__":

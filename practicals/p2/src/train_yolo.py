@@ -6,13 +6,8 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-from PIL import Image
-import time
 import torch
-print(f"PyTorch version: {torch.__version__}")
-print(f"CUDA available: {torch.cuda.is_available()}")
-print(f"CUDA version: {torch.version.cuda if torch.cuda.is_available() else 'Not available'}")
-
+from tqdm import tqdm
 
 # Import our metrics module
 from yolo_comprehensive_metrics import ComprehensiveMetricsCallback, evaluate_model_comprehensive
@@ -51,7 +46,7 @@ def visualize_dataset_samples(data_yaml_path, num_samples=3, output_dir='dataset
     import glob
     image_files = glob.glob(os.path.join(train_images_dir, '*.jpg')) + glob.glob(os.path.join(train_images_dir, '*.png'))
     if len(image_files) == 0:
-        print(f"ERROR: No images found in {train_images_dir}")
+        print(f"No images found in {train_images_dir}")
         return
     
     # Limit number of samples
@@ -66,7 +61,7 @@ def visualize_dataset_samples(data_yaml_path, num_samples=3, output_dir='dataset
             label_path = os.path.join(train_labels_dir, os.path.splitext(os.path.basename(img_path))[0] + '.txt')
             
             if not os.path.exists(label_path):
-                print(f"WARNING: Label file not found: {label_path}")
+                print(f"Label file not found: {label_path}")
                 continue
             
             # Read image
@@ -96,7 +91,6 @@ def visualize_dataset_samples(data_yaml_path, num_samples=3, output_dir='dataset
                 parts = line.strip().split()
                 
                 if len(parts) < 5:  # Skip if not enough points for polygon
-                    print(f"  WARNING: Line {i+1} has only {len(parts)} parts (not a segmentation)")
                     continue
                 
                 # Get class index and color
@@ -108,7 +102,6 @@ def visualize_dataset_samples(data_yaml_path, num_samples=3, output_dir='dataset
                 
                 # Check if this looks like segmentation (more than 4 coordinates)
                 if len(seg_points) <= 4:
-                    print(f"  WARNING: Line {i+1} has only {len(seg_points)} coordinates (likely a bounding box)")
                     continue
                 
                 has_segmentation = True
@@ -142,10 +135,10 @@ def visualize_dataset_samples(data_yaml_path, num_samples=3, output_dir='dataset
                 plt.close()
                 print(f"  Saved visualization to {output_path}")
             else:
-                print(f"  WARNING: No valid segmentation data found in {label_path}")
+                print(f"  No valid segmentation data found in {label_path}")
                 
         except Exception as e:
-            print(f"ERROR processing {img_path}: {str(e)}")
+            print(f"Error processing {img_path}: {str(e)}")
     
     print(f"Visualizations saved to {output_dir}")
 
@@ -193,17 +186,6 @@ def train_yolo_with_metrics(
                 print(f"{key}: {value}")
             else:
                 print(f"names: {len(value)} classes")
-                for i, (k, v) in enumerate(value.items()):
-                    if i < 5 or i >= len(value) - 3:  # Print first 5 and last 3 classes
-                        print(f"  {k}: {v}")
-                    if i == 5 and len(value) > 8:
-                        print(f"  ... ({len(value) - 8} more classes) ...")
-        
-        # Check if task is specified
-        if 'task' not in dataset_info:
-            print("\nWARNING: 'task' field not found in YAML. Adding 'task: segment' is recommended.")
-        elif dataset_info['task'] != 'segment':
-            print(f"\nWARNING: 'task' is set to '{dataset_info['task']}', but should be 'segment' for segmentation!")
     
     num_classes = len(dataset_info['names'])  # Number of classes in the dataset
     
@@ -214,24 +196,15 @@ def train_yolo_with_metrics(
     
     try:
         model = YOLO(model_name)
-        model.to('cpu')
+        
         if debug:
             print(f"Model loaded successfully")
             print(f"Model task: {model.task}")
-            if model.task != 'segment':
-                print(f"WARNING: Model task is '{model.task}', but should be 'segment' for segmentation!")
     except Exception as e:
-        print(f"ERROR: Failed to load model: {str(e)}")
-        if "No such file or directory" in str(e):
-            print(f"\nTIP: The model file '{model_name}' was not found. Available segmentation models are:")
-            print("- yolov8n-seg.pt (nano)")
-            print("- yolov8s-seg.pt (small)")
-            print("- yolov8m-seg.pt (medium)")
-            print("- yolov8l-seg.pt (large)")
-            print("- yolov8x-seg.pt (extra large)")
+        print(f"Failed to load model: {str(e)}")
         raise e
     
-    # Create metrics callback with debug-enabled version
+    # Create metrics callback
     metrics_callback = ComprehensiveMetricsCallback(
         num_classes=num_classes,
         output_dir=os.path.join(output_dir, 'metrics_log')
@@ -247,11 +220,10 @@ def train_yolo_with_metrics(
         print(f"Epochs: {epochs}")
         print(f"Image size: {image_size}")
         print(f"Batch size: {batch_size}")
-        print(f"Task: segment")
     
     # Check for CUDA/GPU
     if device != 'cpu' and not torch.cuda.is_available():
-        print("WARNING: CUDA is not available, falling back to CPU")
+        print("Warning: CUDA is not available, falling back to CPU")
         device = 'cpu'
     
     try:
@@ -267,19 +239,13 @@ def train_yolo_with_metrics(
             patience=50,  # Early stopping patience
             verbose=True,
             task='segment',  # Explicitly specify segmentation task
-            fraction=0.01
+            fraction=0.1  # Use 10% of data instead of 1%
         )
         
         if debug:
             print("\n=== Training complete ===")
     except Exception as e:
-        print(f"\nERROR during training: {str(e)}")
-        if "segment dataset incorrectly formatted" in str(e):
-            print("\nThis error indicates your dataset is not correctly formatted for segmentation.")
-            print("Please ensure:")
-            print("1. The YAML file has 'task: segment'")
-            print("2. Label files contain polygon coordinates, not just bounding boxes")
-            print("3. The polygon format is: class_id x1 y1 x2 y2 ... xn yn")
+        print(f"\nError during training: {str(e)}")
         raise e
     
     # Get best model path
@@ -296,8 +262,8 @@ def train_yolo_with_metrics(
         val_data_path=val_data_path,
         dataset_yaml=data_yaml_path,
         output_dir=os.path.join(output_dir, 'final_visualizations'),
-        conf_threshold=0.001,  # Try a much lower threshold
-        iou_threshold=0.1     # Also lower this
+        conf_threshold=0.001,  # Lower threshold to capture more predictions
+        iou_threshold=0.1     # Lower threshold to be more lenient with overlaps
     )
     
     # Save final metrics to CSV
@@ -317,17 +283,22 @@ if __name__ == "__main__":
     # Example usage
     data_yaml_path = DATA_DIR / "yolo" / "dataset.yaml"
     
+    # Enable printing basic information about the process
+    print(f"PyTorch version: {torch.__version__}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    print(f"CUDA version: {torch.version.cuda if torch.cuda.is_available() else 'Not available'}")
+    
     # Train model with metrics and debugging enabled
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
-        model_name='yolo11n-seg.pt',  # Using YOLOv8n-seg which is definitely available
-        epochs=1,
+        model_name='yolov8n-seg.pt',  # Using YOLOv8n-seg which is a standard model
+        epochs=100,                   # Train for more epochs
         image_size=640,
         batch_size=16,
-        device='cpu',
+        device='cpu',                 # Use CPU for compatibility 
         project_name='fashionpedia_segmentation',
         output_dir= DATA_DIR / "02_metrics" / "yolo_comprehensive_metrics_results",
-        debug=True  # Enable debugging
+        debug=True
     )
     
     print(f"Training complete. Best model: {best_model}")
