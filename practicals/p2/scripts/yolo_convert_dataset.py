@@ -212,7 +212,7 @@ max_class_id = 25  # 0-indexed
 add_background = True
 
 # Get category names from filtered categories
-category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id + 1}
+category_names = {cat["id"]: cat["name"] for cat in categories if cat["id"] <= max_class_id}
 
 # Create YAML with proper format for segmentation task
 yaml_content = f"""# YOLOv8 Segmentation dataset config
