@@ -466,141 +466,75 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
 
 class ComprehensiveMetricsCallback(Callback):
     """Custom callback to track comprehensive metrics during training"""
-    def __init__(self, num_classes, output_dir=None, dataset_yaml=None, val_data_path=None, eval_fraction=0.1):
+    def __init__(self, num_classes, output_dir=None):
         super().__init__()
         self.num_classes = num_classes
         self.output_dir = output_dir
-        self.dataset_yaml = dataset_yaml
-        self.val_data_path = val_data_path
-        self.eval_fraction = eval_fraction  # Fraction of validation set to use
-        
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            
         self.reset()
         self.all_metrics = {}
-        self.model = None
-        self.val_images = None
         
     def reset(self):
-        """Reset metric calculators"""
         self.metrics_with_bg = SegmentationMetrics(self.num_classes, include_background=True)
         self.metrics_without_bg = SegmentationMetrics(self.num_classes, include_background=False)
-    
-    def on_train_start(self, trainer):
-        """Called when training starts - store model reference and prepare validation images"""
-        super().on_train_start(trainer)
-        self.model = trainer.model
         
-        # Prepare validation image list once at the start
-        if self.val_data_path and self.eval_fraction > 0:
-            self._prepare_validation_set()
-    
-    def _prepare_validation_set(self):
-        """Prepare the validation set - done once at the beginning of training"""
-        # Get validation image paths
-        val_images_dir = Path(self.val_data_path)
-        all_val_images = list(val_images_dir.glob('*.jpg')) + list(val_images_dir.glob('*.png'))
-        
-        if len(all_val_images) == 0:
-            print(f"Warning: No validation images found in {self.val_data_path}")
-            self.val_images = []
-            return
-            
-        # Calculate number of images to use based on fraction
-        num_eval_images = max(1, int(len(all_val_images) * self.eval_fraction))
-        
-        # Use consistent random seed for reproducibility
-        np.random.seed(42)
-        
-        # Sample images
-        indices = np.random.choice(len(all_val_images), num_eval_images, replace=False)
-        self.val_images = [all_val_images[i] for i in indices]
-        
-        print(f"Prepared evaluation set with {len(self.val_images)} images " +
-              f"({self.eval_fraction:.1%} of {len(all_val_images)} total)")
-    
     def on_train_epoch_end(self, trainer):
-        """Called at the end of each training epoch - just display epoch number"""
-        print(f"\n=== End of training epoch {trainer.epoch} ===\n")
-    
+        """Called at the end of training epoch"""
+        # Compute metrics from training data
+        train_metrics = self._compute_metrics()
+        
+        # Store metrics
+        for name, value in train_metrics.items():
+            if isinstance(value, (int, float)):
+                self.all_metrics[name] = value
+        
+        # Log to console (minimal)
+        print(f"\nEpoch {trainer.epoch} - Train metrics:")
+        for name, value in train_metrics.items():
+            if isinstance(value, (int, float)):
+                print(f"{name}: {value:.4f}")
+        
+        # Reset for next epoch
+        self.reset()
+        
     def on_val_end(self, validator):
-        """Called at the end of validation - evaluate model on validation subset"""
+        """Called at the end of validation"""
         # Get the current epoch
         epoch = getattr(validator.trainer, 'epoch', 0) if hasattr(validator, 'trainer') else 0
         
-        # Skip if we don't have the necessary data
-        if self.model is None or self.val_images is None or len(self.val_images) == 0:
-            print("Warning: Cannot calculate metrics - missing model or validation data")
-            return
-            
-        try:
-            print(f"\nCalculating metrics for epoch {epoch} on {len(self.val_images)} validation images...")
-            
-            # Reset metrics for this epoch
-            self.reset()
-            
-            # Process each validation image
-            for img_path in tqdm(self.val_images, desc=f"Evaluating epoch {epoch}"):
-                # Get corresponding label path (YOLO format)
-                label_path = Path(str(img_path).replace('images', 'labels').replace(img_path.suffix, '.txt'))
-                
-                if not label_path.exists():
-                    continue
-                    
-                # Load image to get shape
-                img = cv2.imread(str(img_path))
-                if img is None:
-                    continue
-                    
-                img_height, img_width = img.shape[:2]
-                
-                # Run inference with current model weights
-                results = self.model(img, conf=0.25, iou=0.7, verbose=False)[0]
-                
-                # Convert predictions to semantic mask
-                pred_mask = convert_yolo_masks_to_semantic_mask(results, (img_height, img_width), self.num_classes)
-                
-                # Convert ground truth to semantic mask
-                gt_mask = parse_yolo_labels_to_semantic_mask(label_path, (img_height, img_width), self.num_classes)
-                
-                # Update metrics
-                self.metrics_with_bg.update(pred_mask, gt_mask)
-                self.metrics_without_bg.update(pred_mask, gt_mask)
-            
-            # Skip metrics calculation if no updates occurred
-            if self.metrics_with_bg.update_counter == 0:
-                print("Warning: No valid mask pairs were processed for metrics calculation")
-                return
-                
-            # Compute metrics
-            metrics = self._compute_metrics(prefix='val_')
-            
-            # Store metrics history
-            for name, value in metrics.items():
-                if isinstance(value, (int, float)):
-                    self.all_metrics[name] = value
-            
-            # Log to console
-            print(f"\nEpoch {epoch} - Validation metrics:")
-            for name, value in metrics.items():
-                if isinstance(value, (int, float)):
-                    print(f"{name}: {value:.4f}")
-            
-            # Save to CSV for tracking
-            self._save_metrics_to_csv(epoch)
-            
-        except Exception as e:
-            import traceback
-            print(f"Error calculating metrics: {str(e)}")
-            print(traceback.format_exc())
+        # Compute metrics from validation data
+        val_metrics = self._compute_metrics(prefix='val_')
         
-    def _compute_metrics(self, prefix='val_'):
-        """Compute all metrics from the current state"""
+        # Store metrics
+        for name, value in val_metrics.items():
+            if isinstance(value, (int, float)):
+                self.all_metrics[name] = value
+        
+        # Log to console (minimal)
+        print(f"\nEpoch {epoch} - Validation metrics:")
+        for name, value in val_metrics.items():
+            if isinstance(value, (int, float)):
+                print(f"{name}: {value:.4f}")
+        
+        # Log to tensorboard if available
+        if hasattr(validator, 'tb') and validator.tb:
+            for name, value in val_metrics.items():
+                if isinstance(value, (int, float)):
+                    validator.tb.add_scalar(f'Metrics/{name}', value, epoch)
+                    
+        # Save metrics to CSV after each validation
+        self._save_metrics_to_csv(epoch)
+        
+        # Reset for next validation
+        self.reset()
+        
+    def _compute_metrics(self, prefix='train_'):
+        """Compute and return all metrics with specified prefix"""
         metrics_bg = self.metrics_with_bg.compute_metrics()
         metrics_no_bg = self.metrics_without_bg.compute_metrics()
         
-        # Format metrics with prefix
+        # Combine all metrics with prefix
         final_metrics = {
             f'{prefix}dice': metrics_no_bg['dice'],
             f'{prefix}f1': metrics_no_bg['f1'],
@@ -611,13 +545,10 @@ class ComprehensiveMetricsCallback(Callback):
             f'{prefix}f1_w_bg': metrics_bg['f1_w_bg'],
             f'{prefix}accuracy_w_bg': metrics_bg['accuracy_w_bg'],
             f'{prefix}precision_w_bg': metrics_bg['precision_w_bg'],
-            f'{prefix}recall_w_bg': metrics_bg['recall_w_bg'],
-            # Add IoU (Jaccard) metrics
-            f'{prefix}iou': np.mean(metrics_no_bg['dice_per_class'] / (2 - metrics_no_bg['dice_per_class'])),
-            f'{prefix}iou_w_bg': np.mean(metrics_bg['dice_per_class'] / (2 - metrics_bg['dice_per_class']))
+            f'{prefix}recall_w_bg': metrics_bg['recall_w_bg']
         }
         
-        # Store class-wise metrics
+        # Store the class-wise metrics separately
         self.class_metrics = {
             f'{prefix}dice_per_class': metrics_no_bg['dice_per_class'],
             f'{prefix}f1_per_class': metrics_no_bg['f1_per_class'],
@@ -629,27 +560,25 @@ class ComprehensiveMetricsCallback(Callback):
         return final_metrics
     
     def _save_metrics_to_csv(self, epoch):
-        """Save current epoch metrics to CSV file"""
-        if not self.output_dir:
-            return
+        """Save current metrics to CSV file"""
+        if self.output_dir:
+            # Create a dictionary with epoch and all scalar metrics
+            metrics_dict = {'epoch': epoch}
+            for name, value in self.all_metrics.items():
+                if isinstance(value, (int, float)):
+                    metrics_dict[name] = value
             
-        # Create metrics dictionary
-        metrics_dict = {'epoch': epoch}
-        for name, value in self.all_metrics.items():
-            if isinstance(value, (int, float)):
-                metrics_dict[name] = value
-        
-        # Convert to DataFrame
-        metrics_df = pd.DataFrame([metrics_dict])
-        
-        # Save to CSV (append mode)
-        csv_path = os.path.join(self.output_dir, 'training_metrics.csv')
-        
-        # Check if file exists to handle header correctly
-        if os.path.exists(csv_path):
-            metrics_df.to_csv(csv_path, mode='a', header=False, index=False)
-        else:
-            metrics_df.to_csv(csv_path, index=False)
+            # Convert to DataFrame
+            metrics_df = pd.DataFrame([metrics_dict])
+            
+            # Save to CSV (append mode)
+            csv_path = os.path.join(self.output_dir, 'training_metrics.csv')
+            
+            # Check if file exists to handle header correctly
+            if os.path.exists(csv_path):
+                metrics_df.to_csv(csv_path, mode='a', header=False, index=False)
+            else:
+                metrics_df.to_csv(csv_path, index=False)
 
 
 if __name__ == "__main__":
