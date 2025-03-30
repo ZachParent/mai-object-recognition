@@ -9,6 +9,10 @@ import cv2
 from PIL import Image
 import time
 import torch
+print(f"PyTorch version: {torch.__version__}")
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"CUDA version: {torch.version.cuda if torch.cuda.is_available() else 'Not available'}")
+
 
 # Import our metrics module
 from yolo_comprehensive_metrics import ComprehensiveMetricsCallback, evaluate_model_comprehensive
@@ -210,6 +214,7 @@ def train_yolo_with_metrics(
     
     try:
         model = YOLO(model_name)
+        model.to('cpu')
         if debug:
             print(f"Model loaded successfully")
             print(f"Model task: {model.task}")
@@ -261,7 +266,8 @@ def train_yolo_with_metrics(
             save=True,
             patience=50,  # Early stopping patience
             verbose=True,
-            task='segment'  # Explicitly specify segmentation task
+            task='segment',  # Explicitly specify segmentation task
+            fraction=0.01
         )
         
         if debug:
@@ -290,8 +296,8 @@ def train_yolo_with_metrics(
         val_data_path=val_data_path,
         dataset_yaml=data_yaml_path,
         output_dir=os.path.join(output_dir, 'final_visualizations'),
-        conf_threshold=0.25,
-        iou_threshold=0.7
+        conf_threshold=0.01,  # Try a much lower threshold
+        iou_threshold=0.3     # Also lower this
     )
     
     # Save final metrics to CSV
@@ -315,10 +321,10 @@ if __name__ == "__main__":
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
         model_name='yolo11n-seg.pt',  # Using YOLOv8n-seg which is definitely available
-        epochs=100,
+        epochs=1,
         image_size=640,
         batch_size=16,
-        device=0,
+        device='cpu',
         project_name='fashionpedia_segmentation',
         output_dir= DATA_DIR / "02_metrics" / "yolo_comprehensive_metrics_results",
         debug=True  # Enable debugging

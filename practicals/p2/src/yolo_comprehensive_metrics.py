@@ -304,6 +304,15 @@ def convert_yolo_masks_to_semantic_mask(results, img_shape, num_classes):
     Returns:
         np.ndarray: Semantic segmentation mask with class indices
     """
+
+    # Add to convert_yolo_masks_to_semantic_mask function
+    if results.masks is None:
+        print("DEBUG: No masks in results - checking boxes")
+        if hasattr(results, 'boxes') and len(results.boxes) > 0:
+            print(f"DEBUG: Found {len(results.boxes)} boxes but no masks")
+            # The model might be detecting boxes but not generating masks
+            # This suggests a problem with the segmentation head
+
     height, width = img_shape
     semantic_mask = np.zeros((height, width), dtype=np.uint8)
     
@@ -375,6 +384,17 @@ def parse_yolo_labels_to_semantic_mask(label_path, img_shape, num_classes):
     Returns:
         np.ndarray: Semantic segmentation mask with class indices
     """
+
+    # Add this to parse_yolo_labels_to_semantic_mask
+    with open(label_path, 'r') as f:
+        first_line = f.readline().strip()
+        parts = first_line.split()
+        print(f"DEBUG: First label line has {len(parts)} parts")
+        if len(parts) > 5:
+            print(f"DEBUG: Label format looks like segmentation: {parts[:10]}...")
+        else:
+            print(f"DEBUG: Label format looks like bounding box only: {parts}")
+
     height, width = img_shape
     semantic_mask = np.zeros((height, width), dtype=np.uint8)
     
@@ -513,6 +533,33 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
         
         # Run inference
         results = model(img_path, conf=conf_threshold, iou=iou_threshold, verbose=False)[0]
+        
+        # Add this to your evaluate_model_comprehensive function to force metric updates
+
+        # After processing each image
+        if hasattr(results, 'boxes') and len(results.boxes) > 0:
+            # Force a simple mask even if none detected, just to test the metrics pipeline
+            dummy_mask = np.zeros((img_height, img_width), dtype=np.uint8)
+            
+            # Add a simple rectangle as a "prediction" for testing
+            x1, y1, x2, y2 = 100, 100, 200, 200
+            class_id = 1  # First non-background class
+            dummy_mask[y1:y2, x1:x2] = class_id
+            
+            # Also create a dummy ground truth
+            gt_dummy_mask = np.zeros((img_height, img_width), dtype=np.uint8)
+            # Slightly offset ground truth rectangle
+            gt_dummy_mask[y1+10:y2+10, x1+10:x2+10] = class_id
+            
+            # Force update of metrics
+            metrics_with_bg.update(dummy_mask, gt_dummy_mask)
+            metrics_without_bg.update(dummy_mask, gt_dummy_mask)
+            
+            print("DEBUG: Forced metrics update with dummy masks")
+
+        print(f"DEBUG: Results has masks: {results.masks is not None}")
+        if results.masks is not None:
+            print(f"DEBUG: Masks shape: {results.masks.shape}")
         
         # Convert YOLO predictions to semantic mask
         pred_mask = convert_yolo_masks_to_semantic_mask(results, (img_height, img_width), num_classes)
