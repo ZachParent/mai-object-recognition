@@ -399,42 +399,6 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
         metrics_with_bg.update(pred_mask, gt_mask)
         metrics_without_bg.update(pred_mask, gt_mask)
         
-        # Save visualization if requested
-        if output_dir:
-            # Create visualization
-            vis_img = img.copy()
-            
-            # Overlay ground truth mask (green with transparency)
-            gt_overlay = vis_img.copy()
-            for cls in range(1, num_classes):  # Skip background
-                gt_overlay[gt_mask == cls] = [0, 255, 0]  # Green for ground truth
-            vis_img = cv2.addWeighted(vis_img, 0.7, gt_overlay, 0.3, 0)
-            
-            # Overlay prediction mask (red with transparency)
-            pred_overlay = vis_img.copy()
-            for cls in range(1, num_classes):  # Skip background
-                pred_overlay[pred_mask == cls] = [0, 0, 255]  # Red for prediction
-            vis_img = cv2.addWeighted(vis_img, 0.7, pred_overlay, 0.3, 0)
-            
-            # Save visualization
-            vis_path = os.path.join(output_dir, os.path.basename(img_path))
-            cv2.imwrite(vis_path, vis_img)
-            
-    # Add a simple test if no metrics updates occurred
-    if metrics_with_bg.update_counter == 0:
-        print("No metrics updates occurred - forcing a synthetic test")
-        test_height, test_width = 640, 640
-        pred_mask = np.zeros((test_height, test_width), dtype=np.uint8)
-        gt_mask = np.zeros((test_height, test_width), dtype=np.uint8)
-        
-        # Add shapes with class 1 and 2
-        pred_mask[100:300, 100:300] = 1 
-        gt_mask[150:350, 150:350] = 1
-        pred_mask[400:500, 400:500] = 2
-        gt_mask[420:520, 420:520] = 2
-        
-        metrics_with_bg.update(pred_mask, gt_mask) 
-        metrics_without_bg.update(pred_mask, gt_mask)
     
     # Compute final metrics
     metrics_bg = metrics_with_bg.compute_metrics()
