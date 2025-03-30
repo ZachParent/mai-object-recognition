@@ -314,6 +314,7 @@ def get_dataloaders(experiment: ExperimentConfig):
 
     return train_dataloader, val_dataloader
 
+
 def get_aux_dataloader(experiment: ExperimentConfig):
 
     val_dataset = FashionpediaSegmentationDataset(

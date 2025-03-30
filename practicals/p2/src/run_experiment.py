@@ -181,7 +181,7 @@ class Trainer:
 
         # Return average loss for the epoch
         return total_loss / num_batches
-    
+
     def get_images(self, dataloader: DataLoader) -> tuple[list, list]:
 
         self.model.eval()
@@ -205,7 +205,7 @@ class Trainer:
                         torch.nn.functional.interpolate(
                             mask.unsqueeze(1).float(),
                             scale_factor=1 / 4,
-                            mode="nearest"
+                            mode="nearest",
                         )
                         .squeeze(1)
                         .long()
@@ -216,22 +216,33 @@ class Trainer:
 
                 # Compute Dice scores for each image in the batch
                 dice_metric = torchmetrics.segmentation.DiceScore(
-                input_format="index",
-                num_classes=NUM_CLASSES,
-                include_background=False,
-                average="macro",
-            )
+                    input_format="index",
+                    num_classes=NUM_CLASSES,
+                    include_background=False,
+                    average="macro",
+                )
                 for i in range(image.size(0)):
-                    dice_score = dice_metric(preds[i].unsqueeze(0), mask[i].unsqueeze(0)).item()
+                    dice_score = dice_metric(
+                        preds[i].unsqueeze(0), mask[i].unsqueeze(0)
+                    ).item()
                     dice_scores.append((dice_score, img_idx))
 
-        # Sort Dice scores to find the 5 worst-performing images        dice_scores.sort(key=lambda x: x[0])  # Sort by Dice score (ascending)
-        best_images = [index for _, index in dice_scores[-5:]]  # Extract the indices of the 5 highest scores
-        worst_images = [index for _, index in dice_scores[:5]]  # Extract the indices of the 5 lowest scores
+        # Sort Dice scores to find the 5 worst-performing images
+        dice_scores.sort(key=lambda x: x[0])  # Sort by Dice score (ascending)
+        best_images = [
+            index for _, index in dice_scores[-5:]
+        ]  # Extract the indices of the 5 highest scores
+        worst_images = [
+            index for _, index in dice_scores[:5]
+        ]  # Extract the indices of the 5 lowest scores
         return best_images, worst_images
 
     def visualize_predictions(
-        self, dataloader=None, output_dir="visualizations", worst_img_idxs=None, best_img_idxs=None
+        self,
+        dataloader=None,
+        output_dir="visualizations",
+        worst_img_idxs=None,
+        best_img_idxs=None,
     ) -> None:
         dataset = dataloader.dataset
 
@@ -266,21 +277,23 @@ class Trainer:
                     pred_mask = torch.argmax(output, dim=1).squeeze(0)
 
                 # Resize predicted mask to match the true mask's shape
-                pred_mask_resized = torch.nn.functional.interpolate(
-                    pred_mask.unsqueeze(0).unsqueeze(0).float(),  # Add batch and channel dimensions
-                    size=true_mask.shape,  # Resize to match true mask shape
-                    mode="nearest"  # Use nearest neighbor interpolation for segmentation masks
-                ).squeeze(0).squeeze(0).long()  # Remove batch and channel dimensions
+                pred_mask_resized = (
+                    torch.nn.functional.interpolate(
+                        pred_mask.unsqueeze(0)
+                        .unsqueeze(0)
+                        .float(),  # Add batch and channel dimensions
+                        size=true_mask.shape,  # Resize to match true mask shape
+                        mode="nearest",  # Use nearest neighbor interpolation for segmentation masks
+                    )
+                    .squeeze(0)
+                    .squeeze(0)
+                    .long()
+                )  # Remove batch and channel dimensions
 
                 # Convert tensors to numpy for visualization
                 img_np = img.cpu().detach().permute(1, 2, 0).numpy()
                 true_mask_np = true_mask.cpu().detach().numpy()
                 pred_mask_np = pred_mask_resized.cpu().detach().numpy()
-
-                # Debug: Check shapes of true_mask and pred_mask
-                print(f"Image shape: {img_np.shape}")
-                print(f"True mask shape: {true_mask_np.shape}")
-                print(f"Predicted mask shape (after resizing): {pred_mask_np.shape}")
 
                 # Denormalize image if necessary (assuming ImageNet normalization)
                 mean = np.array([0.485, 0.456, 0.406])
@@ -293,19 +306,35 @@ class Trainer:
 
                 # Plot original image with true segmentation
                 axes[0].imshow(img_np)
-                im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap="viridis", vmin=0, vmax=NUM_CLASSES - 1)
+                im0 = axes[0].imshow(
+                    true_mask_np,
+                    alpha=0.5,
+                    cmap="viridis",
+                    vmin=0,
+                    vmax=NUM_CLASSES - 1,
+                )
                 axes[0].set_title("Ground Truth Segmentation")
                 axes[0].axis("off")
 
                 # Plot original image with predicted segmentation
                 axes[1].imshow(img_np)
-                im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap="viridis", vmin=0, vmax=NUM_CLASSES - 1)
+                im1 = axes[1].imshow(
+                    pred_mask_np,
+                    alpha=0.5,
+                    cmap="viridis",
+                    vmin=0,
+                    vmax=NUM_CLASSES - 1,
+                )
                 axes[1].set_title("Model Prediction")
                 axes[1].axis("off")
 
                 # Add colorbars with consistent limits
-                fig.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04, ticks=range(NUM_CLASSES))
-                fig.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04, ticks=range(NUM_CLASSES))
+                fig.colorbar(
+                    im0, ax=axes[0], fraction=0.046, pad=0.04, ticks=range(NUM_CLASSES)
+                )
+                fig.colorbar(
+                    im1, ax=axes[1], fraction=0.046, pad=0.04, ticks=range(NUM_CLASSES)
+                )
 
                 plt.tight_layout()
 
@@ -314,7 +343,9 @@ class Trainer:
                 plt.savefig(output_path, dpi=300, bbox_inches="tight")
                 plt.close(fig)
 
-                print(f"Saved {set_name} visualization for image index {idx} to {output_path}")
+                print(
+                    f"Saved {set_name} visualization for image index {idx} to {output_path}"
+                )
 
     def save_model(self) -> None:
         """Save the model weights to disk."""
@@ -350,8 +381,10 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     aux_dataloader = get_aux_dataloader(experiment)
     worst_performing_images, best_performing_images = trainer.get_images(aux_dataloader)
     trainer.visualize_predictions(
-                dataloader=aux_dataloader, worst_img_idxs=worst_performing_images, best_img_idxs=best_performing_images
-            )
+        dataloader=aux_dataloader,
+        worst_img_idxs=worst_performing_images,
+        best_img_idxs=best_performing_images,
+    )
 
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
