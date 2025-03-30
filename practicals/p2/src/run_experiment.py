@@ -1,15 +1,13 @@
-import datetime
 from experiment_config import ExperimentConfig
 from models import get_model
 from dataset import get_dataloaders, NUM_CLASSES
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import Dict
-from config import NUM_EPOCHS, DEVICE
+from config import DEVICE
 from metrics import MetricLogger, get_metric_collection
 import torchmetrics
-from config import FIGURES_DIR
+from config import MODELS_DIR
 import numpy as np
 import matplotlib.pyplot as plt
 import os
