@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 import torch
+import pandas as pd
 from tqdm import tqdm
 
 # Import our metrics module
@@ -28,7 +29,7 @@ def train_yolo_with_metrics(
     device=0,
     project_name='fashionpedia_segmentation',
     output_dir='./results',
-    metrics_eval_fraction=0.1,  # Fraction of validation set to use for per-epoch metrics
+    metrics_eval_fraction=0.001,  # Fraction of validation set to use for per-epoch metrics
     debug=True
 ):
     """
@@ -97,9 +98,9 @@ def train_yolo_with_metrics(
     )
     
     # Register the callbacks
-    model.add_callback("on_train_start", metrics_callback.on_train_start)
-    model.add_callback("on_train_epoch_end", metrics_callback.on_train_epoch_end)
-    model.add_callback("on_val_end", metrics_callback.on_val_end)
+    #model.add_callback("on_train_start", metrics_callback.on_train_start)
+    #model.add_callback("on_train_epoch_end", metrics_callback.on_train_epoch_end)
+    #model.add_callback("on_val_end", metrics_callback.on_val_end)
     
     # Train model with callbacks
     if debug:
@@ -113,7 +114,7 @@ def train_yolo_with_metrics(
     if device != 'cpu' and not torch.cuda.is_available():
         print("Warning: CUDA is not available, falling back to CPU")
         device = 'cpu'
-    
+
     try:
         results = model.train(
             data=data_yaml_path,
@@ -127,7 +128,7 @@ def train_yolo_with_metrics(
             patience=50,  # Early stopping patience
             verbose=True,
             task='segment',
-            fraction=0.02  # Use small fraction of data if in debug mode
+            fraction=0.001  # Use small fraction of data if in debug mode
         )
         
         if debug:
@@ -135,7 +136,6 @@ def train_yolo_with_metrics(
     except Exception as e:
         print(f"\nError during training: {str(e)}")
         raise e
-    
     # Get best model path
     best_model_path = model.trainer.best
     
@@ -149,7 +149,8 @@ def train_yolo_with_metrics(
         dataset_yaml=data_yaml_path,
         output_dir=os.path.join(run_dir, 'final_visualizations'),
         conf_threshold=0.25,  # Standard threshold
-        iou_threshold=0.7     # Standard threshold
+        iou_threshold=0.7,     # Standard threshold
+        max_samples=10
     )
     
     # Save final metrics to CSV
@@ -231,7 +232,7 @@ if __name__ == "__main__":
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
         model_name='yolov8n-seg.pt',  # Using YOLOv8n-seg which is a standard model
-        epochs=2,#100,                   # Train for more epochs
+        epochs=1,#100,                   # Train for more epochs
         image_size=640,
         batch_size=16,
         device='cpu',                 # Use CPU for compatibility 

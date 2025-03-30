@@ -377,6 +377,7 @@ def evaluate_model_comprehensive(model_path, val_data_path, dataset_yaml, output
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
     
+
     # Process each validation image
     for img_path in tqdm(val_images):
         # Get corresponding label path (YOLO format)
@@ -520,8 +521,22 @@ class ComprehensiveMetricsCallback(Callback):
                 img_height, img_width = img.shape[:2]
                 
                 # Run inference with current model weights
-                results = self.model(img, conf=0.25, iou=0.7, verbose=False)[0]
+                with torch.no_grad():
+                    img_tensor = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0  # HWC to CHW
+                    img_tensor = img_tensor.unsqueeze(0)  # Add batch dimension
+                    results = self.model(img_tensor)
                 
+
+                # Convert raw model outputs to Results format
+                from ultralytics.engine.results import Results
+                results = Results(
+                    orig_img=img,
+                    path=str(img_path),
+                    names=self.model.names if hasattr(self.model, 'names') else None,
+                    boxes=results[0] if isinstance(results, tuple) and len(results) > 0 else None,
+                    masks=results[1] if isinstance(results, tuple) and len(results) > 1 else None
+                )
+                                                
                 # Convert predictions to semantic mask
                 pred_mask = convert_yolo_masks_to_semantic_mask(results, (img_height, img_width), self.num_classes)
                 
