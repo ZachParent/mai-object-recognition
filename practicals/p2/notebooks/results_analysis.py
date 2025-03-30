@@ -114,3 +114,6 @@ metrics: List[Tuple[str, str, str]] = [
 ]
 plot_metrics(metrics_df, metrics, "Validation Metrics During Training", FIGURES_DIR / "validation_metrics_experiment_11.png")
 # %%
+# TODO
+# 1. a confusion matrix, then the subset confusion matrix after fine tuning
+# 2. a 4 column plot that shows the mDice performance for each experiment part of hyperparam search
