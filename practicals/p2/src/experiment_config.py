@@ -136,20 +136,33 @@ def get_resolution_experiments() -> ExperimentSet:
 
 def get_best_run_hyperparameter(
     experiment_set_title: str, model_name: str, hyperparameter: str
-) -> float:
+) -> float | bool:
     try:
         best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
+        
+        if hyperparameter == "augmentation":
+            # Filter dataframe for the given model
+            model_df = best_runs_df[best_runs_df['model_name'] == model_name]
+            
+            # Get the row with the highest dice score
+            best_run = model_df.loc[model_df['dice'].idxmax()]
+            
+            if best_run.empty:
+                raise ValueError("No best runs found, please run experiments first")
+            
+            return True if best_run['augmentation'].lower() == 'true' else False
+        
         # get best run by experiment_set.title and model name
         best_run = best_runs_df[
             (best_runs_df["experiment_set"] == experiment_set_title)
             & (best_runs_df["model_name"] == model_name)
         ]
         if best_run.empty:
-            raise Exception("No best runs found, please run experiments first")
+            raise ValueError("No best runs found, please run experiments first")
         best_run_hyperparameter_value = best_run[hyperparameter].values[0]
         return best_run_hyperparameter_value
     except FileNotFoundError:
-        raise Exception("No best runs found, please run experiments first")
+        raise ValueError("No best runs found, please run experiments first")
 
 
 EXPERIMENT_SETS = [
