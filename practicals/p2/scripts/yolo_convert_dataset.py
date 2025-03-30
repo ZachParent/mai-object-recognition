@@ -50,8 +50,8 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
     annotations = defaultdict(list)
     filtered_count = 0
     for ann in data["annotations"]:
-        # Only include annotations with category_id <= max_class_id + 1 (COCO is 1-indexed)
-        if ann["category_id"] <= max_class_id + 1:
+        # Only include annotations with category_id <= max_class_id (COCO is 0-indexed in this dataset)
+        if ann["category_id"] <= max_class_id:
             annotations[ann["image_id"]].append(ann)
         else:
             filtered_count += 1
@@ -95,12 +95,11 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
             # Class ID handling
             # If adding background class, shift all class IDs up by 1 (background will be 0)
             if add_background:
-                # Original COCO is 1-indexed, so subtract 1 to convert to 0-indexed
-                # Then add 1 to shift up for background class
-                cls = ann["category_id"] - 1 + 1  
+                # The dataset is 0-indexed, so just add 1 to shift up for background
+                cls = ann["category_id"] + 1  
             else:
-                # Just convert COCO 1-indexed to YOLO 0-indexed
-                cls = ann["category_id"] - 1  
+                # Keep original IDs (0-indexed)
+                cls = ann["category_id"]  
             
             # Format for YOLO: [class, x_center, y_center, width, height]
             box = [cls] + box.tolist()
@@ -159,7 +158,7 @@ def convert_coco_to_yolo(json_path, images_src_dir, images_dst_dir, labels_dst_d
     print(f"Images with annotations after filtering: {images_with_annotations}")
     
     # Filter categories to include only up to max_class_id
-    filtered_categories = [cat for cat in data["categories"] if cat["id"] <= max_class_id + 1]
+    filtered_categories = [cat for cat in data["categories"] if cat["id"] <= max_class_id]
     
     return processed_count, filtered_categories
 
@@ -190,7 +189,7 @@ train_labels_dst = output_dir / "labels" / "train"
 val_labels_dst = output_dir / "labels" / "val"
 
 # Set the maximum class ID (0-indexed)
-max_class_id = 25  
+max_class_id = 26  # We want all classes including umbrella (ID 26)
 add_background = True
 
 # Convert training set
@@ -218,10 +217,7 @@ val_count, _ = convert_coco_to_yolo(
 # Get category names from filtered categories
 category_names = {}
 for cat in categories:
-    if cat["id"] <= max_class_id + 1:
-        # Convert from COCO 1-indexed to 0-indexed
-        cat_id = cat["id"] - 1
-        category_names[cat_id] = cat["name"]
+    category_names[cat["id"]] = cat["name"]
 
 # Create YAML with proper format for segmentation task
 yaml_content = f"""# YOLOv8 Segmentation dataset config
@@ -249,6 +245,7 @@ if add_background:
     
     # Add other classes with shifted IDs
     for cat_id in sorted(category_names.keys()):
+        # Shift all IDs up by 1 to make room for background
         yaml_content += f"  {cat_id+1}: {category_names[cat_id]}\n"
 else:
     # Original class mapping (0-indexed)
