@@ -281,6 +281,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         if epoch == NUM_EPOCHS - 1 and experiment.visualize:
             trainer.visualize_lowest_dice_predictions(dataloader=val_dataloader, worst_img_idxs=worst_img_idxs)
 
+    metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
 
 

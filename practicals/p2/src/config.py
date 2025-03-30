@@ -20,6 +20,7 @@ REPORT_DIR = PROJECT_DIR / "report"
 RAW_DATA_DIR = DATA_DIR / "00_raw"
 RUNS_DIR = DATA_DIR / "01_runs"
 METRICS_DIR = DATA_DIR / "02_metrics"
+CONFUSION_MATRICES_DIR = DATA_DIR / "03_confusion_matrices"
 FIGURES_DIR = REPORT_DIR / "figures"
 
 # Raw data subdirectories
