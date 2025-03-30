@@ -564,7 +564,6 @@ class ComprehensiveMetricsCallback(Callback):
                     metrics_dict[name] = value
             
             # Convert to DataFrame
-            import pandas as pd
             metrics_df = pd.DataFrame([metrics_dict])
             
             # Save to CSV (append mode)
