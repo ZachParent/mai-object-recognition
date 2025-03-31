@@ -38,6 +38,8 @@ def plot_confusion_matrix(ax: plt.Axes, cm: pd.DataFrame, labels: List[str], tit
         linewidths=0.5,
         linecolor="lightgrey",
         cbar=cbar,
+        vmin=0,
+        vmax=1,
     )
     ax.set_xticklabels(ax.get_xticklabels(), fontsize=12)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=12)
@@ -46,7 +48,7 @@ def plot_confusion_matrix(ax: plt.Axes, cm: pd.DataFrame, labels: List[str], tit
     ax.set_ylabel("True", fontsize=12, weight="bold")
 # %%
 # plot confusion matrices
-experiment_ids = [11, 24]
+experiment_ids = [24]
 for experiment_id in experiment_ids:
     cm = confusion_matrix_dfs[f"experiment_{experiment_id}"]
     # normalize the predictions by the positive counts
@@ -70,6 +72,10 @@ for experiment_id in experiment_ids:
     plt.suptitle("Confusion Matrices, Normalized by Ground Truth Positives", fontsize=20, weight="bold")
     plt.tight_layout()
     plt.savefig(FIGURES_DIR / f"confusion_matrices_experiment_{experiment_id}.png", dpi=300)
+
+    ax[0].add_patch(plt.Rectangle((15.95, 15.95), 12, 12, fill=False, color="red", linewidth=4))
+    ax[0].text(19.5, 17.5, "Worst 12 Classes", fontsize=14, weight="bold", color="red")
+    plt.savefig(FIGURES_DIR / f"confusion_matrices_annotated_experiment_{experiment_id}.png", dpi=300)
 
     plt.show()
 
@@ -104,6 +110,7 @@ plot_metrics(metrics_df, metrics, "Validation Metrics During Training", FIGURES_
 # %%
 # compare before and after fine tuning
 experiment_id = 24
+
 cm = confusion_matrix_dfs[f"experiment_{experiment_id}"]
 # normalize the predictions by the positive counts
 positive_counts = cm.sum(axis=1)
@@ -114,14 +121,19 @@ tp_counts = cm.values.diagonal()
 tp_sorted_indices = tp_counts.argsort()[::-1]
 tp_sorted_cm = cm.iloc[tp_sorted_indices, tp_sorted_indices]
 tp_sorted_labels = [labels[i] for i in tp_sorted_indices]
-worst_12_labels = tp_sorted_labels[-12:]
+worst_12_labels = tp_sorted_labels[0:1] + tp_sorted_labels[-12:]
 
-worst_12_labels
+worst_12_indices = np.argwhere(np.isin(tp_sorted_labels, worst_12_labels)).flatten()
+subset_cm = tp_sorted_cm.iloc[worst_12_indices, worst_12_indices]
 
+fig, axs = plt.subplots(1, 2, figsize=(24, 12), width_ratios=[1, 1.25])
+plot_confusion_matrix(axs[0], subset_cm, worst_12_labels, "Before Fine Tuning", cbar=False)
+axs[0].add_patch(plt.Rectangle((0.95, 0.95), 12, 12, fill=False, color="red", linewidth=3))
 # TODO: replace this with the confusion matrix after fine tuning
-subset_cm = cm.iloc[-12:, -12:]
-subset_cm
+plot_confusion_matrix(axs[1], subset_cm, worst_12_labels, "After Fine Tuning", cbar=True)
 
+plt.suptitle("Confusion Matrices of Worst 12 Classes", fontsize=20, weight="bold")
+plt.tight_layout()
 # %%
 # TODO
 # 1. a confusion matrix, then the subset confusion matrix after fine tuning
