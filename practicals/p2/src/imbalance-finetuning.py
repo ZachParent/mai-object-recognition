@@ -14,13 +14,18 @@ item_names = [
     "umbrella",
 ]
 
+
 def main():
-    train_dataloader, val_dataloader = get_dataloaders(best_model_experiment, item_names)
+    train_dataloader, val_dataloader = get_dataloaders(
+        best_model_experiment, item_names
+    )
     num_classes = len(item_names) + 1  # +1 for background class
     train_metrics_collection = get_metric_collection(num_classes)
     val_metrics_collection = get_metric_collection(num_classes)
 
-    trainer = Trainer(best_model_experiment, train_metrics_collection, val_metrics_collection)
+    trainer = Trainer(
+        best_model_experiment, train_metrics_collection, val_metrics_collection
+    )
     model = trainer.load_previous_model()
 
     model.classifier[-1] = torch.nn.Conv2d(256, num_classes, 1).to(DEVICE)
@@ -31,7 +36,9 @@ def main():
     )
 
     metrics_logger = MetricLogger(
-        best_model_experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
+        best_model_experiment.id,
+        trainer.train_metrics_collection,
+        trainer.val_metrics_collection,
     )
 
     for epoch in range(best_model_experiment.epochs):
@@ -51,6 +58,7 @@ def main():
 
     if best_model_experiment.save_weights:
         trainer.save_model()
+
 
 if __name__ == "__main__":
     main()

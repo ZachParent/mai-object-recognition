@@ -107,7 +107,15 @@ def create_segmentation_mask(coco_obj, img_id, height, width, mappings):
 
 
 class FashionpediaDataset(Dataset):
-    def __init__(self, img_dir, ann_file, img_size, transform=None, max_samples=None, item_names=MAIN_ITEM_NAMES):
+    def __init__(
+        self,
+        img_dir,
+        ann_file,
+        img_size,
+        transform=None,
+        max_samples=None,
+        item_names=MAIN_ITEM_NAMES,
+    ):
         self.coco, self.mappings = COCO(ann_file), load_category_mappings(
             ann_file, item_names
         )  # loading annotations into memory...
@@ -143,7 +151,6 @@ class FashionpediaDataset(Dataset):
             "num_classes": len(self.item_names) + 1,
             "class_names": self.mappings["id_to_name"],
         }
-
 
 
 def get_dataloaders(experiment: ExperimentConfig, item_names=MAIN_ITEM_NAMES):
