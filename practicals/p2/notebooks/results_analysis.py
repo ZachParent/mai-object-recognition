@@ -108,17 +108,18 @@ for experiment_id in experiment_ids:
 
 # %%
 # compare confusion matrices before and after fine tuning
-experiment_id = 24
-
-cm = confusion_matrix_dfs[f"experiment_{experiment_id}"]
+non_fine_tuned_cm = confusion_matrix_dfs[f"experiment_{24}"]
+fine_tuned_cm = confusion_matrix_dfs[f"experiment_{25}"]
 # normalize the predictions by the positive counts
-positive_counts = cm.sum(axis=1)
-cm = cm.div(positive_counts, axis=0)
+positive_counts = non_fine_tuned_cm.sum(axis=1)
+non_fine_tuned_cm = non_fine_tuned_cm.div(positive_counts, axis=0)
+positive_counts = fine_tuned_cm.sum(axis=1)
+fine_tuned_cm = fine_tuned_cm.div(positive_counts, axis=0)
 
 # sort by the true positive counts
-tp_counts = cm.values.diagonal()
+tp_counts = non_fine_tuned_cm.values.diagonal()
 tp_sorted_indices = tp_counts.argsort()[::-1]
-tp_sorted_cm = cm.iloc[tp_sorted_indices, tp_sorted_indices]
+tp_sorted_cm = non_fine_tuned_cm.iloc[tp_sorted_indices, tp_sorted_indices]
 tp_sorted_labels = [labels[i] for i in tp_sorted_indices]
 worst_12_labels = tp_sorted_labels[0:1] + tp_sorted_labels[-12:]
 
@@ -134,7 +135,7 @@ axs[0].add_patch(
 )
 # TODO: replace this with the confusion matrix after fine tuning
 plot_confusion_matrix(
-    axs[1], subset_cm, worst_12_labels, "After Fine Tuning", cbar=True
+    axs[1], fine_tuned_cm, worst_12_labels, "After Fine Tuning", cbar=True
 )
 
 plt.suptitle("Confusion Matrices of Worst 12 Classes", fontsize=20, weight="bold")
