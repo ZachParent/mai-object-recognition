@@ -4,10 +4,9 @@ from dataset import get_dataloaders, NUM_CLASSES, get_aux_dataloader
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from config import DEVICE
+from config import DEVICE, VISUALIZATIONS_DIR, MODELS_DIR
 from metrics import MetricLogger, get_metric_collection
 import torchmetrics
-from config import MODELS_DIR
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -239,18 +238,17 @@ class Trainer:
 
     def visualize_predictions(
         self,
-        dataloader=None,
-        output_dir="visualizations",
-        worst_img_idxs=None,
-        best_img_idxs=None,
+        dataloader: DataLoader,
+        worst_img_idxs: list[int],
+        best_img_idxs: list[int],
     ) -> None:
         dataset = dataloader.dataset
 
         # Create separate directories for worst and best visualizations
-        worst_dir = os.path.join(output_dir, "worst")
-        best_dir = os.path.join(output_dir, "best")
-        os.makedirs(worst_dir, exist_ok=True)
-        os.makedirs(best_dir, exist_ok=True)
+        worst_dir = VISUALIZATIONS_DIR / "worst"
+        best_dir = VISUALIZATIONS_DIR / "best"
+        worst_dir.mkdir(parents=True, exist_ok=True)
+        best_dir.mkdir(parents=True, exist_ok=True)
 
         visualize = {
             "worst": (worst_img_idxs, worst_dir),
@@ -378,13 +376,16 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
 
-    aux_dataloader = get_aux_dataloader(experiment)
-    worst_performing_images, best_performing_images = trainer.get_images(aux_dataloader)
-    trainer.visualize_predictions(
-        dataloader=aux_dataloader,
-        worst_img_idxs=worst_performing_images,
-        best_img_idxs=best_performing_images,
-    )
+    if experiment.visualize:
+        aux_dataloader = get_aux_dataloader(experiment)
+        worst_performing_images, best_performing_images = trainer.get_images(
+            aux_dataloader
+        )
+        trainer.visualize_predictions(
+            dataloader=aux_dataloader,
+            worst_img_idxs=worst_performing_images,
+            best_img_idxs=best_performing_images,
+        )
 
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
@@ -401,5 +402,6 @@ if __name__ == "__main__":
         learning_rate=0.001,
         batch_size=2,
         img_size=256,
+        visualize=True,
     )
     run_experiment(experiment)
