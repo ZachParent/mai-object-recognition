@@ -147,7 +147,7 @@ class SegmentationMetrics:
         # Update intersection and union for Dice and IoU
         for i in range(self.num_classes):
             self.intersection[i] += np.sum((pred_flat == i) & (gt_flat == i))
-            self.union[i] += np.sum((pred_flat == i) | (gt_flat == i))
+            self.union[i] += np.sum((pred_flat == i) + (gt_flat == i))
         
     def compute_metrics(self):
         """
