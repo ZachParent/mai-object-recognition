@@ -27,6 +27,23 @@ confusion_matrix_dfs: dict[str, pd.DataFrame] = {}
 for path in CONFUSION_MATRICES_DIR.glob("experiment_*.csv"):
     confusion_matrix_dfs[path.stem] = pd.read_csv(path, index_col=0)
 
+def plot_confusion_matrix(ax: plt.Axes, cm: pd.DataFrame, labels: List[str], title: str, cbar: bool = False):
+    sns.heatmap(
+        cm,
+        cmap="Blues",
+        fmt="d",
+        ax=ax,
+        xticklabels=labels,
+        yticklabels=labels,
+        linewidths=0.5,
+        linecolor="lightgrey",
+        cbar=cbar,
+    )
+    ax.set_xticklabels(ax.get_xticklabels(), fontsize=12)
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=12)
+    ax.set_title(title, fontsize=14, weight="bold")
+    ax.set_xlabel("Predicted", fontsize=12, weight="bold")
+    ax.set_ylabel("True", fontsize=12, weight="bold")
 # %%
 # plot confusion matrices
 experiment_ids = [11, 24]
@@ -48,43 +65,12 @@ for experiment_id in experiment_ids:
 
     # plot both confusion matrices
     fig, ax = plt.subplots(1, 2, figsize=(30, 14), width_ratios=[1, 1.25])
-    sns.heatmap(
-        tp_sorted_cm,
-        cmap="Blues",
-        fmt="d",
-        ax=ax[0],
-        xticklabels=tp_sorted_labels,
-        yticklabels=tp_sorted_labels,
-        linewidths=0.5,
-        linecolor="lightgrey",
-        cbar=False,
-    )
-    ax[0].set_xticklabels(ax[0].get_xticklabels(), fontsize=12)
-    ax[0].set_yticklabels(ax[0].get_yticklabels(), fontsize=12)
-    ax[0].set_title("Sorted by True Positives", fontsize=14, weight="bold")
-    ax[0].set_xlabel("Predicted", fontsize=12, weight="bold")
-    ax[0].set_ylabel("True", fontsize=12, weight="bold")
-
-    sns.heatmap(
-        positive_sorted_cm,
-        cmap="Blues",
-        fmt="d",
-        ax=ax[1],
-        xticklabels=positive_sorted_labels,
-        yticklabels=positive_sorted_labels,
-        linewidths=0.5,
-        linecolor="lightgrey",
-    )
-    ax[1].set_xticklabels(ax[1].get_xticklabels(), fontsize=12)
-    ax[1].set_yticklabels(ax[1].get_yticklabels(), fontsize=12)
-    ax[1].set_title("Sorted by Ground Truth Positives", fontsize=14, weight="bold")
-    ax[1].set_xlabel("Predicted", fontsize=12, weight="bold")
-    ax[1].set_ylabel("True", fontsize=12, weight="bold")
-
+    plot_confusion_matrix(ax[0], tp_sorted_cm, tp_sorted_labels, "Sorted by True Positives", cbar=False)
+    plot_confusion_matrix(ax[1], positive_sorted_cm, positive_sorted_labels, "Sorted by Ground Truth Positives", cbar=True)
     plt.suptitle("Confusion Matrices, Normalized by Ground Truth Positives", fontsize=20, weight="bold")
     plt.tight_layout()
-
     plt.savefig(FIGURES_DIR / f"confusion_matrices_experiment_{experiment_id}.png", dpi=300)
+
     plt.show()
 
 # %%
@@ -114,6 +100,28 @@ metrics: List[Tuple[str, str, str]] = [
     ("val_loss", "Validation Loss", "#0000FF"),
 ]
 plot_metrics(metrics_df, metrics, "Validation Metrics During Training", FIGURES_DIR / "validation_metrics_experiment_11.png")
+
+# %%
+# compare before and after fine tuning
+experiment_id = 24
+cm = confusion_matrix_dfs[f"experiment_{experiment_id}"]
+# normalize the predictions by the positive counts
+positive_counts = cm.sum(axis=1)
+cm = cm.div(positive_counts, axis=0)
+
+# sort by the true positive counts
+tp_counts = cm.values.diagonal()
+tp_sorted_indices = tp_counts.argsort()[::-1]
+tp_sorted_cm = cm.iloc[tp_sorted_indices, tp_sorted_indices]
+tp_sorted_labels = [labels[i] for i in tp_sorted_indices]
+worst_12_labels = tp_sorted_labels[-12:]
+
+worst_12_labels
+
+# TODO: replace this with the confusion matrix after fine tuning
+subset_cm = cm.iloc[-12:, -12:]
+subset_cm
+
 # %%
 # TODO
 # 1. a confusion matrix, then the subset confusion matrix after fine tuning
