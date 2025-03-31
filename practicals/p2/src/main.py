@@ -1,7 +1,14 @@
-from experiment_config import EXPERIMENT_SETS
+from experiment_config import EXPERIMENT_SETS, best_model_experiment, balancing_experiment
 from run_experiment import run_experiment
 from pprint import pprint
 from config import MINI_RUN
+from metrics import compile_best_runs_csv
+from imbalance_finetuning import run_imbalance_finetuning
+
+import torch.multiprocessing as mp
+
+# Set spawn method at module level before any other multiprocessing operations
+mp.set_start_method("spawn", force=True)
 
 
 def main():
@@ -12,7 +19,8 @@ def main():
         print("==================================================")
         print()
 
-    for experiment_set in EXPERIMENT_SETS:
+    for experiment_set_getter in EXPERIMENT_SETS:
+        experiment_set = experiment_set_getter()
         print("==================================================")
         print(f"\tRunning experiment set: {experiment_set.title}")
         print("==================================================")
@@ -22,6 +30,26 @@ def main():
             pprint(experiment)
             print("==================================================")
             run_experiment(experiment)
+        # Compile best_runs.csv with best runs of experiment set for each model
+        compile_best_runs_csv(experiment_set)
+
+    print("==================================================")
+    print("Running best model with best hyperparameters")
+    print("==================================================")
+
+    print(f"\t\tRunning best model: {best_model_experiment.model_name}")
+    pprint(best_model_experiment)
+    print("==================================================")
+    run_experiment(best_model_experiment)
+
+    print("==================================================")
+    print("Running best model fine-tuning for imbalance")
+    print("==================================================")
+
+    print(f"\t\tRunning best model: {balancing_experiment.model_name}")
+    pprint(balancing_experiment)
+    print("==================================================")
+    run_imbalance_finetuning()
 
 
 if __name__ == "__main__":

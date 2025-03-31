@@ -1,0 +1,16 @@
+black
+matplotlib
+opencv-python
+pandas
+pycocotools
+pydantic
+pypalettes
+requests
+seaborn
+tensorboard
+torchmetrics
+torch
+transformers
+torchvision
+tqdm
+ultralytics

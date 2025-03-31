@@ -25,7 +25,7 @@ pip install -r requirements.txt
 python scripts/download_dataset.py
 ```
 
-- run the experiments
+- run the experiments (except YOLO)
 
 ```bash
 python src/main.py
@@ -39,4 +39,16 @@ python src/main.py
 
 ```bash
 tensorboard --logdir=data/01_runs
+```
+
+- run YOLO experiments
+
+```bash
+python src/train_yolo.py
+```
+
+- compare the YOLO results
+
+```bash
+python src/train_yolo.py
 ```

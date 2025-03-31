@@ -1,5 +1,6 @@
 black
 matplotlib
+opencv-python
 pandas
 pycocotools
 pydantic
@@ -12,3 +13,4 @@ torch==2.6.0
 torchmetrics
 torchvision==0.21.0
 tqdm
+ultralytics

@@ -25,7 +25,7 @@ def read_content(xml_file):
     root = tree.getroot()
 
     object_labels = []
-    for obj in root.iter('object'):
+    for obj in root.iter("object"):
         class_name = obj.find("name").text
         ymin = int(round(float(obj.find("bndbox/ymin").text)))
         xmin = int(round(float(obj.find("bndbox/xmin").text)))
@@ -42,8 +42,8 @@ def process_all_data(data_list, root):
     records = []
 
     for file_name in data_list:
-        img_path = os.path.join(root, 'JPEGImages', f'{file_name}.jpg')
-        xml_path = os.path.join(root, 'Annotations', f'{file_name}.xml')
+        img_path = os.path.join(root, "JPEGImages", f"{file_name}.jpg")
+        xml_path = os.path.join(root, "Annotations", f"{file_name}.xml")
 
         if not os.path.exists(xml_path) or not os.path.exists(img_path):
             continue
@@ -52,24 +52,39 @@ def process_all_data(data_list, root):
         img = Image.open(img_path)
         img_width, img_height = img.size
 
-        records.append({
-            "file_path": file_name,
-            "object_labels": [{'name': obj.name, 'bounding_box': obj.bounding_box, 'area': obj.area} for obj in object_labels],
-            "image_area": img_width * img_height
-        })
+        records.append(
+            {
+                "file_path": file_name,
+                "object_labels": [
+                    {
+                        "name": obj.name,
+                        "bounding_box": obj.bounding_box,
+                        "area": obj.area,
+                    }
+                    for obj in object_labels
+                ],
+                "image_area": img_width * img_height,
+            }
+        )
 
     return pd.DataFrame(records)
 
 
 data_directory_path = "mai-object-recognition/practicals/p1/data"
-voc_root = os.path.join(data_directory_path, 'VOC2012')
+voc_root = os.path.join(data_directory_path, "VOC2012")
 train_list = load_names_list(os.path.join(data_directory_path, "train.txt"))
 test_list = load_names_list(os.path.join(data_directory_path, "test.txt"))
 
 test_df = process_all_data(test_list, voc_root)
 train_df = process_all_data(train_list, voc_root)
 
-test_df.to_json(os.path.join(data_directory_path,
-                "preprocessed_jsons/test.json"), orient="records", indent=4)
-train_df.to_json(os.path.join(data_directory_path,
-                 "preprocessed_jsons/train.json"), orient="records", indent=4)
+test_df.to_json(
+    os.path.join(data_directory_path, "preprocessed_jsons/test.json"),
+    orient="records",
+    indent=4,
+)
+train_df.to_json(
+    os.path.join(data_directory_path, "preprocessed_jsons/train.json"),
+    orient="records",
+    indent=4,
+)
