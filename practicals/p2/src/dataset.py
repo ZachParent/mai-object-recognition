@@ -127,6 +127,7 @@ class FashionpediaDataset(Dataset):
         self.img_dir = img_dir
         self.img_size = img_size
         self.transform = transform
+        self.item_names = item_names
 
     def __len__(self):
         return len(self.img_ids)

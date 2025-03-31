@@ -3,13 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from config import DEVICE, VISUALIZATIONS_DIR
-from dataset import NUM_CLASSES
 import torchmetrics
 from typing import Tuple, List
 
 
 def get_best_and_worst_images(
-    model: torch.nn.Module, dataloader: DataLoader
+    model: torch.nn.Module, dataloader: DataLoader, num_classes: int
 ) -> Tuple[List[int], List[int]]:
 
     model.eval()
@@ -45,7 +44,7 @@ def get_best_and_worst_images(
             # Compute Dice scores for each image in the batch
             dice_metric = torchmetrics.segmentation.DiceScore(
                 input_format="index",
-                num_classes=NUM_CLASSES,
+                num_classes=num_classes,
                 include_background=False,
                 average="macro",
             )
@@ -71,6 +70,7 @@ def visualize_predictions(
     dataloader: DataLoader,
     worst_img_idxs: List[int],
     best_img_idxs: List[int],
+    num_classes: int,
 ) -> None:
     dataset = dataloader.dataset
 
@@ -139,7 +139,7 @@ def visualize_predictions(
                 alpha=0.5,
                 cmap="viridis",
                 vmin=0,
-                vmax=NUM_CLASSES - 1,
+                vmax=num_classes - 1,
             )
             axes[0].set_title("Ground Truth Segmentation")
             axes[0].axis("off")
@@ -151,17 +151,25 @@ def visualize_predictions(
                 alpha=0.5,
                 cmap="viridis",
                 vmin=0,
-                vmax=NUM_CLASSES - 1,
+                vmax=num_classes - 1,
             )
             axes[1].set_title("Model Prediction")
             axes[1].axis("off")
 
             # Add colorbars with consistent limits
             fig.colorbar(
-                im0, ax=axes[0], fraction=0.046, pad=0.04, ticks=range(NUM_CLASSES)
+                im0,
+                ax=axes[0],
+                fraction=0.046,
+                pad=0.04,
+                ticks=range(num_classes),
             )
             fig.colorbar(
-                im1, ax=axes[1], fraction=0.046, pad=0.04, ticks=range(NUM_CLASSES)
+                im1,
+                ax=axes[1],
+                fraction=0.046,
+                pad=0.04,
+                ticks=range(num_classes),
             )
 
             plt.tight_layout()
