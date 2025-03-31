@@ -1,5 +1,5 @@
 from dataset import get_dataloaders
-from experiment_config import balancing_experiment
+from experiment_config import best_model_experiment, balancing_experiment
 from metrics import get_metric_collection
 from run_experiment import Trainer, MetricLogger
 from config import DEVICE
@@ -33,7 +33,7 @@ def main():
     trainer = Trainer(
         balancing_experiment, train_metrics_collection, val_metrics_collection
     )
-    model = trainer.load_previous_model()
+    model = trainer.load_previous_model(previous_experiment=best_model_experiment)
 
     model.classifier[-1] = torch.nn.Conv2d(256, num_classes, 1).to(DEVICE)
     print(f"Classifier head adjusted to {num_classes} classes")

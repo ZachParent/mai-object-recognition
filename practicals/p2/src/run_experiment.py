@@ -189,9 +189,9 @@ class Trainer:
         torch.save(self.model.state_dict(), path)
         print(f"Model saved to {path}")
 
-    def load_previous_model(self) -> None:
+    def load_previous_model(self, previous_experiment: ExperimentConfig = None) -> None:
         """Load the model weights from disk."""
-        path = f"{MODELS_DIR}/{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
+        path = f"{MODELS_DIR}/experimentId{previous_experiment.id}_modelName{previous_experiment.model_name}_lr{previous_experiment.learning_rate}_img{previous_experiment.img_size}.pt"
         self.model.load_state_dict(torch.load(path, map_location=DEVICE))
         self.model.to(DEVICE)
         print(f"Model loaded from {path}")
