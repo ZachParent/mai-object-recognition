@@ -1,4 +1,8 @@
-from experiment_config import EXPERIMENT_SETS, best_model_experiment, balancing_experiment
+from experiment_config import (
+    EXPERIMENT_SETS,
+    best_model_experiment,
+    balancing_experiment,
+)
 from run_experiment import run_experiment
 from pprint import pprint
 from config import MINI_RUN

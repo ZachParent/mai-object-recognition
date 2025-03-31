@@ -36,8 +36,9 @@ def run_imbalance_finetuning():
         balancing_experiment, train_metrics_collection, val_metrics_collection
     )
     model = trainer.load_previous_model(previous_experiment=best_model_experiment)
-
     model.classifier[-1] = torch.nn.Conv2d(256, num_classes, 1).to(DEVICE)
+    model = trainer.load_previous_model(previous_experiment=balancing_experiment)
+
     print(f"Classifier head adjusted to {num_classes} classes")
 
     trainer.optimizer = torch.optim.Adam(
@@ -67,14 +68,9 @@ def run_imbalance_finetuning():
 
     if balancing_experiment.visualize:
         aux_dataloader = get_aux_dataloader(balancing_experiment, item_names)
-        worst_performing_images, best_performing_images = get_best_and_worst_images(
-            trainer.model, aux_dataloader, num_classes
-        )
         visualize_predictions(
             model=trainer.model,
             dataloader=aux_dataloader,
-            worst_img_idxs=worst_performing_images,
-            best_img_idxs=best_performing_images,
             num_classes=num_classes,
         )
 

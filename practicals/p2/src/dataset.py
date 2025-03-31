@@ -220,7 +220,7 @@ def get_aux_dataloader(experiment: ExperimentConfig, item_names=MAIN_ITEM_NAMES)
     aux_dataloader = DataLoader(
         val_dataset,
         batch_size=1,
-        shuffle=False,
+        shuffle=True,
         num_workers=1,
     )
 

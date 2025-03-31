@@ -9,7 +9,7 @@ from metrics import MetricLogger, get_metric_collection
 from experiment_config import ExperimentConfig
 from models import get_model
 from dataset import get_dataloaders, MAIN_ITEM_NAMES, get_aux_dataloader
-from visualize import get_best_and_worst_images, visualize_predictions
+from visualize import visualize_predictions
 
 
 class TrainingProgress:
@@ -205,6 +205,9 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     val_metrics_collection = get_metric_collection(num_classes)
 
     trainer = Trainer(experiment, train_metrics_collection, val_metrics_collection)
+
+    trainer.load_previous_model(previous_experiment=experiment)
+
     metrics_logger = MetricLogger(
         experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
     )
@@ -223,14 +226,9 @@ def run_experiment(experiment: ExperimentConfig) -> None:
 
     if experiment.visualize:
         aux_dataloader = get_aux_dataloader(experiment)
-        worst_performing_images, best_performing_images = get_best_and_worst_images(
-            trainer.model, aux_dataloader, num_classes
-        )
         visualize_predictions(
             model=trainer.model,
             dataloader=aux_dataloader,
-            worst_img_idxs=worst_performing_images,
-            best_img_idxs=best_performing_images,
             num_classes=num_classes,
         )
 
