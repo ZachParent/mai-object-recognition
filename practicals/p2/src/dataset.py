@@ -17,7 +17,6 @@ from pathlib import Path
 import json
 from pycocotools import mask as coco_mask
 from pycocotools.coco import COCO
-from visualize import visualize_segmentation
 
 # TODO: check this list of categories
 # Define main garment categories to focus on
@@ -358,6 +357,3 @@ if __name__ == "__main__":
     print("Available target keys:", target.keys())
     print("Mask shape:", target["masks"].shape)
     print("Number of classes:", target["num_classes"])
-
-    # Visualize the first image and its mask
-    visualize_segmentation(image[0], target["labels"][0], target["class_names"])
