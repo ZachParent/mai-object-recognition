@@ -147,7 +147,7 @@ class SegmentationMetrics:
         # Update intersection and union for Dice and IoU
         for i in range(self.num_classes):
             self.intersection[i] += np.sum((pred_flat == i) & (gt_flat == i))
-            self.union[i] += np.sum((pred_flat == i) | (gt_flat == i))
+            self.union[i] += np.sum((pred_flat == i) + (gt_flat == i))
         
     def compute_metrics(self):
         """
@@ -640,11 +640,18 @@ class ComprehensiveMetricsCallback(Callback):
 
 
 if __name__ == "__main__":
+
+    import sys
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.append(str(PROJECT_ROOT))
+    from src.config import (
+    DATA_DIR
+    )
     # Example usage
-    model_path = "path/to/your/trained/model.pt"
-    val_data_path = "path/to/output/fashionpedia_yolo/images/val"
-    dataset_yaml = "path/to/output/fashionpedia_yolo/dataset.yaml"
-    output_dir = "path/to/visualizations"
+    model_path = PROJECT_ROOT / "src/fashionpedia_segmentation/with_comprehensive_metrics6/weights/best.pt"
+    val_data_path = DATA_DIR / "yolo/images/val"
+    dataset_yaml = DATA_DIR / "yolo/dataset.yaml"
+    output_dir = DATA_DIR / "02_metrics" / "yolo_comprehensive_metrics_results" / "with_comprehensive_metrics"
     
     # Get device
     device = 0 if torch.cuda.is_available() else 'cpu'
@@ -694,3 +701,4 @@ if __name__ == "__main__":
     plt.close()
     
     print(f"Results saved to yolo_segmentation_metrics.csv and metrics_comparison.png")
+

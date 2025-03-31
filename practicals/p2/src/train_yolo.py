@@ -29,7 +29,7 @@ def train_yolo_with_metrics(
     device=0,
     project_name='fashionpedia_segmentation',
     output_dir='./results',
-    metrics_eval_fraction=0.001,  # Fraction of validation set to use for per-epoch metrics
+    metrics_eval_fraction=1,  # Fraction of validation set to use for per-epoch metrics
     debug=True
 ):
     """
@@ -129,7 +129,7 @@ def train_yolo_with_metrics(
             patience=50,  # Early stopping patience
             verbose=True,
             task='segment',
-            fraction=0.001 if debug else 1.0  # Use small fraction of data if in debug mode
+            fraction= 1.0  # Use small fraction of data if in debug mode
         )
         
         if debug:
@@ -152,7 +152,7 @@ def train_yolo_with_metrics(
         output_dir=os.path.join(run_dir, 'final_visualizations'),
         conf_threshold=0.25,  # Standard threshold
         iou_threshold=0.7,     # Standard threshold
-        max_samples=10,
+        #max_samples=10,
         device=device  # Use the same device for evaluation
     )
     
@@ -241,8 +241,8 @@ if __name__ == "__main__":
     best_model, metrics = train_yolo_with_metrics(
         data_yaml_path=data_yaml_path,
         model_name='yolov8n-seg.pt',  # Using YOLOv8n-seg which is a standard model
-        epochs=1,#100,                   # Train for more epochs
-        image_size=640,
+        epochs=8,                   # Train for more epochs
+        image_size=384,
         batch_size=16,
         device=device,                # Use GPU if available
         project_name='fashionpedia_segmentation',
