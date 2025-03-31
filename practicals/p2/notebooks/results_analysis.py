@@ -283,7 +283,9 @@ arrow_ys = (0.75, 0.41, 0.12)
 arrow_xs = [(0.255, 0.295), (0.525, 0.565), (0.705, 0.745)]
 
 for row, arrow_y in enumerate(arrow_ys):
-    for col, arrow_x in enumerate(arrow_xs):  # Only add arrows between columns, not after the last column
+    for col, arrow_x in enumerate(
+        arrow_xs
+    ):  # Only add arrows between columns, not after the last column
         # Convert axis coordinates to figure coordinates
         fig.canvas.draw()  # This is needed to ensure the renderer exists
         print(arrow_x)
@@ -307,7 +309,3 @@ plt.suptitle("Hyperparameter Search Results", fontsize=20, weight="bold")
 plt.tight_layout(rect=[0, 0, 0.9, 1])  # Leave room for the colorbar
 plt.savefig(FIGURES_DIR / "hyperparam_search_heatmaps.png", dpi=300)
 plt.show()
-
-# %%
-
-# %%
