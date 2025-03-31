@@ -1,6 +1,5 @@
 black
 matplotlib
-opencv-python
 pandas
 pycocotools
 pydantic
@@ -13,4 +12,3 @@ torch
 transformers
 torchvision
 tqdm
-ultralytics
