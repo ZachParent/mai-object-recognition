@@ -140,7 +140,10 @@ plot_confusion_matrix(
 
 plt.suptitle("Confusion Matrices of Worst 12 Classes", fontsize=20, weight="bold")
 plt.tight_layout()
-
+plt.savefig(
+    FIGURES_DIR / "confusion_matrices_fine_tuning.png", dpi=300
+)
+plt.show()
 
 # %%
 # define plot_metrics
@@ -185,7 +188,7 @@ def plot_metrics(
 
 # %%
 # plot the training curves
-experiment_ids = [24]
+experiment_ids = [24, 25]
 for experiment_id in experiment_ids:
     metrics_df = metrics_dfs[f"experiment_{experiment_id}"]
     metrics: List[Tuple[str, str, str, str]] = [
