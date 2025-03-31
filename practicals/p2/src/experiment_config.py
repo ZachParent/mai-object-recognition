@@ -1,7 +1,13 @@
 import pydantic
 from typing import Literal
+import pandas as pd
+from metrics import METRICS_DIR
+from config import NUM_EPOCHS
 
-type ModelName = Literal["deeplab", "segformer", "lraspp"]
+ModelName = Literal["deeplab", "segformer", "lraspp"]
+
+# Model names
+MODELS = ["deeplab", "segformer", "lraspp"]
 
 
 class ExperimentConfig(pydantic.BaseModel):
@@ -11,6 +17,9 @@ class ExperimentConfig(pydantic.BaseModel):
     batch_size: int
     augmentation: bool = False
     img_size: int
+    visualize: bool = False
+    save_weights: bool = False
+    epochs: int = NUM_EPOCHS
 
 
 class ExperimentSet(pydantic.BaseModel):
@@ -18,418 +27,175 @@ class ExperimentSet(pydantic.BaseModel):
     configs: list[ExperimentConfig]
 
 
-model_search = ExperimentSet(
-    title="Model Search",
-    configs=[
-        ExperimentConfig(
-            id=0,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=1,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=2,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-    ],
+LEARNING_RATE_EXPERIMENTS_NAME = "Learning Rate Experiments"
+
+
+def get_learning_rate_experiments() -> ExperimentSet:
+    learning_rates = [0.0005, 0.0001, 0.00005]
+    id = 0
+    experiment_configs = []
+    for model in MODELS:
+        for lr in learning_rates:
+            experiment_configs.append(
+                ExperimentConfig(
+                    id=id,
+                    model_name=model,
+                    learning_rate=lr,
+                    batch_size=4,
+                    augmentation=False,
+                    img_size=192,
+                )
+            )
+            id += 1
+    return ExperimentSet(
+        title=LEARNING_RATE_EXPERIMENTS_NAME, configs=experiment_configs
+    )
+
+
+BATCH_SIZE_EXPERIMENTS_NAME = "Batch Size Experiments"
+
+
+def get_batch_size_experiments() -> ExperimentSet:
+    batch_sizes = [4, 8, 16]
+    id = 9
+    experiment_configs = []
+    for model in MODELS:
+        for batch_size in batch_sizes:
+            learning_rate = get_best_run_hyperparameter(
+                LEARNING_RATE_EXPERIMENTS_NAME, model, "learning_rate"
+            )
+            experiment_configs.append(
+                ExperimentConfig(
+                    id=id,
+                    model_name=model,
+                    learning_rate=learning_rate,
+                    batch_size=batch_size,
+                    augmentation=False,
+                    img_size=192,
+                )
+            )
+            id += 1
+    return ExperimentSet(title=BATCH_SIZE_EXPERIMENTS_NAME, configs=experiment_configs)
+
+
+AUGMENTATION_EXPERIMENTS_NAME = "Augmentation Experiments"
+
+
+def get_augmentation_experiments() -> ExperimentSet:
+    id = 18
+    experiment_configs = []
+    for model in MODELS:
+        learning_rate = get_best_run_hyperparameter(
+            LEARNING_RATE_EXPERIMENTS_NAME, model, "learning_rate"
+        )
+        batch_size = get_best_run_hyperparameter(
+            BATCH_SIZE_EXPERIMENTS_NAME, model, "batch_size"
+        )
+        experiment_configs.append(
+            ExperimentConfig(
+                id=id,
+                model_name=model,
+                learning_rate=learning_rate,
+                batch_size=batch_size,
+                augmentation=True,
+                img_size=192,
+            )
+        )
+        id += 1
+    return ExperimentSet(
+        title=AUGMENTATION_EXPERIMENTS_NAME, configs=experiment_configs
+    )
+
+
+RESOLUTION_EXPERIMENTS_NAME = "Resolution Experiments"
+
+
+def get_resolution_experiments() -> ExperimentSet:
+    id = 21
+    experiment_configs = []
+    for model in MODELS:
+        learning_rate = get_best_run_hyperparameter(
+            LEARNING_RATE_EXPERIMENTS_NAME, model, "learning_rate"
+        )
+        batch_size = get_best_run_hyperparameter(
+            BATCH_SIZE_EXPERIMENTS_NAME, model, "batch_size"
+        )
+        augmentation = get_best_run_hyperparameter(
+            AUGMENTATION_EXPERIMENTS_NAME, model, "augmentation"
+        )
+        experiment_configs.append(
+            ExperimentConfig(
+                id=id,
+                model_name=model,
+                learning_rate=learning_rate,
+                batch_size=batch_size,
+                augmentation=augmentation,
+                img_size=384,
+            )
+        )
+        id += 1
+    return ExperimentSet(title=RESOLUTION_EXPERIMENTS_NAME, configs=experiment_configs)
+
+
+def get_best_run_hyperparameter(
+    experiment_set_title: str, model_name: str, hyperparameter: str
+) -> float | bool:
+    try:
+        best_runs_df = pd.read_csv(f"{METRICS_DIR}/best_runs.csv")
+
+        if hyperparameter == "augmentation":
+            # Filter dataframe for the given model
+            model_df = best_runs_df[best_runs_df["model_name"] == model_name]
+
+            # Get the row with the highest dice score
+            best_run = model_df.loc[model_df["dice"].idxmax()]
+
+            if best_run.empty:
+                raise ValueError("No best runs found, please run experiments first")
+
+            return best_run["augmentation"]
+
+        # get best run by experiment_set.title and model name
+        best_run = best_runs_df[
+            (best_runs_df["experiment_set"] == experiment_set_title)
+            & (best_runs_df["model_name"] == model_name)
+        ]
+        if best_run.empty:
+            raise ValueError("No best runs found, please run experiments first")
+        best_run_hyperparameter_value = best_run[hyperparameter].values[0]
+        return best_run_hyperparameter_value
+    except FileNotFoundError:
+        raise ValueError("No best runs found, please run experiments first")
+
+
+best_model_experiment = ExperimentConfig(
+    id=24,
+    model_name="deeplab",
+    batch_size=16,
+    learning_rate=0.0001,
+    augmentation=False,
+    img_size=384,
+    epochs=8,
+    save_weights=True,
+    visualize=True,
 )
 
-hyperparameter_search = ExperimentSet(
-    title="Hyperparameter Search",
-    configs=[
-        # DeepLab experiments (0-17)
-        ExperimentConfig(
-            id=0,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=1,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=2,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=3,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=4,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=5,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=6,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=7,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=8,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=9,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=10,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=11,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=12,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=13,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=14,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=15,
-            model_name="deeplab",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=16,
-            model_name="deeplab",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=17,
-            model_name="deeplab",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=384,
-        ),
-        # Segformer experiments (18-35)
-        ExperimentConfig(
-            id=18,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=19,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=20,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=21,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=22,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=23,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=24,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=25,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=26,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=27,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=28,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=29,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=30,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=31,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=32,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=33,
-            model_name="segformer",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=34,
-            model_name="segformer",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=35,
-            model_name="segformer",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=384,
-        ),
-        # LRASPP experiments (36-53)
-        ExperimentConfig(
-            id=36,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=37,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=38,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=39,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=40,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=41,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=42,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=43,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=44,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=192,
-        ),
-        ExperimentConfig(
-            id=45,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=46,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=47,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=4,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=48,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=49,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=50,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=8,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=51,
-            model_name="lraspp",
-            learning_rate=0.001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=52,
-            model_name="lraspp",
-            learning_rate=0.0001,
-            batch_size=12,
-            img_size=384,
-        ),
-        ExperimentConfig(
-            id=53,
-            model_name="lraspp",
-            learning_rate=0.00001,
-            batch_size=12,
-            img_size=384,
-        ),
-    ],
+balancing_experiment = ExperimentConfig(
+    id=25,
+    model_name="deeplab",
+    batch_size=16,
+    learning_rate=0.0001,
+    augmentation=False,
+    img_size=384,
+    epochs=8,
+    save_weights=True,
+    visualize=True,
 )
 
-EXPERIMENT_SETS = [model_search]
+
+EXPERIMENT_SETS = [
+    get_learning_rate_experiments,
+    get_batch_size_experiments,
+    get_augmentation_experiments,
+    get_resolution_experiments,
+]
