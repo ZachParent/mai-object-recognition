@@ -199,7 +199,7 @@ class Trainer:
 
 
 def run_experiment(experiment: ExperimentConfig) -> None:
-    # train_dataloader, val_dataloader = get_dataloaders(experiment, MAIN_ITEM_NAMES)
+    train_dataloader, val_dataloader = get_dataloaders(experiment, MAIN_ITEM_NAMES)
     num_classes = len(MAIN_ITEM_NAMES) + 1  # +1 for background class
     train_metrics_collection = get_metric_collection(num_classes)
     val_metrics_collection = get_metric_collection(num_classes)
