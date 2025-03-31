@@ -146,9 +146,9 @@ class FashionpediaDataset(Dataset):
         mask = np.array(
             Image.fromarray(mask).resize((self.img_size, self.img_size), Image.NEAREST)
         )
-        return self.transform(image) if self.transform else image, {
+        return self.transform(image), {
             "masks": tv_tensors.Mask(torch.tensor(mask).unsqueeze(0)),
-            "labels": torch.tensor(mask),
+            "labels": torch.tensor(mask, dtype=torch.int64),
             "num_classes": len(self.item_names) + 1,
             "class_names": self.mappings["id_to_name"],
         }
