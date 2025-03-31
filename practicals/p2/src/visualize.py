@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from config import DEVICE, VISUALIZATIONS_DIR
+from dataset import get_aux_dataloader
+from models import load_model_from_weights
+from experiment_config import best_model_experiment, balancing_experiment
 import torchmetrics
 from typing import Tuple, List
 
@@ -182,3 +185,21 @@ def visualize_predictions(
             print(
                 f"Saved {set_name} visualization for image index {idx} to {output_path}"
             )
+
+def main():
+    num_classes = 28
+    model = load_model_from_weights(best_model_experiment)
+    aux_dataloader = get_aux_dataloader(best_model_experiment)
+    worst_performing_images, best_performing_images = get_best_and_worst_images(
+        model, aux_dataloader, num_classes
+    )
+    visualize_predictions(
+        model=model,
+        dataloader=aux_dataloader,
+        worst_img_idxs=worst_performing_images,
+        best_img_idxs=best_performing_images,
+        num_classes=num_classes,
+    )
+
+if __name__ == "__main__":
+    main()

@@ -7,7 +7,7 @@ import os
 from config import DEVICE, MODELS_DIR
 from metrics import MetricLogger, get_metric_collection
 from experiment_config import ExperimentConfig
-from models import get_model
+from models import get_model, load_model_from_weights
 from dataset import get_dataloaders, MAIN_ITEM_NAMES, get_aux_dataloader
 from visualize import get_best_and_worst_images, visualize_predictions
 
