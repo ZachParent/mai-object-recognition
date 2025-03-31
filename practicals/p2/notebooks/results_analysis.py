@@ -126,23 +126,24 @@ worst_12_labels = tp_sorted_labels[0:1] + tp_sorted_labels[-12:]
 worst_12_indices = np.argwhere(np.isin(tp_sorted_labels, worst_12_labels)).flatten()
 subset_cm = tp_sorted_cm.iloc[worst_12_indices, worst_12_indices]
 
-fig, axs = plt.subplots(1, 2, figsize=(24, 12), width_ratios=[1, 1.25])
+fig, axs = plt.subplots(1, 2, figsize=(24, 11), width_ratios=[1, 1.25])
 plot_confusion_matrix(
     axs[0], subset_cm, worst_12_labels, "Before Fine Tuning", cbar=False
 )
+axs[0].set_xticks(np.array(range(len(worst_12_labels))) + 0.5)
+axs[0].set_xticklabels(worst_12_labels, rotation=45, ha='right')
+
 axs[0].add_patch(
     plt.Rectangle((0.98, 0.98), 11.98, 11.98, fill=False, color="#CD5334", linewidth=3)
 )
 # TODO: replace this with the confusion matrix after fine tuning
-plot_confusion_matrix(
-    axs[1], fine_tuned_cm, worst_12_labels, "After Fine Tuning", cbar=True
-)
+plot_confusion_matrix(axs[1], fine_tuned_cm, worst_12_labels, "After Fine Tuning", cbar=True)
+axs[1].set_xticks(np.array(range(len(worst_12_labels))) + 0.5)  
+axs[1].set_xticklabels(worst_12_labels, rotation=45, ha="right")
 
 plt.suptitle("Confusion Matrices of Worst 12 Classes", fontsize=20, weight="bold")
 plt.tight_layout()
-plt.savefig(
-    FIGURES_DIR / "confusion_matrices_fine_tuning.png", dpi=300
-)
+plt.savefig(FIGURES_DIR / "confusion_matrices_fine_tuning.png", dpi=300)
 plt.show()
 
 # %%
