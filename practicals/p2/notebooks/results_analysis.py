@@ -80,35 +80,7 @@ for experiment_id in experiment_ids:
     plt.show()
 
 # %%
-# plot the metrics
-def plot_metrics(metrics_df: pd.DataFrame, metrics: List[Tuple[str, str, str]], title: str, save_path: Path):
-    plt.figure(figsize=(12, 6))
-    epochs = metrics_df.index
-    for metric_name, metric_label, metric_color in metrics:
-        plt.plot(epochs, metrics_df[metric_name], label=metric_label, marker='o', color=metric_color)
-
-    plt.title(title)
-    plt.xlabel('Epoch')
-    plt.ylabel('Metrics')
-    plt.xticks(epochs)
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-
-    plt.savefig(save_path, dpi=300)
-    plt.show()
-
-# %%
-metrics_df = metrics_dfs["experiment_11"]
-metrics: List[Tuple[str, str, str]] = [
-    ("val_f1", "Validation F1 Score", "#FF0000"),
-    ("val_dice", "Validation Dice Score", "#FF00FF"),
-    ("val_loss", "Validation Loss", "#0000FF"),
-]
-plot_metrics(metrics_df, metrics, "Validation Metrics During Training", FIGURES_DIR / "validation_metrics_experiment_11.png")
-
-# %%
-# compare before and after fine tuning
+# compare confusion matrices before and after fine tuning
 experiment_id = 24
 
 cm = confusion_matrix_dfs[f"experiment_{experiment_id}"]
@@ -134,7 +106,39 @@ plot_confusion_matrix(axs[1], subset_cm, worst_12_labels, "After Fine Tuning", c
 
 plt.suptitle("Confusion Matrices of Worst 12 Classes", fontsize=20, weight="bold")
 plt.tight_layout()
+
+# %%
+# plot the training curves
+def plot_metrics(metrics_df: pd.DataFrame, metrics: List[Tuple[str, str, str, str]], title: str, save_path: Path):
+    fig, axs = plt.subplots(1, len(metrics), figsize=(8 * len(metrics), 6))
+    epochs = metrics_df.index
+    for ax, (val_metric_name, train_metric_name, metric_label, metric_color) in zip(axs, metrics):
+        ax.plot(epochs, metrics_df[val_metric_name], marker='o', label='Validation', color=metric_color)
+        ax.plot(epochs, metrics_df[train_metric_name], marker='o', label='Training', color=metric_color, linestyle='--')
+
+        ax.set_ylabel(metric_label, fontsize=12, weight="bold")
+        ax.set_xlabel('Epoch', fontsize=12, weight="bold")
+        ax.set_xticks(epochs)
+        ax.legend()
+        ax.grid()
+
+    plt.suptitle(title, fontsize=20, weight="bold")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+# %%
+experiment_ids = [24]
+for experiment_id in experiment_ids:
+    metrics_df = metrics_dfs[f"experiment_{experiment_id}"]
+    metrics: List[Tuple[str, str, str, str]] = [
+        ("val_f1", "train_f1", "F1 Score", "#FF0000"),
+        ("val_dice", "train_dice", "Dice Score", "#FF00FF"),
+        ("val_loss", "train_loss", "Loss", "#0000FF"),
+    ]
+    plot_metrics(metrics_df, metrics, f"Training Curves", FIGURES_DIR / f"validation_metrics_experiment_{experiment_id}.png")
+
+
 # %%
 # TODO
-# 1. a confusion matrix, then the subset confusion matrix after fine tuning
 # 2. a 4 column plot that shows the mDice performance for each experiment part of hyperparam search
