@@ -9,9 +9,18 @@ import torch
 torch.multiprocessing.set_start_method("spawn", force=True)
 
 item_names = [
-    "bag, wallet",
+    "headband, head covering, hair accessory",
+    "jumpsuit",
+    "belt",
+    "sock",
+    "glove",
+    "tie",
+    "cape",
     "scarf",
-    "umbrella",
+    "cardigan",
+    "vest",
+    "watch",
+    "leg warmer",
 ]
 
 
