@@ -179,6 +179,17 @@ best_model_experiment = ExperimentConfig(
     save_weights=True,
 )
 
+balancing_experiment = ExperimentConfig(
+    id=25,
+    model_name="deeplab",
+    batch_size=16,
+    learning_rate=0.0001,
+    augmentation=False,
+    img_size=384,
+    epochs=8,
+    save_weights=True,
+)
+
 
 EXPERIMENT_SETS = [
     get_learning_rate_experiments,
