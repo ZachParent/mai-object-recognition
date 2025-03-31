@@ -13,10 +13,14 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-- install the requirements
+- install the requirements (for Semantic Segmentation or for YOLO)
 
 ```bash
 pip install -r requirements.txt
+```
+
+```bash
+pip install -r requirements_yolo.txt
 ```
 
 - download the dataset
