@@ -4,6 +4,8 @@ from metrics import get_metric_collection
 from run_experiment import Trainer, MetricLogger
 from config import DEVICE
 import torch
+from dataset import get_aux_dataloader
+from visualize import get_best_and_worst_images, visualize_predictions
 
 # Set spawn method at module level before any other multiprocessing operations
 torch.multiprocessing.set_start_method("spawn", force=True)
@@ -62,6 +64,19 @@ def run_imbalance_finetuning():
 
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
+
+    if balancing_experiment.visualize:
+        aux_dataloader = get_aux_dataloader(balancing_experiment, item_names)
+        worst_performing_images, best_performing_images = get_best_and_worst_images(
+            trainer.model, aux_dataloader, num_classes
+        )
+        visualize_predictions(
+            model=trainer.model,
+            dataloader=aux_dataloader,
+            worst_img_idxs=worst_performing_images,
+            best_img_idxs=best_performing_images,
+            num_classes=num_classes,
+        )
 
     if balancing_experiment.save_weights:
         trainer.save_model()

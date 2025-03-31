@@ -206,7 +206,7 @@ def get_dataloaders(experiment: ExperimentConfig, item_names=MAIN_ITEM_NAMES):
     return train_dataloader, val_dataloader
 
 
-def get_aux_dataloader(experiment: ExperimentConfig):
+def get_aux_dataloader(experiment: ExperimentConfig, item_names=MAIN_ITEM_NAMES):
 
     val_dataset = FashionpediaDataset(
         img_dir=VAL_IMAGES_DIR,
@@ -214,6 +214,7 @@ def get_aux_dataloader(experiment: ExperimentConfig):
         img_size=experiment.img_size,
         transform=STANDARD_TRANSFORM,
         max_samples=100 if MINI_RUN else None,
+        item_names=item_names,
     )
 
     aux_dataloader = DataLoader(
