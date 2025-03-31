@@ -216,7 +216,6 @@ for exp_ids, hyperparam_name, hyperparam_values in hyperparam_search_config:
         for exp_id in exp_ids
     ]
     final_dice_scores.append((exp_ids, hyperparam_name, hyperparam_values, final_dices))
-pprint.pprint(final_dice_scores)
 # %%
 # Prepare data for heatmaps
 heatmap_data = {}
@@ -231,9 +230,6 @@ for exp_ids, hyperparam_name, hyperparam_values, final_dices in final_dice_score
             heatmap_data[hyperparam_name][model_name] = []
         heatmap_data[hyperparam_name][model_name].append(final_dice)
 
-import pprint
-
-pprint.pprint(heatmap_data)
 # %%
 # Create a figure with subplots and additional space for the colorbar
 fig, axs = plt.subplots(3, 4, figsize=(27, 9), width_ratios=[1, 1, 0.65, 0.65])
@@ -258,18 +254,12 @@ for row, model in enumerate(MODELS):
             cbar=False,
             vmin=0,
             vmax=0.09,
-            annot_kws={"weight": "bold", "fontsize": 12},
+            annot_kws={"weight": "bold", "fontsize": 20},
         )
         axs[row, col].set_yticklabels(
             axs[row, col].get_yticklabels(), fontweight="bold"
         )
-        if col < len(final_dice_scores) - 1:
-            axs[row, col].annotate(
-                "",
-                xy=(len(hyperparam_values), 0.5),
-                xytext=(len(hyperparam_values) - 0.2, 0.5),
-                arrowprops=dict(arrowstyle="->", lw=1.5),
-            )
+
         best_idx = np.argmax(data)
         axs[row, col].add_patch(
             plt.Rectangle(
@@ -287,7 +277,37 @@ for row, model in enumerate(MODELS):
 
 fig.colorbar(im.collections[0], cax=cbar_ax, label="Dice Score")
 
+# Add arrows between the plots using figure coordinates
+# These arrows will appear in the white space between subplots
+arrow_ys = (0.75, 0.41, 0.12)
+arrow_xs = [(0.255, 0.295), (0.525, 0.565), (0.705, 0.745)]
+
+for row, arrow_y in enumerate(arrow_ys):
+    for col, arrow_x in enumerate(arrow_xs):  # Only add arrows between columns, not after the last column
+        # Convert axis coordinates to figure coordinates
+        fig.canvas.draw()  # This is needed to ensure the renderer exists
+        print(arrow_x)
+        # Get the positions in figure coordinates
+        ax_right = arrow_x[0]
+        ax_left = arrow_x[1]
+
+        # Add an arrow annotation using figure coordinates
+        fig.add_artist(
+            plt.Arrow(
+                ax_right,  # Start a bit to the right of the current plot
+                arrow_y,
+                (ax_left - ax_right),  # End a bit to the left of the next plot
+                0,  # No vertical movement
+                width=0.03,
+                color="#CD5334",
+            )
+        )
+
 plt.suptitle("Hyperparameter Search Results", fontsize=20, weight="bold")
 plt.tight_layout(rect=[0, 0, 0.9, 1])  # Leave room for the colorbar
 plt.savefig(FIGURES_DIR / "hyperparam_search_heatmaps.png", dpi=300)
 plt.show()
+
+# %%
+
+# %%
