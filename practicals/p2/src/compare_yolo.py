@@ -211,35 +211,3 @@ def extract_per_class_metrics(yolo_results_path, other_models_results, class_nam
             df.to_csv(os.path.join(output_dir, f'per_class_{metric}_comparison.csv'))
     
     print(f"Per-class comparison results saved to {output_dir}")
-
-if __name__ == "__main__":
-    # Example usage
-    models_results = {
-        'YOLO': 'path/to/yolo_results/final_metrics.csv',
-        'UNet': 'path/to/other_model_results/unet_metrics.csv',
-        'DeepLabV3': 'path/to/other_model_results/deeplabv3_metrics.csv',
-        'MRCNN': 'path/to/other_model_results/maskrcnn_metrics.csv'
-    }
-    
-    # Compare models
-    comparison = compare_models(
-        models_results=models_results,
-        output_dir='./model_comparison_results'
-    )
-    
-    # Get class names from dataset.yaml
-    import yaml
-    with open('path/to/output/fashionpedia_yolo/dataset.yaml', 'r') as f:
-        dataset_info = yaml.safe_load(f)
-    class_names = list(dataset_info['names'].values())
-    
-    # Compare per-class metrics
-    extract_per_class_metrics(
-        yolo_results_path='path/to/yolo_results/final_metrics.csv',
-        other_models_results={
-            'UNet': 'path/to/other_model_results/unet_class_metrics.csv',
-            'DeepLabV3': 'path/to/other_model_results/deeplabv3_class_metrics.csv'
-        },
-        class_names=class_names,
-        output_dir='./per_class_comparison_results'
-    )
