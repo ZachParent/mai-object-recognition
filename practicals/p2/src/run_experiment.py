@@ -1,16 +1,15 @@
+import torch
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+import torchmetrics
+import os
+
+from config import DEVICE, MODELS_DIR
+from metrics import MetricLogger, get_metric_collection
 from experiment_config import ExperimentConfig
 from models import get_model
 from dataset import get_dataloaders, NUM_CLASSES, get_aux_dataloader
 from visualize import get_best_and_worst_images, visualize_predictions
-import torch
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-from config import DEVICE, VISUALIZATIONS_DIR, MODELS_DIR
-from metrics import MetricLogger, get_metric_collection
-import torchmetrics
-import numpy as np
-import matplotlib.pyplot as plt
-import os
 
 
 class TrainingProgress:
@@ -219,6 +218,7 @@ def run_experiment(experiment: ExperimentConfig) -> None:
             trainer.model, aux_dataloader
         )
         visualize_predictions(
+            model=trainer.model,
             dataloader=aux_dataloader,
             worst_img_idxs=worst_performing_images,
             best_img_idxs=best_performing_images,
