@@ -30,7 +30,7 @@ for path in CONFUSION_MATRICES_DIR.glob("experiment_*.csv"):
 def plot_confusion_matrix(ax: plt.Axes, cm: pd.DataFrame, labels: List[str], title: str, cbar: bool = False):
     sns.heatmap(
         cm,
-        cmap="Blues",
+        cmap="PuBuGn",
         fmt="d",
         ax=ax,
         xticklabels=labels,
@@ -73,8 +73,8 @@ for experiment_id in experiment_ids:
     plt.tight_layout()
     plt.savefig(FIGURES_DIR / f"confusion_matrices_experiment_{experiment_id}.png", dpi=300)
 
-    ax[0].add_patch(plt.Rectangle((15.95, 15.95), 12, 12, fill=False, color="red", linewidth=4))
-    ax[0].text(19.5, 17.5, "Worst 12 Classes", fontsize=14, weight="bold", color="red")
+    ax[0].add_patch(plt.Rectangle((15.95, 15.95), 12, 12, fill=False, color="#CD5334", linewidth=4))
+    ax[0].text(19.5, 17.5, "Worst 12 Classes", fontsize=14, weight="bold", color="#CD5334")
     plt.savefig(FIGURES_DIR / f"confusion_matrices_annotated_experiment_{experiment_id}.png", dpi=300)
 
     plt.show()
@@ -100,7 +100,7 @@ subset_cm = tp_sorted_cm.iloc[worst_12_indices, worst_12_indices]
 
 fig, axs = plt.subplots(1, 2, figsize=(24, 12), width_ratios=[1, 1.25])
 plot_confusion_matrix(axs[0], subset_cm, worst_12_labels, "Before Fine Tuning", cbar=False)
-axs[0].add_patch(plt.Rectangle((0.95, 0.95), 12, 12, fill=False, color="red", linewidth=3))
+axs[0].add_patch(plt.Rectangle((0.98, 0.98), 11.98, 11.98, fill=False, color="#CD5334", linewidth=3))
 # TODO: replace this with the confusion matrix after fine tuning
 plot_confusion_matrix(axs[1], subset_cm, worst_12_labels, "After Fine Tuning", cbar=True)
 
@@ -133,8 +133,8 @@ experiment_ids = [24]
 for experiment_id in experiment_ids:
     metrics_df = metrics_dfs[f"experiment_{experiment_id}"]
     metrics: List[Tuple[str, str, str, str]] = [
-        ("val_accuracy", "train_accuracy", "Accuracy", "#14A3A1"),
         ("val_dice", "train_dice", "Dice Score", "#CD5334"),
+        ("val_accuracy", "train_accuracy", "Accuracy", "#4D7B28"),
         ("val_loss", "train_loss", "Loss", "#4059AD"),
     ]
     plot_metrics(metrics_df, metrics, f"Training Curves", FIGURES_DIR / f"validation_metrics_experiment_{experiment_id}.png")
