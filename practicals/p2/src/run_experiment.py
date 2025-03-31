@@ -184,7 +184,7 @@ class Trainer:
     def save_model(self) -> None:
         """Save the model weights to disk."""
         os.makedirs(MODELS_DIR, exist_ok=True)
-        path = f"{MODELS_DIR}/{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
+        path = f"{MODELS_DIR}/experimentId{self.experiment.id}_modelName{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
 
         torch.save(self.model.state_dict(), path)
         print(f"Model saved to {path}")
