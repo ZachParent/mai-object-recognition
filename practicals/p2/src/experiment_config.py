@@ -177,6 +177,7 @@ best_model_experiment = ExperimentConfig(
     img_size=384,
     epochs=8,
     save_weights=True,
+    visualize=True,
 )
 
 balancing_experiment = ExperimentConfig(
@@ -188,6 +189,7 @@ balancing_experiment = ExperimentConfig(
     img_size=384,
     epochs=8,
     save_weights=True,
+    visualize=True,
 )
 
 

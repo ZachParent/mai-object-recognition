@@ -1,5 +1,6 @@
 black
 matplotlib
+opencv-python
 pandas
 pycocotools
 pydantic
@@ -8,7 +9,8 @@ requests
 seaborn
 tensorboard
 torchmetrics
+torch
 transformers
 torchvision
 tqdm
-torch
+ultralytics

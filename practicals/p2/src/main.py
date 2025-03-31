@@ -1,8 +1,9 @@
-from experiment_config import EXPERIMENT_SETS, best_model_experiment
+from experiment_config import EXPERIMENT_SETS, best_model_experiment, balancing_experiment
 from run_experiment import run_experiment
 from pprint import pprint
 from config import MINI_RUN
 from metrics import compile_best_runs_csv
+from imbalance_finetuning import run_imbalance_finetuning
 
 import torch.multiprocessing as mp
 
@@ -40,6 +41,15 @@ def main():
     pprint(best_model_experiment)
     print("==================================================")
     run_experiment(best_model_experiment)
+
+    print("==================================================")
+    print("Running best model fine-tuning for imbalance")
+    print("==================================================")
+
+    print(f"\t\tRunning best model: {balancing_experiment.model_name}")
+    pprint(balancing_experiment)
+    print("==================================================")
+    run_imbalance_finetuning()
 
 
 if __name__ == "__main__":
