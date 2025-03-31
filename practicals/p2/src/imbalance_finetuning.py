@@ -24,7 +24,7 @@ item_names = [
 ]
 
 
-def main():
+def run_imbalance_finetuning():
     train_dataloader, val_dataloader = get_dataloaders(balancing_experiment, item_names)
     num_classes = len(item_names) + 1  # +1 for background class
     train_metrics_collection = get_metric_collection(num_classes)
@@ -68,4 +68,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_imbalance_finetuning()
