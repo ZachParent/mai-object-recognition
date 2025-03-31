@@ -8,3 +8,6 @@ Batch Size Experiments,17,lraspp,0.0005,16,False,192,0.0511750355362892
 Augmentation Experiments,18,deeplab,5e-05,16,True,192,0.0281684715300798
 Augmentation Experiments,19,segformer,0.0001,4,True,192,0.0207007937133312
 Augmentation Experiments,20,lraspp,0.0005,16,True,192,0.0215620510280132
+Resolution Experiments,21,deeplab,5e-05,16,False,384,0.0774722844362258
+Resolution Experiments,22,segformer,0.0001,4,False,384,0.0617230013012886
+Resolution Experiments,23,lraspp,0.0005,16,False,384,0.0647593364119529

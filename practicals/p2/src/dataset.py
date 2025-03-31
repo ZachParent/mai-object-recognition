@@ -48,9 +48,6 @@ MAIN_ITEM_NAMES = [
     "umbrella",
 ]
 
-
-NUM_CLASSES = len(MAIN_ITEM_NAMES) + 1  # +1 for background
-
 STANDARD_TRANSFORM = T.Compose(
     [
         T.ToTensor(),
@@ -71,21 +68,24 @@ AUGMENTATION_TRANSFORM = T.Compose(
 )
 
 
-def load_category_mappings(ann_file):
+def load_category_mappings(ann_file, item_names=MAIN_ITEM_NAMES):
     with open(ann_file, "r") as f:
         categories = {c["id"]: c["name"] for c in json.load(f)["categories"]}
-    main_category_ids = {
-        id: i + 1
-        for i, (id, name) in enumerate(categories.items())
-        if name in MAIN_ITEM_NAMES
-    }
+
+    main_category_ids = {}
+    idx = 1
+    for id, name in categories.items():
+        if name in item_names:
+            main_category_ids[id] = idx
+            idx += 1
+
     return {
         "id_to_name": {
             0: "background",
-            **{i: name for i, name in enumerate(MAIN_ITEM_NAMES, 1)},
+            **{i: name for i, name in enumerate(item_names, 1)},
         },
         "orig_to_new_id": main_category_ids,
-        "num_classes": NUM_CLASSES,
+        "num_classes": len(item_names) + 1,
     }
 
 
@@ -110,9 +110,17 @@ def create_segmentation_mask(coco_obj, img_id, height, width, mappings):
 
 
 class FashionpediaDataset(Dataset):
-    def __init__(self, img_dir, ann_file, img_size, transform=None, max_samples=None):
+    def __init__(
+        self,
+        img_dir,
+        ann_file,
+        img_size,
+        transform=None,
+        max_samples=None,
+        item_names=MAIN_ITEM_NAMES,
+    ):
         self.coco, self.mappings = COCO(ann_file), load_category_mappings(
-            ann_file
+            ann_file, item_names
         )  # loading annotations into memory...
         self.img_ids = [
             i
@@ -122,6 +130,7 @@ class FashionpediaDataset(Dataset):
         self.img_dir = img_dir
         self.img_size = img_size
         self.transform = transform
+        self.item_names = item_names
 
     def __len__(self):
         return len(self.img_ids)
@@ -140,15 +149,15 @@ class FashionpediaDataset(Dataset):
         mask = np.array(
             Image.fromarray(mask).resize((self.img_size, self.img_size), Image.NEAREST)
         )
-        return self.transform(image) if self.transform else image, {
+        return self.transform(image), {
             "masks": tv_tensors.Mask(torch.tensor(mask).unsqueeze(0)),
-            "labels": torch.tensor(mask),
-            "num_classes": NUM_CLASSES,
+            "labels": torch.tensor(mask, dtype=torch.int64),
+            "num_classes": len(self.item_names) + 1,
             "class_names": self.mappings["id_to_name"],
         }
 
 
-def get_dataloaders(experiment: ExperimentConfig):
+def get_dataloaders(experiment: ExperimentConfig, item_names=MAIN_ITEM_NAMES):
     if experiment.augmentation:
         # Define transforms with augmentation for training
         train_transform = AUGMENTATION_TRANSFORM
@@ -166,6 +175,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         img_size=experiment.img_size,
         transform=train_transform,
         max_samples=100 if MINI_RUN else None,
+        item_names=item_names,
     )
 
     val_dataset = FashionpediaDataset(
@@ -174,6 +184,7 @@ def get_dataloaders(experiment: ExperimentConfig):
         img_size=experiment.img_size,
         transform=val_transform,
         max_samples=100 if MINI_RUN else None,
+        item_names=item_names,
     )
 
     # Create data loaders

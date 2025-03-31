@@ -8,7 +8,7 @@ from config import DEVICE, MODELS_DIR
 from metrics import MetricLogger, get_metric_collection
 from experiment_config import ExperimentConfig
 from models import get_model
-from dataset import get_dataloaders, NUM_CLASSES, get_aux_dataloader
+from dataset import get_dataloaders, MAIN_ITEM_NAMES, get_aux_dataloader
 from visualize import get_best_and_worst_images, visualize_predictions
 
 
@@ -189,11 +189,20 @@ class Trainer:
         torch.save(self.model.state_dict(), path)
         print(f"Model saved to {path}")
 
+    def load_previous_model(self) -> None:
+        """Load the model weights from disk."""
+        path = f"{MODELS_DIR}/{self.experiment.model_name}_lr{self.experiment.learning_rate}_img{self.experiment.img_size}.pt"
+        self.model.load_state_dict(torch.load(path, map_location=DEVICE))
+        self.model.to(DEVICE)
+        print(f"Model loaded from {path}")
+        return self.model
+
 
 def run_experiment(experiment: ExperimentConfig) -> None:
-    train_dataloader, val_dataloader = get_dataloaders(experiment)
-    train_metrics_collection = get_metric_collection(NUM_CLASSES)
-    val_metrics_collection = get_metric_collection(NUM_CLASSES)
+    train_dataloader, val_dataloader = get_dataloaders(experiment, MAIN_ITEM_NAMES)
+    num_classes = len(MAIN_ITEM_NAMES) + 1  # +1 for background class
+    train_metrics_collection = get_metric_collection(num_classes)
+    val_metrics_collection = get_metric_collection(num_classes)
 
     trainer = Trainer(experiment, train_metrics_collection, val_metrics_collection)
     metrics_logger = MetricLogger(
@@ -215,13 +224,14 @@ def run_experiment(experiment: ExperimentConfig) -> None:
     if experiment.visualize:
         aux_dataloader = get_aux_dataloader(experiment)
         worst_performing_images, best_performing_images = get_best_and_worst_images(
-            trainer.model, aux_dataloader
+            trainer.model, aux_dataloader, num_classes
         )
         visualize_predictions(
             model=trainer.model,
             dataloader=aux_dataloader,
             worst_img_idxs=worst_performing_images,
             best_img_idxs=best_performing_images,
+            num_classes=num_classes,
         )
 
     metrics_logger.save_val_confusion_matrix()
