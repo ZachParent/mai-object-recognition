@@ -186,7 +186,7 @@ balancing_experiment = ExperimentConfig(
     learning_rate=0.0001,
     augmentation=False,
     img_size=384,
-    epochs=4,
+    epochs=8,
     save_weights=True,
 )
 
