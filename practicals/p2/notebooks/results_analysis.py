@@ -204,8 +204,8 @@ for experiment_id in experiment_ids:
 hyperparam_search_config = [
     (range(0, 9), "learning_rate", [0.0005, 0.0001, 0.00005]),
     (range(9, 18), "batch_size", [4, 8, 16]),
-    ([11, 12, 17] + list(range(18, 21)), "with_augmentation", [False, True]),
-    ([11, 12, 17] + list(range(21, 24)), "img_size", [192, 384]),
+    ([11, 18, 12, 19, 17, 20], "with_augmentation", [False, True]),
+    ([11, 21, 12, 22, 17, 23], "img_size", [192, 384]),
 ]
 
 final_dice_scores = []
@@ -216,16 +216,14 @@ for exp_ids, hyperparam_name, hyperparam_values in hyperparam_search_config:
         for exp_id in exp_ids
     ]
     final_dice_scores.append((exp_ids, hyperparam_name, hyperparam_values, final_dices))
-
-print(final_dice_scores)
-
+pprint.pprint(final_dice_scores)
 # %%
 # Prepare data for heatmaps
 heatmap_data = {}
 for exp_ids, hyperparam_name, hyperparam_values, final_dices in final_dice_scores:
     for i, exp_id in enumerate(exp_ids):
-        model_name = MODELS[i % len(MODELS)]
-        hyperparam_value = hyperparam_values[i // len(MODELS)]
+        model_name = MODELS[i // len(hyperparam_values)]
+        hyperparam_value = hyperparam_values[i % len(hyperparam_values)]
         final_dice = final_dices[i]
         if hyperparam_name not in heatmap_data:
             heatmap_data[hyperparam_name] = {}
