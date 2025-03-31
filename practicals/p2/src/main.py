@@ -12,26 +12,26 @@ mp.set_start_method("spawn", force=True)
 
 
 def main():
-    if MINI_RUN:
-        print()
-        print("==================================================")
-        print("Running in mini-run mode")
-        print("==================================================")
-        print()
+    # if MINI_RUN:
+    #     print()
+    #     print("==================================================")
+    #     print("Running in mini-run mode")
+    #     print("==================================================")
+    #     print()
 
-    for experiment_set_getter in EXPERIMENT_SETS:
-        experiment_set = experiment_set_getter()
-        print("==================================================")
-        print(f"\tRunning experiment set: {experiment_set.title}")
-        print("==================================================")
-        print()
-        for experiment in experiment_set.configs:
-            print(f"\t\tRunning experiment: {experiment.model_name}")
-            pprint(experiment)
-            print("==================================================")
-            run_experiment(experiment)
-        # Compile best_runs.csv with best runs of experiment set for each model
-        compile_best_runs_csv(experiment_set)
+    # for experiment_set_getter in EXPERIMENT_SETS:
+    #     experiment_set = experiment_set_getter()
+    #     print("==================================================")
+    #     print(f"\tRunning experiment set: {experiment_set.title}")
+    #     print("==================================================")
+    #     print()
+    #     for experiment in experiment_set.configs:
+    #         print(f"\t\tRunning experiment: {experiment.model_name}")
+    #         pprint(experiment)
+    #         print("==================================================")
+    #         run_experiment(experiment)
+    #     # Compile best_runs.csv with best runs of experiment set for each model
+    #     compile_best_runs_csv(experiment_set)
 
     print("==================================================")
     print("Running best model with best hyperparameters")

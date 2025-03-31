@@ -199,27 +199,30 @@ class Trainer:
 
 
 def run_experiment(experiment: ExperimentConfig) -> None:
-    train_dataloader, val_dataloader = get_dataloaders(experiment, MAIN_ITEM_NAMES)
+    # train_dataloader, val_dataloader = get_dataloaders(experiment, MAIN_ITEM_NAMES)
     num_classes = len(MAIN_ITEM_NAMES) + 1  # +1 for background class
     train_metrics_collection = get_metric_collection(num_classes)
     val_metrics_collection = get_metric_collection(num_classes)
 
     trainer = Trainer(experiment, train_metrics_collection, val_metrics_collection)
-    metrics_logger = MetricLogger(
-        experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
-    )
 
-    for epoch in range(experiment.epochs):
-        width = 90
-        print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
-        print("-" * width)
-        train_loss = trainer.train_epoch(train_dataloader)
-        val_loss = trainer.evaluate(val_dataloader)
+    trainer.load_previous_model(previous_experiment=experiment)
 
-        # Log metrics to TensorBoard and CSV (will also print epoch summary)
-        metrics_logger.update_metrics(train_loss, val_loss)
-        metrics_logger.log_metrics()
+    # metrics_logger = MetricLogger(
+    #     experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
+    # )
+
+    # for epoch in range(experiment.epochs):
+    #     width = 90
+    #     print("\n" + "=" * width)
+    #     print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
+    #     print("-" * width)
+    #     train_loss = trainer.train_epoch(train_dataloader)
+    #     val_loss = trainer.evaluate(val_dataloader)
+
+    #     # Log metrics to TensorBoard and CSV (will also print epoch summary)
+    #     metrics_logger.update_metrics(train_loss, val_loss)
+    #     metrics_logger.log_metrics()
 
     if experiment.visualize:
         aux_dataloader = get_aux_dataloader(experiment)
@@ -234,11 +237,11 @@ def run_experiment(experiment: ExperimentConfig) -> None:
             num_classes=num_classes,
         )
 
-    metrics_logger.save_val_confusion_matrix()
-    metrics_logger.close()
+    # metrics_logger.save_val_confusion_matrix()
+    # metrics_logger.close()
 
-    if experiment.save_weights:
-        trainer.save_model()
+    # if experiment.save_weights:
+    #     trainer.save_model()
 
 
 # Use this to run a quick test

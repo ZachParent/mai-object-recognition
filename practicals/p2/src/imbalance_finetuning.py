@@ -27,7 +27,7 @@ item_names = [
 
 
 def run_imbalance_finetuning():
-    train_dataloader, val_dataloader = get_dataloaders(balancing_experiment, item_names)
+    # train_dataloader, val_dataloader = get_dataloaders(balancing_experiment, item_names)
     num_classes = len(item_names) + 1  # +1 for background class
     train_metrics_collection = get_metric_collection(num_classes)
     val_metrics_collection = get_metric_collection(num_classes)
@@ -36,34 +36,36 @@ def run_imbalance_finetuning():
         balancing_experiment, train_metrics_collection, val_metrics_collection
     )
     model = trainer.load_previous_model(previous_experiment=best_model_experiment)
-
     model.classifier[-1] = torch.nn.Conv2d(256, num_classes, 1).to(DEVICE)
-    print(f"Classifier head adjusted to {num_classes} classes")
+    model = trainer.load_previous_model(previous_experiment=balancing_experiment)
 
-    trainer.optimizer = torch.optim.Adam(
-        trainer.model.parameters(), lr=balancing_experiment.learning_rate
-    )
 
-    metrics_logger = MetricLogger(
-        balancing_experiment.id,
-        trainer.train_metrics_collection,
-        trainer.val_metrics_collection,
-    )
+    # print(f"Classifier head adjusted to {num_classes} classes")
 
-    for epoch in range(balancing_experiment.epochs):
-        width = 90
-        print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} / {balancing_experiment.epochs}".center(width))
-        print("-" * width)
-        train_loss = trainer.train_epoch(train_dataloader)
-        val_loss = trainer.evaluate(val_dataloader)
+    # trainer.optimizer = torch.optim.Adam(
+    #     trainer.model.parameters(), lr=balancing_experiment.learning_rate
+    # )
 
-        # Log metrics to TensorBoard and CSV (will also print epoch summary)
-        metrics_logger.update_metrics(train_loss, val_loss)
-        metrics_logger.log_metrics()
+    # metrics_logger = MetricLogger(
+    #     balancing_experiment.id,
+    #     trainer.train_metrics_collection,
+    #     trainer.val_metrics_collection,
+    # )
 
-    metrics_logger.save_val_confusion_matrix()
-    metrics_logger.close()
+    # for epoch in range(balancing_experiment.epochs):
+    #     width = 90
+    #     print("\n" + "=" * width)
+    #     print(f"EPOCH {epoch+1} / {balancing_experiment.epochs}".center(width))
+    #     print("-" * width)
+    #     train_loss = trainer.train_epoch(train_dataloader)
+    #     val_loss = trainer.evaluate(val_dataloader)
+
+    #     # Log metrics to TensorBoard and CSV (will also print epoch summary)
+    #     metrics_logger.update_metrics(train_loss, val_loss)
+    #     metrics_logger.log_metrics()
+
+    # metrics_logger.save_val_confusion_matrix()
+    # metrics_logger.close()
 
     if balancing_experiment.visualize:
         aux_dataloader = get_aux_dataloader(balancing_experiment, item_names)
@@ -78,8 +80,8 @@ def run_imbalance_finetuning():
             num_classes=num_classes,
         )
 
-    if balancing_experiment.save_weights:
-        trainer.save_model()
+    # if balancing_experiment.save_weights:
+    #     trainer.save_model()
 
 
 if __name__ == "__main__":
