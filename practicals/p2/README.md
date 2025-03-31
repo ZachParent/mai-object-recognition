@@ -50,9 +50,3 @@ tensorboard --logdir=data/01_runs
 ```bash
 python src/train_yolo.py
 ```
-
-- compare the YOLO results
-
-```bash
-python src/train_yolo.py
-```
