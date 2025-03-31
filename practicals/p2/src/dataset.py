@@ -71,11 +71,14 @@ AUGMENTATION_TRANSFORM = T.Compose(
 def load_category_mappings(ann_file, item_names=MAIN_ITEM_NAMES):
     with open(ann_file, "r") as f:
         categories = {c["id"]: c["name"] for c in json.load(f)["categories"]}
-    main_category_ids = {
-        id: i + 1
-        for i, (id, name) in enumerate(categories.items())
-        if name in item_names
-    }
+
+    main_category_ids = {}
+    idx = 1
+    for id, name in categories.items():
+        if name in item_names:
+            main_category_ids[id] = idx
+            idx += 1
+
     return {
         "id_to_name": {
             0: "background",
