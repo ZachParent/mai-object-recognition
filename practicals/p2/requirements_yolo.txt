@@ -1,0 +1,18 @@
+black
+matplotlib
+pandas
+pycocotools
+pydantic
+pypalettes
+requests
+seaborn
+tensorboard
+torchmetrics
+transformers
+tqdm
+ultralytics
+
+# PyTorch with CUDA 11.8 - more stable with YOLO
+torch==2.0.1+cu118
+torchvision==0.15.2+cu118
+--index-url https://download.pytorch.org/whl/cu118
