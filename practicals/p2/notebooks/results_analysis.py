@@ -108,7 +108,7 @@ plt.suptitle("Confusion Matrices of Worst 12 Classes", fontsize=20, weight="bold
 plt.tight_layout()
 
 # %%
-# plot the training curves
+# define plot_metrics
 def plot_metrics(metrics_df: pd.DataFrame, metrics: List[Tuple[str, str, str, str]], title: str, save_path: Path):
     fig, axs = plt.subplots(1, len(metrics), figsize=(8 * len(metrics), 6))
     epochs = metrics_df.index
@@ -128,13 +128,14 @@ def plot_metrics(metrics_df: pd.DataFrame, metrics: List[Tuple[str, str, str, st
     plt.show()
 
 # %%
+# plot the training curves
 experiment_ids = [24]
 for experiment_id in experiment_ids:
     metrics_df = metrics_dfs[f"experiment_{experiment_id}"]
     metrics: List[Tuple[str, str, str, str]] = [
-        ("val_f1", "train_f1", "F1 Score", "#FF0000"),
-        ("val_dice", "train_dice", "Dice Score", "#FF00FF"),
-        ("val_loss", "train_loss", "Loss", "#0000FF"),
+        ("val_accuracy", "train_accuracy", "Accuracy", "#14A3A1"),
+        ("val_dice", "train_dice", "Dice Score", "#CD5334"),
+        ("val_loss", "train_loss", "Loss", "#4059AD"),
     ]
     plot_metrics(metrics_df, metrics, f"Training Curves", FIGURES_DIR / f"validation_metrics_experiment_{experiment_id}.png")
 
