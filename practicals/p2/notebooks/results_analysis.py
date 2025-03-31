@@ -239,21 +239,10 @@ pprint.pprint(heatmap_data)
 # %%
 # Create a figure with subplots and additional space for the colorbar
 fig, axs = plt.subplots(
-    3, 4, figsize=(26, 8), width_ratios=[1, 1, 0.65, 0.65]
+    3, 4, figsize=(27, 9), width_ratios=[1, 1, 0.65, 0.65]
 )
 
 cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # [left, bottom, width, height]
-
-vmin, vmax = float("inf"), float("-inf")
-
-for row, model in enumerate(MODELS):
-    for col, (exp_ids, hyperparam_name, hyperparam_values, final_dices) in enumerate(
-        final_dice_scores
-    ):
-        data = heatmap_data[hyperparam_name][model]
-        vmin = min(vmin, np.min(data))
-        vmax = max(vmax, np.max(data))
-
 # Plot heatmaps
 hyperparam_names = [config[1] for config in hyperparam_search_config]
 for row, model in enumerate(MODELS):
@@ -271,9 +260,11 @@ for row, model in enumerate(MODELS):
             xticklabels=hyperparam_values,
             yticklabels=[model],
             cbar=False,
-            vmin=vmin,
-            vmax=vmax,
+            vmin=0,
+            vmax=0.09,
+            annot_kws={"weight": "bold", "fontsize": 12},
         )
+        axs[row, col].set_yticklabels(axs[row, col].get_yticklabels(), fontweight="bold")
         if col < len(final_dice_scores) - 1:
             axs[row, col].annotate(
                 "",
@@ -281,12 +272,24 @@ for row, model in enumerate(MODELS):
                 xytext=(len(hyperparam_values) -0.2, 0.5),
                 arrowprops=dict(arrowstyle="->", lw=1.5),
             )
+        best_idx = np.argmax(data)
+        axs[row, col].add_patch(
+            plt.Rectangle(
+                (best_idx+0.01, 0.01),
+                0.98,
+                0.98,
+                fill=False,
+                color="#CD5334",
+                linewidth=4,
+            )
+        )
 
         # axs[row, col].set_title(f"{model} - {hyperparam_name}", fontsize=14)
-        axs[row, col].set_xlabel(hyperparam_name, fontsize=12)
+        axs[row, col].set_xlabel(hyperparam_name, fontsize=12, weight="bold")
 
 fig.colorbar(im.collections[0], cax=cbar_ax, label="Dice Score")
 
+plt.suptitle("Hyperparameter Search Results", fontsize=20, weight="bold")
 plt.tight_layout(rect=[0, 0, 0.9, 1])  # Leave room for the colorbar
 plt.savefig(FIGURES_DIR / "hyperparam_search_heatmaps.png", dpi=300)
 plt.show()
