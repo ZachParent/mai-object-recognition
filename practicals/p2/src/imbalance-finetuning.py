@@ -25,9 +25,7 @@ item_names = [
 
 
 def main():
-    train_dataloader, val_dataloader = get_dataloaders(
-        balancing_experiment, item_names
-    )
+    train_dataloader, val_dataloader = get_dataloaders(balancing_experiment, item_names)
     num_classes = len(item_names) + 1  # +1 for background class
     train_metrics_collection = get_metric_collection(num_classes)
     val_metrics_collection = get_metric_collection(num_classes)
