@@ -39,7 +39,6 @@ def run_imbalance_finetuning():
     model.classifier[-1] = torch.nn.Conv2d(256, num_classes, 1).to(DEVICE)
     model = trainer.load_previous_model(previous_experiment=balancing_experiment)
 
-
     print(f"Classifier head adjusted to {num_classes} classes")
 
     trainer.optimizer = torch.optim.Adam(

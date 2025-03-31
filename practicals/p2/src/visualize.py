@@ -17,7 +17,7 @@ def visualize_predictions(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     model.eval()
-    i=0
+    i = 0
 
     for image, target in dataloader:
         # Move tensors to the correct device
@@ -34,7 +34,6 @@ def visualize_predictions(
                     output = output["logits"]
             pred_mask = torch.argmax(output, dim=1).squeeze(0)
 
-        
         # Convert tensors to numpy for visualization
         img_np = image.squeeze(0).cpu().detach().permute(1, 2, 0).numpy()
         true_mask_np = true_mask.squeeze(0).cpu().detach().numpy()
@@ -95,10 +94,8 @@ def visualize_predictions(
         output_path = save_dir / f"{i}_prediction.png"
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close(fig)
-        i+=1
+        i += 1
         if i == 5:
             break
 
-    print(
-        f"Saved visualization images ({model._get_name()}) to {output_path}"
-    )
+    print(f"Saved visualization images ({model._get_name()}) to {output_path}")
