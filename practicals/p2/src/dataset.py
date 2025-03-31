@@ -16,7 +16,6 @@ from config import (
     VAL_ANNOTATIONS_JSON,
 )
 from experiment_config import ExperimentConfig
-from visualize import visualize_segmentation
 import json
 
 MAIN_ITEM_NAMES = [
@@ -155,20 +154,10 @@ def get_dataloaders(experiment: ExperimentConfig):
         train_transform = AUGMENTATION_TRANSFORM
     else:
         # Define transforms without augmentation for training
-        train_transform = T.Compose(
-            [
-                T.ToTensor(),
-                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
+        train_transform = STANDARD_TRANSFORM
 
     # Define transforms for validation (no augmentation)
-    val_transform = T.Compose(
-        [
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
+    val_transform = STANDARD_TRANSFORM
 
     # Create datasets
     train_dataset = FashionpediaDataset(
@@ -206,9 +195,33 @@ def get_dataloaders(experiment: ExperimentConfig):
     return train_dataloader, val_dataloader
 
 
+def get_aux_dataloader(experiment: ExperimentConfig):
+
+    val_dataset = FashionpediaDataset(
+        img_dir=VAL_IMAGES_DIR,
+        ann_file=VAL_ANNOTATIONS_JSON,
+        img_size=experiment.img_size,
+        transform=STANDARD_TRANSFORM,
+        max_samples=100 if MINI_RUN else None,
+    )
+
+    aux_dataloader = DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=1,
+    )
+
+    return aux_dataloader
+
+
 if __name__ == "__main__":
     experiment = ExperimentConfig(
-        id=0, batch_size=2, model_name="deeplab", learning_rate=0.001, img_size=512
+        id=0,
+        batch_size=2,
+        model_name="deeplab",
+        learning_rate=0.001,
+        img_size=512,
     )
     train_dataloader, val_dataloader = get_dataloaders(experiment)
     print(
@@ -223,4 +236,3 @@ if __name__ == "__main__":
         "Classes:",
         target["num_classes"],
     )
-    visualize_segmentation(image[0], target["labels"][0], target["class_names"])
