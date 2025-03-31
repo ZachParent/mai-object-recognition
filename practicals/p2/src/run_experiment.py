@@ -9,7 +9,7 @@ from metrics import MetricLogger, get_metric_collection
 from experiment_config import ExperimentConfig
 from models import get_model
 from dataset import get_dataloaders, MAIN_ITEM_NAMES, get_aux_dataloader
-from visualize import get_best_and_worst_images, visualize_predictions
+from visualize import visualize_predictions
 
 
 class TrainingProgress:
@@ -208,21 +208,21 @@ def run_experiment(experiment: ExperimentConfig) -> None:
 
     trainer.load_previous_model(previous_experiment=experiment)
 
-    # metrics_logger = MetricLogger(
-    #     experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
-    # )
+    metrics_logger = MetricLogger(
+        experiment.id, trainer.train_metrics_collection, trainer.val_metrics_collection
+    )
 
-    # for epoch in range(experiment.epochs):
-    #     width = 90
-    #     print("\n" + "=" * width)
-    #     print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
-    #     print("-" * width)
-    #     train_loss = trainer.train_epoch(train_dataloader)
-    #     val_loss = trainer.evaluate(val_dataloader)
+    for epoch in range(experiment.epochs):
+        width = 90
+        print("\n" + "=" * width)
+        print(f"EPOCH {epoch+1} / {experiment.epochs}".center(width))
+        print("-" * width)
+        train_loss = trainer.train_epoch(train_dataloader)
+        val_loss = trainer.evaluate(val_dataloader)
 
-    #     # Log metrics to TensorBoard and CSV (will also print epoch summary)
-    #     metrics_logger.update_metrics(train_loss, val_loss)
-    #     metrics_logger.log_metrics()
+        # Log metrics to TensorBoard and CSV (will also print epoch summary)
+        metrics_logger.update_metrics(train_loss, val_loss)
+        metrics_logger.log_metrics()
 
     if experiment.visualize:
         aux_dataloader = get_aux_dataloader(experiment)
@@ -232,11 +232,11 @@ def run_experiment(experiment: ExperimentConfig) -> None:
             num_classes=num_classes,
         )
 
-    # metrics_logger.save_val_confusion_matrix()
-    # metrics_logger.close()
+    metrics_logger.save_val_confusion_matrix()
+    metrics_logger.close()
 
-    # if experiment.save_weights:
-    #     trainer.save_model()
+    if experiment.save_weights:
+        trainer.save_model()
 
 
 # Use this to run a quick test

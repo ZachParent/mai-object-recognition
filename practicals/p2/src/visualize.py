@@ -7,64 +7,6 @@ import torchmetrics
 from typing import Tuple, List
 
 
-def get_best_and_worst_images(
-    model: torch.nn.Module, dataloader: DataLoader, num_classes: int
-) -> Tuple[List[int], List[int]]:
-
-    model.eval()
-
-    dice_scores = []  # To store Dice scores for each image
-
-    with torch.no_grad():
-        for img_idx, (image, target) in enumerate(dataloader):
-            # Move tensors to the correct device
-            image = image.to(DEVICE)
-            mask = target["labels"].to(DEVICE)
-
-            # Forward pass
-            outputs = model(image)  # Shape: [batch_size, num_classes, H, W]
-
-            if "out" in outputs:  # DeepLabv3 and LR-ASPP
-                outputs = outputs["out"]
-            else:  # SegFormer
-                outputs = outputs["logits"]
-                mask = (
-                    torch.nn.functional.interpolate(
-                        mask.unsqueeze(1).float(),
-                        scale_factor=1 / 4,
-                        mode="nearest",
-                    )
-                    .squeeze(1)
-                    .long()
-                )
-
-            # Get predictions
-            preds = outputs.argmax(dim=1)
-
-            # Compute Dice scores for each image in the batch
-            dice_metric = torchmetrics.segmentation.DiceScore(
-                input_format="index",
-                num_classes=num_classes,
-                include_background=False,
-                average="macro",
-            )
-            for i in range(image.size(0)):
-                dice_score = dice_metric(
-                    preds[i].unsqueeze(0), mask[i].unsqueeze(0)
-                ).item()
-                dice_scores.append((dice_score, img_idx))
-
-    # Sort Dice scores to find the 5 worst-performing images
-    dice_scores.sort(key=lambda x: x[0])  # Sort by Dice score (ascending)
-    best_images = [
-        index for _, index in dice_scores[-5:]
-    ]  # Extract the indices of the 5 highest scores
-    worst_images = [
-        index for _, index in dice_scores[:5]
-    ]  # Extract the indices of the 5 lowest scores
-    return best_images, worst_images
-
-
 def visualize_predictions(
     model: torch.nn.Module,
     dataloader: DataLoader,
