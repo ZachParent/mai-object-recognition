@@ -226,14 +226,9 @@ def run_experiment(experiment: ExperimentConfig) -> None:
 
     if experiment.visualize:
         aux_dataloader = get_aux_dataloader(experiment)
-        worst_performing_images, best_performing_images = get_best_and_worst_images(
-            trainer.model, aux_dataloader, num_classes
-        )
         visualize_predictions(
             model=trainer.model,
             dataloader=aux_dataloader,
-            worst_img_idxs=worst_performing_images,
-            best_img_idxs=best_performing_images,
             num_classes=num_classes,
         )
 

@@ -68,117 +68,95 @@ def get_best_and_worst_images(
 def visualize_predictions(
     model: torch.nn.Module,
     dataloader: DataLoader,
-    worst_img_idxs: List[int],
-    best_img_idxs: List[int],
     num_classes: int,
 ) -> None:
-    dataset = dataloader.dataset
 
-    # Create separate directories for worst and best visualizations
-    worst_dir = VISUALIZATIONS_DIR / "worst"
-    best_dir = VISUALIZATIONS_DIR / "best"
-    worst_dir.mkdir(parents=True, exist_ok=True)
-    best_dir.mkdir(parents=True, exist_ok=True)
+    save_dir = VISUALIZATIONS_DIR
+    save_dir.mkdir(parents=True, exist_ok=True)
 
-    visualize = {
-        "worst": (worst_img_idxs, worst_dir),
-        "best": (best_img_idxs, best_dir),
-    }
+    model.eval()
+    i=0
 
-    for set_name, (img_idxs, save_dir) in visualize.items():
-        for idx in img_idxs:
-            # Get the image and target by index
-            img, target = dataset[idx]
+    for image, target in dataloader:
+        # Move tensors to the correct device
+        image = image.to(DEVICE)
+        true_mask = target["labels"].to(DEVICE)
 
-            # Move tensors to the correct device
-            image = img.to(DEVICE)
-            true_mask = target["labels"].to(DEVICE)
+        # Get prediction
+        with torch.no_grad():
+            output = model(image)
+            if isinstance(output, dict):
+                if "out" in output:
+                    output = output["out"]
+                elif "logits" in output:
+                    output = output["logits"]
+            pred_mask = torch.argmax(output, dim=1).squeeze(0)
 
-            # Get prediction
-            with torch.no_grad():
-                output = model(image.unsqueeze(0))
-                if isinstance(output, dict):
-                    if "out" in output:
-                        output = output["out"]
-                    elif "logits" in output:
-                        output = output["logits"]
-                pred_mask = torch.argmax(output, dim=1).squeeze(0)
+        
+        # Convert tensors to numpy for visualization
+        img_np = image.squeeze(0).cpu().detach().permute(1, 2, 0).numpy()
+        true_mask_np = true_mask.squeeze(0).cpu().detach().numpy()
+        pred_mask_np = pred_mask.cpu().detach().numpy()
 
-            # Resize predicted mask to match the true mask's shape
-            pred_mask_resized = (
-                torch.nn.functional.interpolate(
-                    pred_mask.unsqueeze(0)
-                    .unsqueeze(0)
-                    .float(),  # Add batch and channel dimensions
-                    size=true_mask.shape,  # Resize to match true mask shape
-                    mode="nearest",  # Use nearest neighbor interpolation for segmentation masks
-                )
-                .squeeze(0)
-                .squeeze(0)
-                .long()
-            )  # Remove batch and channel dimensions
+        # Denormalize image if necessary (assuming ImageNet normalization)
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        img_np = std * img_np + mean
+        img_np = np.clip(img_np, 0, 1)
 
-            # Convert tensors to numpy for visualization
-            img_np = img.cpu().detach().permute(1, 2, 0).numpy()
-            true_mask_np = true_mask.cpu().detach().numpy()
-            pred_mask_np = pred_mask_resized.cpu().detach().numpy()
+        # Create figure
+        fig, axes = plt.subplots(1, 2, figsize=(14, 7))
 
-            # Denormalize image if necessary (assuming ImageNet normalization)
-            mean = np.array([0.485, 0.456, 0.406])
-            std = np.array([0.229, 0.224, 0.225])
-            img_np = std * img_np + mean
-            img_np = np.clip(img_np, 0, 1)
+        # Plot original image with true segmentation
+        axes[0].imshow(img_np)
+        im0 = axes[0].imshow(
+            true_mask_np,
+            alpha=0.5,
+            cmap="viridis",
+            vmin=0,
+            vmax=num_classes - 1,
+        )
+        axes[0].set_title("Ground Truth Segmentation")
+        axes[0].axis("off")
 
-            # Create figure
-            fig, axes = plt.subplots(1, 2, figsize=(14, 7))
+        # Plot original image with predicted segmentation
+        axes[1].imshow(img_np)
+        im1 = axes[1].imshow(
+            pred_mask_np,
+            alpha=0.5,
+            cmap="viridis",
+            vmin=0,
+            vmax=num_classes - 1,
+        )
+        axes[1].set_title("Model Prediction")
+        axes[1].axis("off")
 
-            # Plot original image with true segmentation
-            axes[0].imshow(img_np)
-            im0 = axes[0].imshow(
-                true_mask_np,
-                alpha=0.5,
-                cmap="viridis",
-                vmin=0,
-                vmax=num_classes - 1,
-            )
-            axes[0].set_title("Ground Truth Segmentation")
-            axes[0].axis("off")
+        # Add colorbars with consistent limits
+        fig.colorbar(
+            im0,
+            ax=axes[0],
+            fraction=0.046,
+            pad=0.04,
+            ticks=range(num_classes),
+        )
+        fig.colorbar(
+            im1,
+            ax=axes[1],
+            fraction=0.046,
+            pad=0.04,
+            ticks=range(num_classes),
+        )
 
-            # Plot original image with predicted segmentation
-            axes[1].imshow(img_np)
-            im1 = axes[1].imshow(
-                pred_mask_np,
-                alpha=0.5,
-                cmap="viridis",
-                vmin=0,
-                vmax=num_classes - 1,
-            )
-            axes[1].set_title("Model Prediction")
-            axes[1].axis("off")
+        plt.tight_layout()
 
-            # Add colorbars with consistent limits
-            fig.colorbar(
-                im0,
-                ax=axes[0],
-                fraction=0.046,
-                pad=0.04,
-                ticks=range(num_classes),
-            )
-            fig.colorbar(
-                im1,
-                ax=axes[1],
-                fraction=0.046,
-                pad=0.04,
-                ticks=range(num_classes),
-            )
+        # Save figure
+        output_path = save_dir / f"{i}_prediction.png"
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        i+=1
+        if i == 5:
+            break
 
-            plt.tight_layout()
-
-            # Save figure
-            output_path = save_dir / f"prediction_idx_{idx}.png"
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            plt.close(fig)
-
-            print(
-                f"Saved {set_name} visualization for image index {idx} to {output_path}"
-            )
+    print(
+        f"Saved visualization images ({model._get_name()}) to {output_path}"
+    )
