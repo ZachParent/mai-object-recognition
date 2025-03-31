@@ -1,16 +1,15 @@
-from experiment_config import ExperimentConfig
-from models import get_model
-from dataset import get_dataloaders, MAIN_ITEM_NAMES
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from config import DEVICE
-from metrics import MetricLogger, get_metric_collection
 import torchmetrics
-from config import MODELS_DIR
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+
+from config import DEVICE, MODELS_DIR
+from metrics import MetricLogger, get_metric_collection
+from experiment_config import ExperimentConfig
+from models import get_model
+from dataset import get_dataloaders, MAIN_ITEM_NAMES, get_aux_dataloader
+from visualize import get_best_and_worst_images, visualize_predictions
 
 
 class TrainingProgress:
@@ -133,7 +132,7 @@ class Trainer:
         # Return average loss for the epoch
         return total_loss / num_batches
 
-    def evaluate(self, dataloader: DataLoader) -> tuple[float, list]:
+    def evaluate(self, dataloader: DataLoader):
         self.model.eval()
         progress = TrainingProgress(dataloader, desc="Evaluating")
         self.val_metrics_collection.reset()
@@ -182,69 +181,6 @@ class Trainer:
         # Return average loss for the epoch
         return total_loss / num_batches
 
-    def visualize_lowest_dice_predictions(
-        self, dataloader=None, output_dir="visualizations", worst_img_idxs=None
-    ) -> None:
-
-        # Access the dataset directly from the dataloader
-        dataset = dataloader.dataset
-
-        for idx in worst_img_idxs:
-
-            # Get the image and target by index
-            img, target = dataset[idx]
-
-            # Move tensors to the correct device
-            image = img.to(DEVICE)
-            true_mask = target["labels"].to(DEVICE)
-
-            # Get prediction
-            with torch.no_grad():
-                output = self.model(image.unsqueeze(0))
-                if isinstance(output, dict):
-                    if "out" in output:
-                        output = output["out"]
-                    elif "logits" in output:
-                        output = output["logits"]
-                pred_mask = torch.argmax(output, dim=1).squeeze(0)
-
-            # Convert tensors to numpy for visualization
-            img_np = img.cpu().detach().permute(1, 2, 0).numpy()
-            true_mask_np = true_mask.cpu().detach().numpy()
-            pred_mask_np = pred_mask.cpu().detach().numpy()
-
-            # Denormalize image if necessary (assuming ImageNet normalization)
-            mean = np.array([0.485, 0.456, 0.406])
-            std = np.array([0.229, 0.224, 0.225])
-            img_np = std * img_np + mean
-            img_np = np.clip(img_np, 0, 1)
-
-            # Create figure
-            fig, axes = plt.subplots(1, 2, figsize=(14, 7))
-
-            # Plot original image with true segmentation
-            axes[0].imshow(img_np)
-            im0 = axes[0].imshow(true_mask_np, alpha=0.5, cmap="viridis")
-            axes[0].set_title("Ground Truth Segmentation")
-            axes[0].axis("off")
-
-            # Plot original image with predicted segmentation
-            axes[1].imshow(img_np)
-            im1 = axes[1].imshow(pred_mask_np, alpha=0.5, cmap="viridis")
-            axes[1].set_title("Model Prediction")
-            axes[1].axis("off")
-
-            # Add colorbars
-            fig.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
-            fig.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
-
-            plt.tight_layout()
-
-            # Save figure
-            os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"prediction_idx_{idx}.png")
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
     def save_model(self) -> None:
         """Save the model weights to disk."""
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -285,6 +221,18 @@ def run_experiment(experiment: ExperimentConfig) -> None:
         metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
 
+    if experiment.visualize:
+        aux_dataloader = get_aux_dataloader(experiment)
+        worst_performing_images, best_performing_images = get_best_and_worst_images(
+            trainer.model, aux_dataloader
+        )
+        visualize_predictions(
+            model=trainer.model,
+            dataloader=aux_dataloader,
+            worst_img_idxs=worst_performing_images,
+            best_img_idxs=best_performing_images,
+        )
+
     metrics_logger.save_val_confusion_matrix()
     metrics_logger.close()
 
@@ -299,6 +247,7 @@ if __name__ == "__main__":
         model_name="segformer",
         learning_rate=0.001,
         batch_size=2,
-        img_size=100,
+        img_size=256,
+        visualize=True,
     )
     run_experiment(experiment)
