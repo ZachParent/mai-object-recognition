@@ -1,5 +1,6 @@
 practicals/p1/data/VOC2012/
 practicals/p1/notes/professor's_notebooks/VOCdevkit/
+practicals/p2/src/fashionpedia_segmentation/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
