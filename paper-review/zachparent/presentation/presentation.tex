@@ -3,13 +3,33 @@
 \usetheme{Madrid} 
 \usepackage{graphicx} % Required for including images
 \usepackage{url}
+\usepackage{setspace} % Ensure setspace is loaded (recommended)
+\usepackage{tikz} % <<< Add tikz package
+
+% --- Customize Footline ---
+\setbeamertemplate{footline}{%
+  \leavevmode
+  \hbox{
+    \begin{beamercolorbox}[wd=0.25\paperwidth, ht=2.25ex, dp=1ex, center]{author in head/foot}%
+      \usebeamerfont{author in head/foot}\insertshortauthor, \insertshortinstitute
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=0.5\paperwidth, ht=2.25ex, dp=1ex, center]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertshorttitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=0.25\paperwidth, ht=2.25ex, dp=1ex, right]{date in head/foot}%
+      \usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em} \insertframenumber{} / \inserttotalframenumber \hspace{2ex}
+    \end{beamercolorbox}%
+  }%
+  \vskip0pt
+}
+% --- End Footline Customization ---
 
 \setbeamerfont{caption}{size=\tiny}
 \setlength\abovecaptionskip{1pt}
 
 \title{A review of \textbf{Segment Anything (SAM)}, 2023}
 \author{Zachary Parent}
-\date{\today}
+\date{6th of May, 2025}
 \institute{UPC - UB}
 
 
@@ -17,6 +37,20 @@
 
 \begin{frame}
     \titlepage
+
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=west, 
+              inner sep=0pt, 
+              yshift=-1.6cm]   
+             at ([xshift=16pt]current page.west) 
+             {\includegraphics[height=0.55\textheight]{figures/examples_left.png}}; 
+
+        \node[anchor=east, 
+              inner sep=0pt, 
+              yshift=-1.6cm]   
+             at ([xshift=-16pt]current page.east) 
+             {\includegraphics[height=0.55\textheight]{figures/examples_right.png}}; 
+    \end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Outline}
