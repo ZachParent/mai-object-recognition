@@ -4,10 +4,14 @@
 \usepackage{graphicx} % Required for including images
 \usepackage{url}
 
+\setbeamerfont{caption}{size=\tiny}
+\setlength\abovecaptionskip{1pt}
+
 \title{A review of \textbf{Segment Anything (SAM)}, 2023}
 \author{Zachary Parent}
 \date{\today}
-\institute{MAI}
+\institute{UPC - UB}
+
 
 \begin{document}
 
@@ -42,7 +46,7 @@
     \begin{figure}
         \centering
         \includegraphics[width=0.8\textwidth]{figures/SA_overview.png}
-        \caption{\tiny We aim to build a foundation model for segmentation by introducing three interconnected components: a prompt-
+        \caption{We aim to build a foundation model for segmentation by introducing three interconnected components: a prompt-
         able segmentation task, a segmentation model (SAM) that powers data annotation and enables zero-shot transfer to a range
         of tasks via prompt engineering, and a data engine for collecting SA-1B, our dataset of over 1 billion masks.}
     \end{figure}
@@ -60,10 +64,11 @@
         \item Inspired by interactive segmentation, but goal is always predicting a valid mask immediately.
     \end{itemize}
     \vfill
+    
     \begin{figure}
         \centering
         \includegraphics[width=0.4\textwidth]{figures/prompt_types.png}
-        \caption{\tiny Prompt types (a) Point prompts (b) Box prompts (c) Mask prompts (d) Text prompts.}
+        \caption{Prompt types (a) Point prompts (b) Box prompts (c) Mask prompts (d) Text prompts.}
     \end{figure}
     %% TODO: fix the caption sizing
 \end{frame}
@@ -86,11 +91,11 @@
     \begin{itemize}
         \item Flexible Prompts: Handle various input types.
         \item Real-time: Amortized real-time inference ($\sim$50ms) for interactivity.
-        \item Ambiguity-aware: Output multiple valid masks for ambiguous prompts.
+        \item Ambiguity-aware: Output multiple masks for ambiguous prompts.
     \end{itemize}
     \textbf{Design:} Decoupled architecture for efficiency.
     \begin{enumerate}
-        \item Heavyweight Image Encoder (ViT-H MAE pre-trained) - run once per image.
+        \item Heavyweight Image Encoder (ViT-H MAE pre-trained) - 1x per image.
         \item Lightweight Prompt Encoder (Positional embeddings, CLIP for text).
         \item Lightweight Mask Decoder (Transformer) - combines image and prompt embeddings.
     \end{enumerate}
@@ -98,7 +103,7 @@
     \begin{figure}
         \centering
         \includegraphics[width=0.8\textwidth]{figures/SAM_overview.png}
-        \caption{\tiny Segment Anything Model (SAM) overview. A heavyweight image encoder outputs an image embedding that can
+        \caption{Segment Anything Model (SAM) overview. A heavyweight image encoder outputs an image embedding that can
         then be efﬁciently queried by a variety of input prompts to produce object masks at amortized real-time speed. For ambiguous
         prompts corresponding to more than one object, SAM can output multiple valid masks and associated conﬁdence scores.}
         \label{fig:sam_architecture}
@@ -140,7 +145,7 @@
     \begin{figure}
         \centering
         \includegraphics[width=0.8\textwidth]{figures/data_engine_ablation.png}
-        \caption{\tiny Ablation studies of our data engine stages, image encoder scaling, and training data scaling. (Left) Each data
+        \caption{Ablation studies of our data engine stages, image encoder scaling, and training data scaling. (Left) Each data
         engine stage leads to improvements on our 23 dataset suite, and training with only the automatic data (our default) yields
         similar results to using data from all three stages. (Middle) SAM trained with $\sim$10\% of SA-1B and full SA-1B is comparable.
         We train with all 11M images by default, but using 1M images is a reasonable practical setting. (Right) Scaling SAM's image
@@ -163,7 +168,7 @@
     \begin{figure}
         \centering
         \includegraphics[width=0.8\textwidth]{figures/source_geography.png}
-        \caption{\tiny Estimated geographic distribution of SA-1B images. Most of the world's countries have more than 1000 images in
+        \caption{Estimated geographic distribution of SA-1B images. Most of the world's countries have more than 1000 images in
         SA-1B, and the three countries with the most images are from different parts of the world.}
         \label{fig:source_geography}
     \end{figure}
@@ -178,6 +183,7 @@
     \begin{itemize}
         \item Single point prompt performance often near manually annotated GT.
         \item Strong results on zero-shot downstream tasks via prompt engineering:
+        \vspace{-1em}
         \begin{itemize}
             \item Edge Detection
             \item Object Proposal Generation
@@ -185,12 +191,11 @@
             \item Text-to-Mask (preliminary)
         \end{itemize}
     \end{itemize}
-    \vfill
     \begin{figure}
         \centering
         \includegraphics[width=0.8\textwidth]{figures/zero_shot_performance.png}
-        \caption{\tiny Point to mask evaluation on 23 datasets. (a) Mean IoU of SAM and the strongest single point segmenter, RITM [92].
-        Due to ambiguity, a single mask may not match ground truth; circles show “oracle” results of the most relevant of SAM's 3
+        \caption{Point to mask evaluation on 23 datasets. (a) Mean IoU of SAM and the strongest single point segmenter, RITM [92].
+        Due to ambiguity, a single mask may not match ground truth; circles show "oracle" results of the most relevant of SAM's 3
         predictions. (b) Per-dataset comparison of mask quality ratings by annotators from 1 (worst) to 10 (best). All methods use
         the ground truth mask center as the prompt. (c, d) mIoU with varying number of points. SAM signiﬁcantly outperforms prior
         interactive segmenters with 1 point and is on par with more points. Low absolute mIoU at 1 point is the result of ambiguity.}
@@ -241,7 +246,8 @@
 
 \begin{frame}{Thank You / Q&A}
     \frametitle{Thank You / Q\&A}
-    Questions?
+    \centering
+    {\Large\textbf{Questions?}}
     \vfill
     Model and dataset available at: \\ \url{https://segment-anything.com}
 \end{frame}
