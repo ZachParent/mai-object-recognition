@@ -1,40 +1,201 @@
 \documentclass{beamer}
 
-% Theme choice
-\usetheme{Madrid} % You can change this to any theme you like, e.g., Warsaw, Berlin, Singapore, etc.
+\usetheme{Madrid} 
+\usepackage{graphicx} % Required for including images
+\usepackage{url}
 
-% Color theme (optional)
-%\usecolortheme{default}
-
-\title{My Awesome Presentation}
-\author{Your Name}
+\title{A review of \textbf{Segment Anything (SAM)}, 2023}
+\author{Zachary Parent}
 \date{\today}
-\institute{Your Institution}
+\institute{MAI}
 
 \begin{document}
 
-% Title page frame
 \begin{frame}
     \titlepage
 \end{frame}
 
-% Table of contents (optional)
-%\begin{frame}{Outline}
-%    \tableofcontents
-%\end{frame}
-
-% First content frame
-\begin{frame}{Introduction}
-    \frametitle{Introduction} % Sets the title for this frame
-
-    \begin{itemize}
-        \item This is the first point.
-        \item This is the second point.
-    \end{itemize}
-
-    Here is some text in the frame.
+\begin{frame}{Outline}
+    \tableofcontents
 \end{frame}
 
-% Add more frames as needed
+\section{Introduction}
+
+\begin{frame}{The Vision: A Foundation Model for Segmentation}
+    \frametitle{The Vision: A Foundation Model for Segmentation}
+    Goal: Build a foundation model analogous to LLMs for vision, specifically for segmentation.
+    \begin{itemize}
+        \item Like GPT, but for pixels.
+        \item Enables zero-shot generalization via prompt engineering.
+        \item Three core components: Task, Model, Dataset.
+    \end{itemize}
+    Released model (SAM) and dataset (SA-1B) to foster research.
+\end{frame}
+
+\begin{frame}{Key Research Questions}
+    \frametitle{Key Research Questions}
+    \begin{enumerate}
+        \item What task will enable zero-shot generalization?
+        \item What is the corresponding model architecture?
+        \item What data can power this task and model?
+    \end{enumerate}
+\end{frame}
+
+\section{The Task: Promptable Segmentation}
+
+\begin{frame}{Defining the Task}
+    \frametitle{Defining the Task: Promptable Segmentation}
+    \textbf{Input:} An image and a prompt (point, box, mask, text). \\
+    \textbf{Output:} A valid segmentation mask.
+    \begin{itemize}
+        \item "Valid" means outputting a reasonable mask even if the prompt is ambiguous.
+        \item Inspired by interactive segmentation, but goal is always predicting a valid mask immediately.
+    \end{itemize}
+    \vfill
+    \textbf{TODO:} Add graphic illustrating prompt types (point, box, text, mask) leading to segmentation. (Fig 1 or similar)
+\end{frame}
+
+\begin{frame}{Zero-Shot Transfer via Prompting}
+    \frametitle{Zero-Shot Transfer via Prompting}
+    The core idea: Train a model on the general promptable task, then solve specific downstream tasks by designing the right prompts.
+    \begin{itemize}
+        \item Example: Use bounding box outputs from a cat detector as prompts to get cat instance segmentation.
+        \item SAM acts as a composable component in a larger system.
+        \item Can adapt to many (but not all) existing and new tasks.
+    \end{itemize}
+\end{frame}
+
+\section{The Model: SAM Architecture}
+
+\begin{frame}{Model Requirements & Design}
+    \frametitle{Model Requirements \& Design}
+    \textbf{Requirements:}
+    \begin{itemize}
+        \item Flexible Prompts: Handle various input types.
+        \item Real-time: Amortized real-time inference ($\sim$50ms) for interactivity.
+        \item Ambiguity-aware: Output multiple valid masks for ambiguous prompts.
+    \end{itemize}
+    \textbf{Design:} Decoupled architecture for efficiency.
+    \begin{enumerate}
+        \item Heavyweight Image Encoder (ViT-H MAE pre-trained) - run once per image.
+        \item Lightweight Prompt Encoder (Positional embeddings, CLIP for text).
+        \item Lightweight Mask Decoder (Transformer) - combines image and prompt embeddings.
+    \end{enumerate}
+    \vfill
+    \textbf{TODO:} Add graphic illustrating the SAM model architecture (Fig 2).
+\end{frame}
+
+\begin{frame}{Encoder/Decoder Details}
+    \frametitle{Encoder/Decoder Details}
+    \textbf{Image Encoder:} MAE pre-trained ViT.
+    \textbf{Prompt Encoder:}
+    \begin{itemize}
+        \item Sparse (Points, Boxes, Text): Positional encodings + learned embeddings per prompt type. Text uses CLIP.
+        \item Dense (Masks): CNN downscales mask, combines with image embedding.
+    \end{itemize}
+    \textbf{Mask Decoder:}
+    \begin{itemize}
+        \item Transformer decoder updates prompt tokens via self/cross-attention.
+        \item Upscales image embedding.
+        \item Predicts mask logits via MLP + dynamic linear classifier using output tokens.
+    \end{itemize}
+    Loss: Linear combination of Focal Loss and Dice Loss.
+\end{frame}
+
+
+\section{The Dataset: SA-1B}
+
+\begin{frame}{The Need for Data \& The Data Engine}
+    \frametitle{The Need for Data \& The Data Engine}
+    Problem: No web-scale segmentation data exists.
+    Solution: Build a "Data Engine" - iterate between model-assisted annotation and model improvement.
+    \textbf{Three Stages:}
+    \begin{enumerate}
+        \item \textbf{Assisted-Manual:} Annotators label interactively with SAM's help. Model retrained iteratively.
+        \item \textbf{Semi-Automatic:} SAM proposes masks for likely objects; annotators focus on the rest.
+        \item \textbf{Fully Automatic:} Prompt SAM with a regular grid (32x32) of points $\rightarrow$ ~100 masks/image.
+    \end{enumerate}
+    \vfill
+    \textbf{TODO:} Add graphic illustrating the data engine loop (Fig 4).
+\end{frame}
+
+\begin{frame}{SA-1B Dataset}
+    \frametitle{SA-1B Dataset}
+    Result of the fully automatic stage.
+    \begin{itemize}
+        \item \textbf{1.1 Billion} high-quality masks.
+        \item \textbf{11 Million} diverse, high-resolution images (licensed from provider).
+        \item \textbf{400x} more masks than previous largest datasets (COCO, LVIS).
+        \item Masks automatically generated and filtered for quality/stability (IoU, stability threshold).
+        \item Geographically and economically diverse image sources.
+    \end{itemize}
+\end{frame}
+
+\section{Evaluation & Results}
+
+\begin{frame}{Zero-Shot Evaluation}
+    \frametitle{Zero-Shot Evaluation}
+    Extensive evaluation on 23 diverse segmentation datasets.
+    \begin{itemize}
+        \item Single point prompt performance often near manually annotated GT.
+        \item Strong results on zero-shot downstream tasks via prompt engineering:
+        \begin{itemize}
+            \item Edge Detection
+            \item Object Proposal Generation
+            \item Instance Segmentation
+            \item Text-to-Mask (preliminary)
+        \end{itemize}
+    \end{itemize}
+    \vfill
+    \textbf{TODO:} Add a key result figure/table (e.g., comparing point prompt performance, Fig 6/7).
+\end{frame}
+
+\section{Strengths}
+
+\begin{frame}{Strengths}
+    \frametitle{Strengths}
+    \begin{itemize}
+        \item \textbf{Foundation Model Vision:} Pioneering promptable, general segmentation.
+        \item \textbf{Unifying Task:} Promptable segmentation enables flexibility and zero-shot transfer.
+        \item \textbf{Massive Dataset (SA-1B):} Unprecedented scale and diversity.
+        \item \textbf{Strong Zero-Shot Performance:} Impressive generalization across many tasks/datasets.
+        \item \textbf{Efficient Architecture:} Decoupled design allows real-time interaction.
+    \end{itemize}
+\end{frame}
+
+\section{Limitations & Future Work}
+
+\begin{frame}{Limitations & Future Work}
+    \frametitle{Limitations \& Future Work}
+    \begin{itemize}
+        \item \textbf{Dataset Quality Assurance:} Transparency needed on automated mask filtering effectiveness.
+        \item \textbf{Downstream Implementation:} Lack of practical integration examples.
+        \item \textbf{Prompt Engineering:} Methodology underexplored.
+        \item \textbf{Shallow Semantics:} Text understanding needs improvement.
+        \item \textbf{Bias Analysis:} Surface-level; deeper sociotechnical audit needed.
+        \item \textbf{Generalist vs Specialist:} May not beat specialized models in niche domains.
+    \end{itemize}
+\end{frame}
+
+\section{Conclusion}
+
+\begin{frame}{Conclusion}
+    \frametitle{Conclusion}
+    Segment Anything introduces a powerful new paradigm for image segmentation.
+    \begin{itemize}
+        \item Successfully implements a promptable task, model, and large-scale dataset.
+        \item Demonstrates strong zero-shot capabilities.
+        \item Opens up many avenues for future research in foundation models for vision, prompt engineering, and dataset quality.
+    \end{itemize}
+    A significant step towards general-purpose, interactive image understanding.
+\end{frame}
+
+\begin{frame}{Thank You / Q&A}
+    \frametitle{Thank You / Q\&A}
+    Questions?
+    \vfill
+    Model and dataset available at: \\ \url{https://segment-anything.com}
+\end{frame}
+
 
 \end{document}
