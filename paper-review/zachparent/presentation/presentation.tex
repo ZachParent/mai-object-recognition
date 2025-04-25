@@ -16,7 +16,7 @@
     \begin{beamercolorbox}[wd=0.5\paperwidth, ht=2.25ex, dp=1ex, center]{title in head/foot}%
       \usebeamerfont{title in head/foot}\insertshorttitle
     \end{beamercolorbox}%
-    \begin{beamercolorbox}[wd=0.25\paperwidth, ht=2.25ex, dp=1ex, right]{date in head/foot}%
+    \begin{beamercolorbox}[wd=0.244\paperwidth, ht=2.25ex, dp=1ex, right]{date in head/foot}%
       \usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em} \insertframenumber{} / \inserttotalframenumber \hspace{2ex}
     \end{beamercolorbox}%
   }%
@@ -227,6 +227,7 @@
     \end{itemize}
     \begin{figure}
         \centering
+        \vspace{-6pt}
         \includegraphics[width=0.8\textwidth]{figures/zero_shot_performance.png}
         \caption{Point to mask evaluation on 23 datasets. (a) Mean IoU of SAM and the strongest single point segmenter, RITM [92].
         Due to ambiguity, a single mask may not match ground truth; circles show "oracle" results of the most relevant of SAM's 3
