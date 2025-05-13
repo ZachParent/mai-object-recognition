@@ -9,6 +9,17 @@
 - [ ] analyze results
 - [ ] report / presentation
 
+## notes 2025-05-13
+- subject might go out of the scene, ignore these frames
+  - count number of pixels in the mask and thresholding => if the # pixels with a person is < 10% of the image, ignore the frame
+  - this is the simple way
+  - the purpose of the task is to play with smpl
+    - we use pose information for one task
+    - we can use it also to check if the person is out of the scene
+
+- try no more than 3 options for the vision transformer
+  - original unet + 3 more options
+
 ## Assignment info
 ### Deliverable 3 - Body and cloth depth estimation
 - [ ] Given an image of a person, cropped in the preprocessing (red rectangle), the goal is to estimate its corresponding depth image.
