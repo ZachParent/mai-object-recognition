@@ -1,13 +1,13 @@
 ## TODO
-- [ ] dataset
-- [ ] preprocessing
-- [ ] runner
-- [ ] baseline model
-- [ ] perceptual loss
-- [ ] vision transformer
-- [ ] run at scale
-- [ ] analyze results
-- [ ] report / presentation
+- [ ] dataset @pedro
+- [ ] preprocessing + image generation @pedro
+- [ ] runner @zach
+- [ ] baseline model @bruno
+- [ ] perceptual loss @bruno
+- [ ] vision transformers x 3 @ sheena
+- [ ] run at scale @zach
+- [ ] analyze results @all
+- [ ] report / presentation @all
 
 ## notes 2025-05-13
 - subject might go out of the scene, ignore these frames
