@@ -1,0 +1,14 @@
+deodr
+ffmpeg
+ipykernel
+keras-unet-collection
+matplotlib
+nbformat
+numpy
+opencv-python
+plotly
+prettyprinter
+pydot
+pytz
+tensorflow
+trimesh
