@@ -2,7 +2,6 @@ import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchinfo import summary
 
 
 class ConvBlock(nn.Module):
@@ -209,6 +208,8 @@ class UNet2D(nn.Module):
 
 
 if __name__ == "__main__":
+    from torchinfo import summary
+
     model = UNet2D(input_size=(256, 256, 3), filter_num=[64, 128, 256, 512], n_labels=1)
 
     summary(model, (1, 3, 256, 256))
