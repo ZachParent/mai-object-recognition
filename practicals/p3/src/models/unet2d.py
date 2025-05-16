@@ -124,11 +124,6 @@ class UNet2D(nn.Module):
         batch_norm=False,
         pool=True,
         unpool=True,
-        backbone=None,
-        weights="imagenet",
-        freeze_backbone=True,
-        freeze_batch_norm=True,
-        name="unet",
     ):
         super().__init__()
 
