@@ -1,12 +1,12 @@
 import os
 import random
-from typing import Dict
+from pathlib import Path
 
 import numpy as np
 import torch
 from config import CHECKPOINTS_DIR
 from datasets.dummy import get_dummy_dataloader
-from metrics import MetricLogger, get_metric_collection
+from metrics import MAE, MetricCollection, MetricLogger, PerceptualLoss
 from models import get_model
 from models.unet2d import UNet2D
 from run_configs import ModelName, RunConfig, UNet2DConfig
@@ -45,27 +45,26 @@ class Trainer:
         model: UNet2D,
         optimizer: torch.optim.Optimizer,
         criterion: torch.nn.Module,
-        train_metrics: Dict,
-        val_metrics: Dict,
+        train_metric_collection: MetricCollection,
+        val_metric_collection: MetricCollection,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self.model = model.to(device)
         self.optimizer = optimizer
         self.criterion = criterion
-        self.train_metrics = train_metrics
-        self.val_metrics = val_metrics
+        self.train_metric_collection = train_metric_collection
+        self.val_metric_collection = val_metric_collection
         self.device = device
 
-    def train_epoch(self, dataloader: DataLoader) -> float:
+    def train_epoch(
+        self, dataloader: DataLoader, metric_collection: MetricCollection
+    ) -> float:
         self.model.train()
         progress = TrainingProgress(dataloader, desc="Training")
 
-        # Reset metrics
-        for metric in self.train_metrics.values():
-            metric.reset()
-
         total_loss = 0.0
         num_batches = 0
+        metric_collection.reset()
 
         for image, target in dataloader:
             # Move tensors to the correct device
@@ -86,8 +85,7 @@ class Trainer:
             num_batches += 1
 
             # Update metrics
-            for metric in self.train_metrics.values():
-                metric.update(pred_depth, depth)
+            metric_collection.update(pred_depth.detach(), depth)
 
             # Backward pass and optimization
             loss.backward()
@@ -101,13 +99,14 @@ class Trainer:
         # Return average loss for the epoch
         return total_loss / num_batches
 
-    def evaluate(self, dataloader: DataLoader) -> float:
+    def evaluate(
+        self, dataloader: DataLoader, metric_collection: MetricCollection
+    ) -> float:
         self.model.eval()
         progress = TrainingProgress(dataloader, desc="Evaluating")
 
         # Reset metrics
-        for metric in self.val_metrics.values():
-            metric.reset()
+        metric_collection.reset()
 
         total_loss = 0.0
         num_batches = 0
@@ -129,8 +128,7 @@ class Trainer:
                 num_batches += 1
 
                 # Update metrics
-                for metric in self.val_metrics.values():
-                    metric.update(pred_depth, depth)
+                metric_collection.update(pred_depth.detach(), depth)
 
                 # Update progress
                 progress.update(loss.item())
@@ -167,6 +165,7 @@ def run_experiment(
     config: RunConfig,
     train_dataloader: DataLoader,
     val_dataloader: DataLoader,
+    test_dataloader: DataLoader,
 ) -> None:
     # Set random seed for reproducibility
     if config.seed is not None:
@@ -180,20 +179,29 @@ def run_experiment(
     criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
 
     # Initialize metrics
-    train_metrics = get_metric_collection()
-    val_metrics = get_metric_collection()
+    train_metric_collection = MetricCollection(
+        {"mae": MAE(), "perceptual": PerceptualLoss()}
+    )
+    val_metric_collection = MetricCollection(
+        {"mae": MAE(), "perceptual": PerceptualLoss()}
+    )
 
     # Initialize trainer
     trainer = Trainer(
         model=model,
         optimizer=optimizer,
         criterion=criterion,
-        train_metrics=train_metrics,
-        val_metrics=val_metrics,
+        train_metric_collection=train_metric_collection,
+        val_metric_collection=val_metric_collection,
     )
 
     # Initialize metric logger
-    metrics_logger = MetricLogger(config.id, train_metrics, val_metrics)
+    metrics_logger = MetricLogger(
+        config.id,
+        train_metric_collection,
+        val_metric_collection,
+        Path(".tmp/metrics.csv"),
+    )
 
     # Training loop
     for epoch in range(config.epochs):
@@ -203,11 +211,10 @@ def run_experiment(
         print("-" * width)
 
         # Train and evaluate
-        train_loss = trainer.train_epoch(train_dataloader)
-        val_loss = trainer.evaluate(val_dataloader)
+        trainer.train_epoch(train_dataloader, train_metric_collection)
+        trainer.evaluate(val_dataloader, val_metric_collection)
 
         # Log metrics
-        metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
 
         # Save model if path is provided
@@ -215,7 +222,15 @@ def run_experiment(
             save_dir = config.save_path / f"run_{config.id}"
             trainer.save_model(str(save_dir / f"epoch_{epoch+1}.pt"))
 
-    metrics_logger.close()
+    test_metric_collection = MetricCollection(
+        {"mae": MAE(), "perceptual": PerceptualLoss()}
+    )
+    trainer.evaluate(test_dataloader, test_metric_collection)
+
+    print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
+    print(f"Test Perceptual: {test_metric_collection.metrics['perceptual'].compute()}")
+
+    metrics_logger.save_metrics()
 
 
 if __name__ == "__main__":
@@ -235,9 +250,11 @@ if __name__ == "__main__":
     torch.manual_seed(config.seed)
     train_dataloader = get_dummy_dataloader(config.batch_size)
     val_dataloader = get_dummy_dataloader(config.batch_size)
+    test_dataloader = get_dummy_dataloader(config.batch_size)
 
     run_experiment(
         config=config,
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
+        test_dataloader=test_dataloader,
     )

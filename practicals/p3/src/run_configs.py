@@ -38,7 +38,7 @@ BASE_RUN_SET = RunSet(
     configs=[
         RunConfig(
             id=1,
-            model_name="unet2d",
+            model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             batch_size=16,
             augmentation=False,
