@@ -1,8 +1,11 @@
 import os
+import random
 from typing import Dict
 
+import numpy as np
 import torch
 from config import CHECKPOINTS_DIR
+from datasets.dummy import get_dummy_dataloader
 from metrics import MetricLogger, get_metric_collection
 from models import get_model
 from models.unet2d import UNet2D
@@ -150,11 +153,24 @@ class Trainer:
         print(f"Model loaded from {path}")
 
 
+def set_seed(seed: int) -> None:
+    """Set random seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 def run_experiment(
     config: RunConfig,
     train_dataloader: DataLoader,
     val_dataloader: DataLoader,
 ) -> None:
+    # Set random seed for reproducibility
+    if config.seed is not None:
+        set_seed(config.seed)
 
     # Initialize model
     model = get_model(config)
@@ -207,22 +223,18 @@ if __name__ == "__main__":
     config = RunConfig(
         id=0,
         model_name=ModelName.UNET2D,
-        learning_rate=1e-4,
+        learning_rate=1e-2,
         batch_size=1,
         epochs=2,
         save_path=CHECKPOINTS_DIR,
-        unet2d_config=UNet2DConfig(),  # Use default UNet2D config
+        unet2d_config=UNet2DConfig(),
+        seed=42,
     )
 
     # Create dummy dataloaders for testing
-    train_dataloader = DataLoader(
-        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))],
-        batch_size=config.batch_size,
-    )
-    val_dataloader = DataLoader(
-        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))],
-        batch_size=config.batch_size,
-    )
+    torch.manual_seed(config.seed)
+    train_dataloader = get_dummy_dataloader(config.batch_size)
+    val_dataloader = get_dummy_dataloader(config.batch_size)
 
     run_experiment(
         config=config,
