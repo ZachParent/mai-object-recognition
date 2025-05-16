@@ -1,10 +1,10 @@
 import os
 import random
-from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
-from config import CHECKPOINTS_DIR
+from config import CHECKPOINTS_DIR, RESULTS_DIR
 from datasets.dummy import get_dummy_dataloader
 from metrics import MAE, MetricCollection, MetricLogger, PerceptualLoss
 from models import get_model
@@ -200,7 +200,6 @@ def run_experiment(
         config.id,
         train_metric_collection,
         val_metric_collection,
-        Path(".tmp/metrics.csv"),
     )
 
     # Training loop
@@ -217,11 +216,6 @@ def run_experiment(
         # Log metrics
         metrics_logger.log_metrics()
 
-        # Save model if path is provided
-        if config.save_path:
-            save_dir = config.save_path / f"run_{config.id}"
-            trainer.save_model(str(save_dir / f"epoch_{epoch+1}.pt"))
-
     test_metric_collection = MetricCollection(
         {"mae": MAE(), "perceptual": PerceptualLoss()}
     )
@@ -230,7 +224,13 @@ def run_experiment(
     print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
     print(f"Test Perceptual: {test_metric_collection.metrics['perceptual'].compute()}")
 
-    metrics_logger.save_metrics()
+    metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id}")
+    test_df = pd.DataFrame(test_metric_collection.compute(), index=[0])
+    test_df.to_csv(RESULTS_DIR / f"run_{config.id}" / "test.csv", index=False)
+
+    # Save model if path is provided
+    if config.save_path:
+        trainer.save_model(str(config.save_path / f"run_{config.id}.pt"))
 
 
 if __name__ == "__main__":

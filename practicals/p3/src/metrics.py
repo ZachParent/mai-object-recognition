@@ -83,13 +83,11 @@ class MetricLogger:
         experiment_id: int,
         train_metric_collection: MetricCollection,
         val_metric_collection: MetricCollection,
-        csv_path: Path,
     ):
         self.experiment_id = experiment_id
         # Use MetricCollection to group metrics, and MetricTracker to track them
         self.train_tracker = MetricTracker(train_metric_collection.metrics)
         self.val_tracker = MetricTracker(val_metric_collection.metrics)
-        self.csv_path = csv_path
 
     def log_metrics(self):
         train_metrics = self.train_tracker.compute()
@@ -101,34 +99,12 @@ class MetricLogger:
             print(f"Train {name.upper()}: {train_metrics[name]:.4f}")
             print(f"Val {name.upper()}: {val_metrics[name]:.4f}")
 
-    def save_metrics(self):
-        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame()
-        df = pd.concat(
-            [
-                df,
-                pd.DataFrame(
-                    {
-                        f"train_{metric}": self.train_tracker.get_values()[metric]
-                        for metric in self.train_tracker.get_values().keys()
-                    }
-                ),
-            ],
-            axis=1,
-        )
-        df = pd.concat(
-            [
-                df,
-                pd.DataFrame(
-                    {
-                        f"val_{metric}": self.val_tracker.get_values()[metric]
-                        for metric in self.val_tracker.get_values().keys()
-                    }
-                ),
-            ],
-            axis=1,
-        )
-        df.to_csv(self.csv_path, index=False)
+    def save_metrics(self, csv_dir_path: Path):
+        csv_dir_path.mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame(self.train_tracker.get_values())
+        df.to_csv(csv_dir_path / f"train_{self.experiment_id}.csv", index=False)
+        df = pd.DataFrame(self.val_tracker.get_values())
+        df.to_csv(csv_dir_path / f"val_{self.experiment_id}.csv", index=False)
 
 
 def get_metric_collection() -> Dict:
@@ -168,7 +144,7 @@ class PerceptualLoss(Metric):
     def update(self, preds: torch.Tensor, target: torch.Tensor):
 
         # Garbage loss
-        loss = torch.mean((preds / sum(preds) - target / sum(target)) ** 2)
+        loss = torch.mean((preds / sum(preds) - target / sum(target)) ** 2).item()
         self.total_loss += loss
         self.num_batches += 1
 
@@ -187,10 +163,10 @@ if __name__ == "__main__":
 
     train_mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
     val_mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
-    logger = MetricLogger(0, train_mc, val_mc, Path(".tmp/metrics.csv"))
+    logger = MetricLogger(0, train_mc, val_mc)
     train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
 
     train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
     val_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
     logger.log_metrics()
-    logger.save_metrics()
+    logger.save_metrics(Path(".tmp/metrics.csv"))
