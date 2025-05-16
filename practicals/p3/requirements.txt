@@ -1,0 +1,10 @@
+matplotlib
+pandas
+pydantic
+requests
+tensorboard
+torch==2.6.0
+torchinfo
+torchvision==0.21.0
+tqdm
+transformers
