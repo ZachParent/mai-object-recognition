@@ -2,8 +2,13 @@
 - [ ] dataset @pedro
 - [ ] preprocessing + image generation @pedro
 - [ ] runner @zach
+  - [ ] get base U-Net2D replica in torch with standard hyperparameters
 - [ ] baseline model @bruno
+  - [ ] Hyperparameter tuning
+  - [ ] Data Augmentation
 - [ ] perceptual loss @bruno
+  - [ ] Normal Maps
+  - [ ] L1 or L2 discrepancy error
 - [ ] vision transformers x 3 @ sheena
 - [ ] run at scale @zach
 - [ ] analyze results @all
