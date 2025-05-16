@@ -1,8 +1,17 @@
-from typing import Literal
+from enum import Enum
+from pathlib import Path
 
 import pydantic
 
-ModelName = Literal["unet2d"]
+
+class ModelName(str, Enum):
+    UNET2D = "unet2d"
+
+
+class UNet2DConfig(pydantic.BaseModel):
+    input_size: tuple[int, int, int] = (256, 256, 3)
+    filter_num: list[int] = [64, 128, 256, 512]
+    n_labels: int = 1  # For depth estimation, we only need one channel
 
 
 class RunConfig(pydantic.BaseModel):
@@ -10,7 +19,10 @@ class RunConfig(pydantic.BaseModel):
     model_name: ModelName
     learning_rate: float
     batch_size: int = 16
+    epochs: int = 2
     augmentation: bool = False
+    save_path: Path | None = None
+    unet2d_config: UNet2DConfig | None = None
     save_img_ids: list[int] = []
 
 

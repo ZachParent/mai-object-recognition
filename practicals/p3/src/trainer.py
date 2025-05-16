@@ -1,10 +1,12 @@
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 from config import CHECKPOINTS_DIR
 from metrics import MetricLogger, get_metric_collection
+from models import get_model
 from models.unet2d import UNet2D
+from run_configs import ModelName, RunConfig, UNet2DConfig
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -149,16 +151,16 @@ class Trainer:
 
 
 def run_experiment(
-    model: UNet2D,
+    config: RunConfig,
     train_dataloader: DataLoader,
     val_dataloader: DataLoader,
-    experiment_id: int,
-    learning_rate: float = 1e-4,
-    epochs: int = 100,
-    save_path: Optional[str] = None,
 ) -> None:
+
+    # Initialize model
+    model = get_model(config)
+
     # Initialize optimizer and loss function
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
 
     # Initialize metrics
@@ -175,13 +177,13 @@ def run_experiment(
     )
 
     # Initialize metric logger
-    metrics_logger = MetricLogger(experiment_id, train_metrics, val_metrics)
+    metrics_logger = MetricLogger(config.id, train_metrics, val_metrics)
 
     # Training loop
-    for epoch in range(epochs):
+    for epoch in range(config.epochs):
         width = 90
         print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} / {epochs}".center(width))
+        print(f"EPOCH {epoch+1} / {config.epochs}".center(width))
         print("-" * width)
 
         # Train and evaluate
@@ -193,34 +195,37 @@ def run_experiment(
         metrics_logger.log_metrics()
 
         # Save model if path is provided
-        if save_path:
-            trainer.save_model(f"{save_path}/epoch_{epoch+1}.pt")
+        if config.save_path:
+            save_dir = config.save_path / f"run_{config.id}"
+            trainer.save_model(str(save_dir / f"epoch_{epoch+1}.pt"))
 
     metrics_logger.close()
 
 
 if __name__ == "__main__":
     # Example usage
-    model = UNet2D(
-        input_size=(256, 256, 3),
-        filter_num=[64, 128, 256, 512],
-        n_labels=1,  # Single channel for depth
+    config = RunConfig(
+        id=0,
+        model_name=ModelName.UNET2D,
+        learning_rate=1e-4,
+        batch_size=1,
+        epochs=2,
+        save_path=CHECKPOINTS_DIR,
+        unet2d_config=UNet2DConfig(),  # Use default UNet2D config
     )
 
     # Create dummy dataloaders for testing
     train_dataloader = DataLoader(
-        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))], batch_size=1
+        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))],
+        batch_size=config.batch_size,
     )
     val_dataloader = DataLoader(
-        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))], batch_size=1
+        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))],
+        batch_size=config.batch_size,
     )
 
     run_experiment(
-        model=model,
+        config=config,
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
-        experiment_id=0,
-        learning_rate=1e-4,
-        epochs=10,
-        save_path=CHECKPOINTS_DIR / "demo_model",
     )
