@@ -24,7 +24,7 @@ class RunConfig(pydantic.BaseModel):
     augmentation: bool = False
     save_path: Optional[Path] = None
     unet2d_config: Optional[UNet2DConfig] = None
-    save_img_ids: list[int] = []
+    save_video_ids: list[int] = []
     seed: Optional[int] = None
 
 
@@ -42,7 +42,7 @@ BASE_RUN_SET = RunSet(
             learning_rate=0.0001,
             batch_size=16,
             augmentation=False,
-            save_img_ids=[1, 5],
+            save_video_ids=[0],
         ),
     ],
 )
