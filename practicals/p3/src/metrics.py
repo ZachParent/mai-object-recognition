@@ -107,11 +107,6 @@ class MetricLogger:
         df.to_csv(csv_dir_path / f"val_{self.experiment_id}.csv", index=False)
 
 
-def get_metric_collection() -> Dict:
-    """Create a collection of metrics for depth estimation evaluation."""
-    return {"mae": MAE(), "perceptual": PerceptualLoss()}
-
-
 class MAE(Metric):
     def __init__(self):
         self.reset()
@@ -129,6 +124,27 @@ class MAE(Metric):
     def compute(self) -> float:
         return (
             self.total_abs_error / self.total_pixels if self.total_pixels > 0 else 0.0
+        )
+
+
+class MSE(Metric):
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.total_squared_error = 0.0
+        self.total_pixels = 0
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        squared_error = (preds - target) ** 2
+        self.total_squared_error += squared_error.sum().item()
+        self.total_pixels += target.numel()
+
+    def compute(self) -> float:
+        return (
+            self.total_squared_error / self.total_pixels
+            if self.total_pixels > 0
+            else 0.0
         )
 
 
@@ -150,6 +166,16 @@ class PerceptualLoss(Metric):
 
     def compute(self) -> float:
         return self.total_loss / self.num_batches if self.num_batches > 0 else 0.0
+
+
+def get_metric_collection() -> MetricCollection:
+    return MetricCollection(
+        {
+            "mae": MAE(),
+            "mse": MSE(),
+            "perceptual": PerceptualLoss(),
+        }
+    )
 
 
 if __name__ == "__main__":

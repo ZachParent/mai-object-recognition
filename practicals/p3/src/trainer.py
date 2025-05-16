@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from config import CHECKPOINTS_DIR, RESULTS_DIR
 from datasets.dummy import get_dummy_dataloader
-from metrics import MAE, MetricCollection, MetricLogger, PerceptualLoss
+from metrics import MetricCollection, MetricLogger, get_metric_collection
 from models import get_model
 from models.unet2d import UNet2D
 from run_configs import ModelName, RunConfig, UNet2DConfig
@@ -179,12 +179,8 @@ def run_experiment(
     criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
 
     # Initialize metrics
-    train_metric_collection = MetricCollection(
-        {"mae": MAE(), "perceptual": PerceptualLoss()}
-    )
-    val_metric_collection = MetricCollection(
-        {"mae": MAE(), "perceptual": PerceptualLoss()}
-    )
+    train_metric_collection = get_metric_collection()
+    val_metric_collection = get_metric_collection()
 
     # Initialize trainer
     trainer = Trainer(
@@ -216,9 +212,7 @@ def run_experiment(
         # Log metrics
         metrics_logger.log_metrics()
 
-    test_metric_collection = MetricCollection(
-        {"mae": MAE(), "perceptual": PerceptualLoss()}
-    )
+    test_metric_collection = get_metric_collection()
     trainer.evaluate(test_dataloader, test_metric_collection)
 
     print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
