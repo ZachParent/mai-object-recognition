@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import einops
 import numpy as np
@@ -35,22 +35,59 @@ AUGMENT_TRANSFORM = v2.Compose(
 )
 
 
+def get_image_and_depth_paths(
+    start_idx: int, end_idx: Optional[int] = None
+) -> Tuple[List[str], List[str]]:
+    # Get all parent folders and sort them
+    parent_folders = sorted(PREPROCESSED_DATA_DIR.glob("0*"))
+    if end_idx is None:
+        end_idx = len(parent_folders) + 1
+
+    # Convert 1-based indices to 0-based for array slicing
+    start_idx = start_idx - 1
+    end_idx = end_idx - 1
+    selected_folders = parent_folders[start_idx:end_idx]
+
+    # Get image and depth paths only from selected folders
+    image_paths = []
+    depth_paths = []
+    for folder in selected_folders:
+        image_paths.extend(sorted(folder.glob("rgb/*.png")))
+        depth_paths.extend(sorted(folder.glob("depth_vis/*.png")))
+
+    assert len(image_paths) == len(depth_paths)
+    return image_paths, depth_paths
+
+
 class Cloth3dDataset(Dataset):
-    def __init__(self, enable_augmentation=False):
+    def __init__(
+        self,
+        start_idx: int = 1,
+        end_idx: Optional[int] = None,
+        enable_augmentation=False,
+    ):
         self.enable_augmentation = enable_augmentation
-        self.image_paths = sorted(PREPROCESSED_DATA_DIR.glob("**/rgb/*.png"))
-        self.depth_paths = sorted(PREPROCESSED_DATA_DIR.glob("**/depth_vis/*.png"))
-        assert len(self.image_paths) == len(self.depth_paths)
+        self.image_paths, self.depth_paths = get_image_and_depth_paths(
+            start_idx, end_idx
+        )
+
+    def _get_image_and_depth_paths(self, idx: int) -> Tuple[str, str]:
+        return self.image_paths[idx], self.depth_paths[idx]
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx) -> Tuple[tv_tensors.Image, tv_tensors.Mask]:
-        input_data = torch.from_numpy(np.array(Image.open(self.image_paths[idx])))
-        target_data = torch.from_numpy(np.array(Image.open(self.depth_paths[idx])))
+        input_data = torch.from_numpy(
+            np.array(Image.open(self.image_paths[idx]))
+        ).float()
+        target_data = torch.from_numpy(
+            np.array(Image.open(self.depth_paths[idx]))
+        ).float()
 
         # move channel to first dimension, and drop alpha channel
         input_data = einops.rearrange(input_data, "h w c -> c h w")[:3]
+        target_data = einops.rearrange(target_data, "h w -> () h w")
 
         # Wrap raw tensors into tv_tensors.Image and tv_tensors.Mask
         # This allows v2 transforms to correctly identify and process them.
@@ -69,7 +106,7 @@ class Cloth3dDataset(Dataset):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    dataset = Cloth3dDataset(enable_augmentation=True)
+    dataset = Cloth3dDataset(start_idx=1, end_idx=10, enable_augmentation=True)
     print(len(dataset))
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
@@ -78,5 +115,5 @@ if __name__ == "__main__":
     print(input_tensor.shape, target_tensor.shape)
     plt.imshow(input_tensor.permute(1, 2, 0))
     plt.show()
-    plt.imshow(target_tensor)
+    plt.imshow(target_tensor.squeeze(0))
     plt.show()

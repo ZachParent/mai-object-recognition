@@ -4,14 +4,15 @@ import random
 import numpy as np
 import pandas as pd
 import torch
-from config import CHECKPOINTS_DIR, RESULTS_DIR
-from datasets.dummy import get_dummy_dataloader
-from metrics import MetricCollection, MetricLogger, get_metric_collection
-from models import get_model
-from models.unet2d import UNet2D
-from run_configs import ModelName, RunConfig, UNet2DConfig
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+from .config import CHECKPOINTS_DIR, RESULTS_DIR
+from .datasets.cloth3d import Cloth3dDataset
+from .metrics import MetricCollection, MetricLogger, get_metric_collection
+from .models import get_model
+from .models.unet2d import UNet2D
+from .run_configs import ModelName, RunConfig, UNet2DConfig
 
 
 class TrainingProgress:
@@ -92,7 +93,7 @@ class Trainer:
             self.optimizer.step()
 
             # Update progress
-            progress.update(loss.item())
+            progress.update(total_loss / num_batches)
 
         progress.close()
 
@@ -131,7 +132,7 @@ class Trainer:
                 metric_collection.update(pred_depth.detach(), depth)
 
                 # Update progress
-                progress.update(loss.item())
+                progress.update(total_loss / num_batches)
 
         progress.close()
 
@@ -240,12 +241,22 @@ if __name__ == "__main__":
         seed=42,
     )
 
-    # Create dummy dataloaders for testing
     torch.manual_seed(config.seed)
-    train_dataloader = get_dummy_dataloader(config.batch_size)
-    val_dataloader = get_dummy_dataloader(config.batch_size)
-    test_dataloader = get_dummy_dataloader(config.batch_size)
-
+    train_dataloader = DataLoader(
+        dataset=Cloth3dDataset(start_idx=1, end_idx=2, enable_augmentation=True),
+        batch_size=config.batch_size,
+        shuffle=True,
+    )
+    val_dataloader = DataLoader(
+        dataset=Cloth3dDataset(start_idx=1, end_idx=2, enable_augmentation=False),
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
+    test_dataloader = DataLoader(
+        dataset=Cloth3dDataset(start_idx=1, end_idx=2, enable_augmentation=False),
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
     run_experiment(
         config=config,
         train_dataloader=train_dataloader,

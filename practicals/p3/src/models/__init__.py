@@ -1,5 +1,5 @@
-from models.unet2d import UNet2D
-from run_configs import ModelName, RunConfig
+from ..run_configs import ModelName, RunConfig
+from .unet2d import UNet2D
 
 
 def get_model(config: RunConfig) -> UNet2D:
