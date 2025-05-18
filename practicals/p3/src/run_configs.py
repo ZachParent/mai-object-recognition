@@ -11,8 +11,15 @@ class ModelName(str, Enum):
 
 class UNet2DConfig(pydantic.BaseModel):
     input_size: tuple[int, int, int] = (256, 256, 3)
-    filter_num: list[int] = [64, 128, 256, 512]
+    filter_num: list[int] = [64, 128, 256, 512, 1024]
     n_labels: int = 1  # For depth estimation, we only need one channel
+    stack_num_down: int = 2
+    stack_num_up: int = 1
+    activation: str = "GELU"
+    output_activation: str = "Sigmoid"
+    batch_norm: bool = True
+    pool: bool = True
+    unpool: bool = False
 
 
 class RunConfig(pydantic.BaseModel):

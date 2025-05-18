@@ -218,7 +218,18 @@ class UNet2D(nn.Module):
 if __name__ == "__main__":
     from torchinfo import summary
 
-    model = UNet2D(input_size=(256, 256, 3), filter_num=[64, 128, 256, 512], n_labels=1)
+    model = UNet2D(
+        input_size=(480, 640, 3),
+        filter_num=[64, 128, 256, 512, 1024],
+        n_labels=1,
+        stack_num_down=2,
+        stack_num_up=1,
+        activation="GELU",
+        output_activation="Sigmoid",
+        batch_norm=True,
+        pool=True,
+        unpool=False,
+    )
 
     summary(model, (1, 3, 256, 256))
 
