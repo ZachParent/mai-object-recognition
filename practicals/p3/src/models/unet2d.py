@@ -58,7 +58,11 @@ class UNetLeft(nn.Module):
         if pool:
             self.down = nn.MaxPool2d(2)
         else:
-            self.down = nn.Conv2d(in_channels, in_channels, 3, stride=2, padding=1)
+            down_layers = [nn.Conv2d(in_channels, in_channels, 3, stride=2, padding=1)]
+            if batch_norm:
+                down_layers.append(nn.BatchNorm2d(in_channels))
+            down_layers.append(nn.ReLU() if activation == "relu" else nn.GELU())
+            self.down = nn.Sequential(*down_layers)
 
         # Convolution stack
         self.conv = ConvBlock(
@@ -87,7 +91,11 @@ class UNetRight(nn.Module):
         if unpool:
             self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         else:
-            self.up = nn.ConvTranspose2d(in_channels, in_channels, 2, stride=2)
+            up_layers = [nn.ConvTranspose2d(in_channels, in_channels, 2, stride=2)]
+            if batch_norm:
+                up_layers.append(nn.BatchNorm2d(in_channels))
+            up_layers.append(nn.ReLU() if activation == "relu" else nn.GELU())
+            self.up = nn.Sequential(*up_layers)
 
         # Convolution before concatenation
         self.conv_before = ConvBlock(
