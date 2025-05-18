@@ -164,13 +164,31 @@ def set_seed(seed: int) -> None:
 
 def run_experiment(
     config: RunConfig,
-    train_dataloader: DataLoader,
-    val_dataloader: DataLoader,
-    test_dataloader: DataLoader,
 ) -> None:
     # Set random seed for reproducibility
     if config.seed is not None:
         set_seed(config.seed)
+
+    # Initialize dataloaders
+    train_dataloader = DataLoader(
+        dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=True),
+        batch_size=config.batch_size,
+        shuffle=True,
+    )
+    val_dataloader = DataLoader(
+        dataset=Cloth3dDataset(
+            start_idx=128, end_idx=128 + 16, enable_augmentation=False
+        ),
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
+    test_dataloader = DataLoader(
+        dataset=Cloth3dDataset(
+            start_idx=128 + 16, end_idx=None, enable_augmentation=False
+        ),
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
 
     # Initialize model
     model = get_model(config)
@@ -241,29 +259,4 @@ if __name__ == "__main__":
         seed=42,
     )
 
-    torch.manual_seed(config.seed)
-    train_dataloader = DataLoader(
-        dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=True),
-        batch_size=config.batch_size,
-        shuffle=True,
-    )
-    val_dataloader = DataLoader(
-        dataset=Cloth3dDataset(
-            start_idx=128, end_idx=128 + 16, enable_augmentation=False
-        ),
-        batch_size=config.batch_size,
-        shuffle=False,
-    )
-    test_dataloader = DataLoader(
-        dataset=Cloth3dDataset(
-            start_idx=128 + 16, end_idx=None, enable_augmentation=False
-        ),
-        batch_size=config.batch_size,
-        shuffle=False,
-    )
-    run_experiment(
-        config=config,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        test_dataloader=test_dataloader,
-    )
+    run_experiment(config=config)
