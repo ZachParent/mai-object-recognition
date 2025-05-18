@@ -49,6 +49,33 @@ BASE_RUN_SET = RunSet(
             learning_rate=0.0001,
             batch_size=16,
             augmentation=False,
+            unet2d_config=UNet2DConfig(),  # Default config
+            save_video_ids=[0],
+        ),
+    ],
+)
+
+HYPERPARAM_RUN_SET = RunSet(
+    title="Hyperparameter Tuning",
+    configs=[
+        RunConfig(
+            id=2,
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0001,
+            batch_size=16,
+            augmentation=False,
+            unet2d_config=UNet2DConfig(
+                filter_num=[64, 256, 1024],  # Reduced depth, increased width
+            ),
+            save_video_ids=[0],
+        ),
+        RunConfig(
+            id=3,
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0001,
+            batch_size=16,
+            augmentation=False,
+            unet2d_config=UNet2DConfig(batch_norm=False),  # No batch normalization
             save_video_ids=[0],
         ),
     ],

@@ -27,7 +27,7 @@ model = models.unet_2d(input_size=(480, 640, 3), filter_num=[64, 128, 256, 512, 
 
 ## Conclusions
 - It is probably interesting to study the effect of varying `filter_num`. Maybe not its values, but definitely its length.
-- For instance, we could test a reduced version with `[64, 256, 1024]` &rarr; I think this will have approximately the same number of parameters, but we should check.
+  - For instance, we could test a reduced version with `[64, 256, 1024]` &rarr; Less parameters (20.8M vs 37.0M) but more operations (221.4GB vs 72.9GB mult-adds)
 - I do not think it is worth it to test `stack_num_down`, `stack_num_up`, `activation`, nor `output_activation`.
 - It could also be insightful to test the influence of `batch_norm`.
 - Maybe `pool` and/or `unpool` could be tested, depending on resource constraints. TBD when we have an estimate for training times.
