@@ -171,7 +171,8 @@ def run_experiment(
 
     # Initialize dataloaders
     train_dataloader = DataLoader(
-        dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=True),
+        # TODO: enable augmentation
+        dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=False),
         batch_size=config.batch_size,
         shuffle=True,
     )
@@ -251,9 +252,9 @@ if __name__ == "__main__":
     config = RunConfig(
         id=0,
         model_name=ModelName.UNET2D,
-        learning_rate=1e-2,
-        batch_size=1,
-        epochs=2,
+        learning_rate=3e-4,
+        batch_size=64,
+        epochs=10,
         save_path=CHECKPOINTS_DIR,
         unet2d_config=UNet2DConfig(),
         seed=42,
