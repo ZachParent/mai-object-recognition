@@ -18,13 +18,13 @@
 
 #SBATCH --chdir=.
 
-#SBATCH --output=../data/03_logs/p3_main_%j.out
+#SBATCH --output=data/03_logs/p3_main_%j.out
 
-#SBATCH --error=../data/03_logs/p3_main_%j.err
+#SBATCH --error=data/03_logs/p3_main_%j.err
 
 ###
 
 module purgue
 module load  impi  intel  hdf5  mkl  python/3.12.1-gcc
 
-time python main.py
+time python -m src.main
