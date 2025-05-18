@@ -1,7 +1,7 @@
+import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchinfo import summary
 
 
 class ConvBlock(nn.Module):
@@ -124,11 +124,6 @@ class UNet2D(nn.Module):
         batch_norm=False,
         pool=True,
         unpool=True,
-        backbone=None,
-        weights="imagenet",
-        freeze_backbone=True,
-        freeze_batch_norm=True,
-        name="unet",
     ):
         super().__init__()
 
@@ -213,5 +208,19 @@ class UNet2D(nn.Module):
 
 
 if __name__ == "__main__":
+    from torchinfo import summary
+
     model = UNet2D(input_size=(256, 256, 3), filter_num=[64, 128, 256, 512], n_labels=1)
+
     summary(model, (1, 3, 256, 256))
+
+    # 2 videos, 2 frames, 3 channels, 256x256
+    video = torch.randn(2, 2, 3, 256, 256)
+    print(f"Video shape: {video.shape}")
+    packed_video, packing_config = einops.pack([video], "* channel height width")
+    print(f"Packed video shape: {packed_video.shape}")
+    # pass packed video to model
+    preds = model(packed_video)
+    print(f"Packed preds shape: {preds.shape}")
+    unpacked_preds = einops.unpack(preds, packing_config, "* channel height width")[0]
+    print(f"Unpacked preds shape: {unpacked_preds.shape}")

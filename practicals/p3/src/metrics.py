@@ -1,49 +1,113 @@
-from typing import Dict
+import abc
+from pathlib import Path
+from typing import Dict, List
 
+import numpy as np
+import pandas as pd
 import torch
 
 
+class Metric(abc.ABC):
+    def __init__(self):
+        self.values = []
+        self.reset()
+
+    @abc.abstractmethod
+    def reset(self):
+        self.values = []
+
+    @abc.abstractmethod
+    def update(self, preds: torch.Tensor, target: torch.Tensor): ...
+
+    @abc.abstractmethod
+    def compute(self) -> float:
+        return np.sum(self.values) / len(self.values)
+
+
+class MetricCollection(Metric):
+    def __init__(self, metrics: Dict[str, Metric]):
+        self.metrics = metrics
+        self.reset()
+
+    def reset(self):
+        for metric in self.metrics.values():
+            metric.reset()
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        for metric in self.metrics.values():
+            metric.update(preds, target)
+
+    def compute(self) -> Dict[str, float]:
+        return {name: metric.compute() for name, metric in self.metrics.items()}
+
+
+class MetricTracker(Metric):
+    def __init__(self, metrics: Dict[str, Metric], **kwargs):
+        self.count = 0
+        self.metrics = metrics
+        self.reset()
+
+    def increment(self) -> None:
+        for metric_name in self.metrics.keys():
+            current_value = self.metrics[metric_name].compute()
+            self.values[metric_name].append(current_value)
+            self.metrics[metric_name].reset()
+        self.count += 1
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
+        """Update metric states with new predictions and targets."""
+        for metric in self.metrics.values():
+            metric.update(preds, target)
+
+    def compute(self) -> Dict[str, torch.Tensor]:
+        """Compute final metric values."""
+        results = {}
+        for name, metric in self.metrics.items():
+            results[name] = metric.compute()
+        return results
+
+    def get_values(self) -> Dict[str, List[float]]:
+        return self.values
+
+    def reset(self) -> None:
+        """Reset all metrics."""
+        for metric in self.metrics.values():
+            metric.reset()
+        self.values = {metric_name: [] for metric_name in self.metrics.keys()}
+        self.count = 0
+
+
 class MetricLogger:
-    def __init__(self, experiment_id: int, train_metrics: Dict, val_metrics: Dict):
+    def __init__(
+        self,
+        experiment_id: int,
+        train_metric_collection: MetricCollection,
+        val_metric_collection: MetricCollection,
+    ):
         self.experiment_id = experiment_id
-        self.train_metrics = train_metrics
-        self.val_metrics = val_metrics
-        self.train_losses = []
-        self.val_losses = []
-        self.train_maes = []
-        self.val_maes = []
-        self.train_perceptual_losses = []
-        self.val_perceptual_losses = []
-
-    def update_metrics(self, train_loss: float, val_loss: float):
-        self.train_losses.append(train_loss)
-        self.val_losses.append(val_loss)
-
-        # Update MAE and perceptual loss from metrics
-        self.train_maes.append(self.train_metrics["mae"].compute())
-        self.val_maes.append(self.val_metrics["mae"].compute())
-        self.train_perceptual_losses.append(self.train_metrics["perceptual"].compute())
-        self.val_perceptual_losses.append(self.val_metrics["perceptual"].compute())
+        # Use MetricCollection to group metrics, and MetricTracker to track them
+        self.train_tracker = MetricTracker(train_metric_collection.metrics)
+        self.val_tracker = MetricTracker(val_metric_collection.metrics)
 
     def log_metrics(self):
+        train_metrics = self.train_tracker.compute()
+        val_metrics = self.val_tracker.compute()
+        self.train_tracker.increment()
+        self.val_tracker.increment()
         print(f"\nEpoch Summary:")
-        print(f"Train Loss (MSE): {self.train_losses[-1]:.4f}")
-        print(f"Val Loss (MSE): {self.val_losses[-1]:.4f}")
-        print(f"Train MAE: {self.train_maes[-1]:.4f}")
-        print(f"Val MAE: {self.val_maes[-1]:.4f}")
-        print(f"Train Perceptual Loss: {self.train_perceptual_losses[-1]:.4f}")
-        print(f"Val Perceptual Loss: {self.val_perceptual_losses[-1]:.4f}")
+        for name in train_metrics:
+            print(f"Train {name.upper()}: {train_metrics[name]:.4f}")
+            print(f"Val {name.upper()}: {val_metrics[name]:.4f}")
 
-    def close(self):
-        pass  # Add any cleanup if needed
-
-
-def get_metric_collection() -> Dict:
-    """Create a collection of metrics for depth estimation evaluation."""
-    return {"mae": MAE(), "perceptual": PerceptualLoss()}
+    def save_metrics(self, csv_dir_path: Path):
+        csv_dir_path.mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame(self.train_tracker.get_values())
+        df.to_csv(csv_dir_path / f"train_{self.experiment_id}.csv", index=False)
+        df = pd.DataFrame(self.val_tracker.get_values())
+        df.to_csv(csv_dir_path / f"val_{self.experiment_id}.csv", index=False)
 
 
-class MAE:
+class MAE(Metric):
     def __init__(self):
         self.reset()
 
@@ -63,8 +127,29 @@ class MAE:
         )
 
 
+class MSE(Metric):
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.total_squared_error = 0.0
+        self.total_pixels = 0
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        squared_error = (preds - target) ** 2
+        self.total_squared_error += squared_error.sum().item()
+        self.total_pixels += target.numel()
+
+    def compute(self) -> float:
+        return (
+            self.total_squared_error / self.total_pixels
+            if self.total_pixels > 0
+            else 0.0
+        )
+
+
 # TODO(@Bruno): Implement perceptual loss
-class PerceptualLoss:
+class PerceptualLoss(Metric):
     def __init__(self):
         self.reset()
 
@@ -75,9 +160,39 @@ class PerceptualLoss:
     def update(self, preds: torch.Tensor, target: torch.Tensor):
 
         # Garbage loss
-        loss = torch.mean((preds / sum(preds) - target / sum(target)) ** 2)
+        loss = torch.mean((preds / sum(preds) - target / sum(target)) ** 2).item()
         self.total_loss += loss
         self.num_batches += 1
 
     def compute(self) -> float:
         return self.total_loss / self.num_batches if self.num_batches > 0 else 0.0
+
+
+def get_metric_collection() -> MetricCollection:
+    return MetricCollection(
+        {
+            "mae": MAE(),
+            "mse": MSE(),
+            "perceptual": PerceptualLoss(),
+        }
+    )
+
+
+if __name__ == "__main__":
+    mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
+    tracker = MetricTracker(mc.metrics)
+    tracker.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
+    tracker.increment()
+    tracker.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
+    tracker.increment()
+    print(tracker.get_values())
+
+    train_mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
+    val_mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
+    logger = MetricLogger(0, train_mc, val_mc)
+    train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
+
+    train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
+    val_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
+    logger.log_metrics()
+    logger.save_metrics(Path(".tmp/metrics.csv"))

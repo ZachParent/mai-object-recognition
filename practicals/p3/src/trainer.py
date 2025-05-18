@@ -1,10 +1,15 @@
 import os
-from typing import Dict, Optional
+import random
 
+import numpy as np
+import pandas as pd
 import torch
-from config import CHECKPOINTS_DIR
-from metrics import MetricLogger, get_metric_collection
+from config import CHECKPOINTS_DIR, RESULTS_DIR
+from datasets.dummy import get_dummy_dataloader
+from metrics import MetricCollection, MetricLogger, get_metric_collection
+from models import get_model
 from models.unet2d import UNet2D
+from run_configs import ModelName, RunConfig, UNet2DConfig
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -40,27 +45,26 @@ class Trainer:
         model: UNet2D,
         optimizer: torch.optim.Optimizer,
         criterion: torch.nn.Module,
-        train_metrics: Dict,
-        val_metrics: Dict,
+        train_metric_collection: MetricCollection,
+        val_metric_collection: MetricCollection,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self.model = model.to(device)
         self.optimizer = optimizer
         self.criterion = criterion
-        self.train_metrics = train_metrics
-        self.val_metrics = val_metrics
+        self.train_metric_collection = train_metric_collection
+        self.val_metric_collection = val_metric_collection
         self.device = device
 
-    def train_epoch(self, dataloader: DataLoader) -> float:
+    def train_epoch(
+        self, dataloader: DataLoader, metric_collection: MetricCollection
+    ) -> float:
         self.model.train()
         progress = TrainingProgress(dataloader, desc="Training")
 
-        # Reset metrics
-        for metric in self.train_metrics.values():
-            metric.reset()
-
         total_loss = 0.0
         num_batches = 0
+        metric_collection.reset()
 
         for image, target in dataloader:
             # Move tensors to the correct device
@@ -81,8 +85,7 @@ class Trainer:
             num_batches += 1
 
             # Update metrics
-            for metric in self.train_metrics.values():
-                metric.update(pred_depth, depth)
+            metric_collection.update(pred_depth.detach(), depth)
 
             # Backward pass and optimization
             loss.backward()
@@ -96,13 +99,14 @@ class Trainer:
         # Return average loss for the epoch
         return total_loss / num_batches
 
-    def evaluate(self, dataloader: DataLoader) -> float:
+    def evaluate(
+        self, dataloader: DataLoader, metric_collection: MetricCollection
+    ) -> float:
         self.model.eval()
         progress = TrainingProgress(dataloader, desc="Evaluating")
 
         # Reset metrics
-        for metric in self.val_metrics.values():
-            metric.reset()
+        metric_collection.reset()
 
         total_loss = 0.0
         num_batches = 0
@@ -124,8 +128,7 @@ class Trainer:
                 num_batches += 1
 
                 # Update metrics
-                for metric in self.val_metrics.values():
-                    metric.update(pred_depth, depth)
+                metric_collection.update(pred_depth.detach(), depth)
 
                 # Update progress
                 progress.update(loss.item())
@@ -148,79 +151,104 @@ class Trainer:
         print(f"Model loaded from {path}")
 
 
+def set_seed(seed: int) -> None:
+    """Set random seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 def run_experiment(
-    model: UNet2D,
+    config: RunConfig,
     train_dataloader: DataLoader,
     val_dataloader: DataLoader,
-    experiment_id: int,
-    learning_rate: float = 1e-4,
-    epochs: int = 100,
-    save_path: Optional[str] = None,
+    test_dataloader: DataLoader,
 ) -> None:
+    # Set random seed for reproducibility
+    if config.seed is not None:
+        set_seed(config.seed)
+
+    # Initialize model
+    model = get_model(config)
+
     # Initialize optimizer and loss function
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
 
     # Initialize metrics
-    train_metrics = get_metric_collection()
-    val_metrics = get_metric_collection()
+    train_metric_collection = get_metric_collection()
+    val_metric_collection = get_metric_collection()
 
     # Initialize trainer
     trainer = Trainer(
         model=model,
         optimizer=optimizer,
         criterion=criterion,
-        train_metrics=train_metrics,
-        val_metrics=val_metrics,
+        train_metric_collection=train_metric_collection,
+        val_metric_collection=val_metric_collection,
     )
 
     # Initialize metric logger
-    metrics_logger = MetricLogger(experiment_id, train_metrics, val_metrics)
+    metrics_logger = MetricLogger(
+        config.id,
+        train_metric_collection,
+        val_metric_collection,
+    )
 
     # Training loop
-    for epoch in range(epochs):
+    for epoch in range(config.epochs):
         width = 90
         print("\n" + "=" * width)
-        print(f"EPOCH {epoch+1} / {epochs}".center(width))
+        print(f"EPOCH {epoch+1} / {config.epochs}".center(width))
         print("-" * width)
 
         # Train and evaluate
-        train_loss = trainer.train_epoch(train_dataloader)
-        val_loss = trainer.evaluate(val_dataloader)
+        trainer.train_epoch(train_dataloader, train_metric_collection)
+        trainer.evaluate(val_dataloader, val_metric_collection)
 
         # Log metrics
-        metrics_logger.update_metrics(train_loss, val_loss)
         metrics_logger.log_metrics()
 
-        # Save model if path is provided
-        if save_path:
-            trainer.save_model(f"{save_path}/epoch_{epoch+1}.pt")
+    test_metric_collection = get_metric_collection()
+    trainer.evaluate(test_dataloader, test_metric_collection)
 
-    metrics_logger.close()
+    print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
+    print(f"Test Perceptual: {test_metric_collection.metrics['perceptual'].compute()}")
+
+    metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id}")
+    test_df = pd.DataFrame(test_metric_collection.compute(), index=[0])
+    test_df.to_csv(RESULTS_DIR / f"run_{config.id}" / "test.csv", index=False)
+
+    # Save model if path is provided
+    if config.save_path:
+        trainer.save_model(str(config.save_path / f"run_{config.id}.pt"))
 
 
 if __name__ == "__main__":
     # Example usage
-    model = UNet2D(
-        input_size=(256, 256, 3),
-        filter_num=[64, 128, 256, 512],
-        n_labels=1,  # Single channel for depth
+    config = RunConfig(
+        id=0,
+        model_name=ModelName.UNET2D,
+        learning_rate=1e-2,
+        batch_size=1,
+        epochs=2,
+        save_path=CHECKPOINTS_DIR,
+        unet2d_config=UNet2DConfig(),
+        seed=42,
     )
 
     # Create dummy dataloaders for testing
-    train_dataloader = DataLoader(
-        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))], batch_size=1
-    )
-    val_dataloader = DataLoader(
-        [(torch.randn(3, 256, 256), torch.randn(1, 256, 256))], batch_size=1
-    )
+    torch.manual_seed(config.seed)
+    train_dataloader = get_dummy_dataloader(config.batch_size)
+    val_dataloader = get_dummy_dataloader(config.batch_size)
+    test_dataloader = get_dummy_dataloader(config.batch_size)
 
     run_experiment(
-        model=model,
+        config=config,
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
-        experiment_id=0,
-        learning_rate=1e-4,
-        epochs=10,
-        save_path=CHECKPOINTS_DIR / "demo_model",
+        test_dataloader=test_dataloader,
     )

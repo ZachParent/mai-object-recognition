@@ -136,7 +136,18 @@ if __name__ == "__main__":
     exclude_list = args.exclude
     if "*venv/" not in exclude_list:  # Add your default exclude if not specified
         exclude_list.extend(
-            ["*venv/", "*.pyc", "*.pyo", ".vscode/", ".DS_Store", ".git/"]
+            [
+                "*venv/",
+                "*.pyc",
+                "*.pyo",
+                ".vscode/",
+                ".DS_Store",
+                ".git/",
+                "p1/",
+                "p2/",
+                "cloth3d*/",
+                "preprocessed_dataset/",  # you may want to remove this when you send the preprocessed dataset
+            ]
         )
 
     sync_directory_rsync(
