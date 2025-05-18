@@ -243,17 +243,21 @@ if __name__ == "__main__":
 
     torch.manual_seed(config.seed)
     train_dataloader = DataLoader(
-        dataset=Cloth3dDataset(start_idx=1, end_idx=2, enable_augmentation=True),
+        dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=True),
         batch_size=config.batch_size,
         shuffle=True,
     )
     val_dataloader = DataLoader(
-        dataset=Cloth3dDataset(start_idx=1, end_idx=2, enable_augmentation=False),
+        dataset=Cloth3dDataset(
+            start_idx=128, end_idx=128 + 16, enable_augmentation=False
+        ),
         batch_size=config.batch_size,
         shuffle=False,
     )
     test_dataloader = DataLoader(
-        dataset=Cloth3dDataset(start_idx=1, end_idx=2, enable_augmentation=False),
+        dataset=Cloth3dDataset(
+            start_idx=128 + 16, end_idx=None, enable_augmentation=False
+        ),
         batch_size=config.batch_size,
         shuffle=False,
     )

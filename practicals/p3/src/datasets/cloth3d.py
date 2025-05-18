@@ -41,11 +41,8 @@ def get_image_and_depth_paths(
     # Get all parent folders and sort them
     parent_folders = sorted(PREPROCESSED_DATA_DIR.glob("0*"))
     if end_idx is None:
-        end_idx = len(parent_folders) + 1
+        end_idx = len(parent_folders)
 
-    # Convert 1-based indices to 0-based for array slicing
-    start_idx = start_idx - 1
-    end_idx = end_idx - 1
     selected_folders = parent_folders[start_idx:end_idx]
 
     # Get image and depth paths only from selected folders
@@ -62,7 +59,7 @@ def get_image_and_depth_paths(
 class Cloth3dDataset(Dataset):
     def __init__(
         self,
-        start_idx: int = 1,
+        start_idx: int = 0,
         end_idx: Optional[int] = None,
         enable_augmentation=False,
     ):
@@ -106,7 +103,7 @@ class Cloth3dDataset(Dataset):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    dataset = Cloth3dDataset(start_idx=1, end_idx=10, enable_augmentation=True)
+    dataset = Cloth3dDataset(start_idx=0, end_idx=10, enable_augmentation=True)
     print(len(dataset))
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
