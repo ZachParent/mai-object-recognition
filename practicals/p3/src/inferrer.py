@@ -271,7 +271,7 @@ def load_model(model_path: str) -> Inferrer:
 
 if __name__ == "__main__":
     # Example usage
-    model_path = str(CHECKPOINTS_DIR / "run_0.pt")
+    model_path = str(CHECKPOINTS_DIR / f"run_{0:03d}.pt")
     inferrer = load_model(model_path)
 
     # Visualize a prediction

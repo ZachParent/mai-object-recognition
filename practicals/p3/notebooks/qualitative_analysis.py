@@ -13,7 +13,8 @@ from src.inferrer import load_model
 
 # %%
 # Load the trained model
-model_path = str(CHECKPOINTS_DIR / "run_0.pt")
+run_id = 0
+model_path = str(CHECKPOINTS_DIR / f"run_{run_id:03d}.pt")
 inferrer = load_model(model_path)
 
 # Create both raw and normalized datasets
@@ -57,7 +58,9 @@ video_id = 1
 frame_ids = [0, 25, 50, 75]
 
 for frame_id in frame_ids:
-    save_path = VISUALIZATIONS_DIR / f"video_{video_id}_frame_{frame_id}.png"
+    save_path = (
+        VISUALIZATIONS_DIR / f"run_{run_id:03d}_video_{video_id}_frame_{frame_id}.png"
+    )
     inferrer.visualize_prediction(
         video_id=video_id,
         frame_id=frame_id,
@@ -87,7 +90,9 @@ visualize_frame(video_id=1, frame_id=0)
 # Create a GIF from a sequence of frames
 video_id = 1
 frame_ids = list(range(0, 100, 5))  # Every 5th frame
-output_path = str(VISUALIZATIONS_DIR / f"video_{video_id}_animation.gif")
+output_path = str(
+    VISUALIZATIONS_DIR / f"run_{run_id:03d}_video_{video_id}_animation.gif"
+)
 
 inferrer.create_prediction_gif(
     video_id=video_id,

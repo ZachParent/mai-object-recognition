@@ -1,3 +1,4 @@
+# %%
 import sys
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
+# %%
 # Add src to Python path
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
@@ -15,13 +17,17 @@ from src.datasets.cloth3d import Cloth3dDataset
 from src.inferrer import load_model
 from src.metrics import compute_metrics
 
+# %%
 # Load the trained model
-model_path = str(CHECKPOINTS_DIR / "run_0.pt")
+run_id = 0
+model_path = str(CHECKPOINTS_DIR / f"run_{run_id:03d}.pt")
 inferrer = load_model(model_path)
 
+# %%
 # Create dataset
 dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
+# %%
 # Initialize lists to store results
 results = []
 
@@ -50,12 +56,14 @@ for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
         # Store results
         results.append(
             {
+                "run_id": run_id,
                 "video_id": video_id,
                 "frame_id": dataset.get_frame_id(frame_idx),
                 **metrics,
             }
         )
 
+# %%
 # Convert results to DataFrame
 results_df = pd.DataFrame(results)
 
@@ -63,6 +71,7 @@ results_df = pd.DataFrame(results)
 RESULTS_DIR.mkdir(exist_ok=True, parents=True)
 results_df.to_csv(RESULTS_DIR / "quantitative_analysis.csv", index=False)
 
+# %%
 # Print summary statistics
 print("\nSummary Statistics:")
 print(results_df.describe())

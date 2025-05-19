@@ -249,13 +249,13 @@ def run_experiment(
     for metric_name, metric in test_metric_collection.metrics.items():
         print(f"Test {metric_name.upper()}: {metric.compute()}")
 
-    metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id}")
+    metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id:03d}")
     test_df = pd.DataFrame(test_metric_collection.compute(), index=[0])
-    test_df.to_csv(RESULTS_DIR / f"run_{config.id}" / "test.csv", index=False)
+    test_df.to_csv(RESULTS_DIR / f"run_{config.id:03d}" / "test.csv", index=False)
 
     # Save model if path is provided
     if config.save_path:
-        trainer.save_model(str(config.save_path / f"run_{config.id}.pt"))
+        trainer.save_model(str(config.save_path / f"run_{config.id:03d}.pt"))
 
 
 if __name__ == "__main__":

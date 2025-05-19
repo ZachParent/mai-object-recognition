@@ -31,7 +31,7 @@ Select a video ID and frame ID to see the model's predictions.
 
 # Sidebar for model selection
 st.sidebar.title("Model Selection")
-model_path = str(CHECKPOINTS_DIR / "run_0.pt")
+model_path = str(CHECKPOINTS_DIR / f"run_{0:03d}.pt")
 inferrer = load_model(model_path)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
