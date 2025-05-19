@@ -177,6 +177,7 @@ with tab2:
         # Show success message
         status_text.text("GIF created successfully!")
         st.success(f"GIF saved to: {output_path}")
+        st.warning("GIFS cannot be played in the app. Please view it in the repo.")
 
         # Display the GIF
         st.image(output_path, caption=f"Video {gif_video_id} Animation")
