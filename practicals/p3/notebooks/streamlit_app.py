@@ -246,43 +246,27 @@ with tab3:
                 default=[],
             )
 
-        with col2:
-            metric_filter = st.multiselect(
-                "Filter by Metric",
-                options=[
-                    col for col in df.columns if col not in ["video_id", "frame_id"]
-                ],
-                default=[],
-            )
-
         # Apply filters
         filtered_df = df.copy()
         if video_filter:
             filtered_df = filtered_df[filtered_df["video_id"].isin(video_filter)]
-        if metric_filter:
-            filtered_df = filtered_df[["video_id", "frame_id"] + metric_filter]
-
-        # Add sorting
-        st.subheader("Sorting")
-        sort_col = st.selectbox("Sort by", options=filtered_df.columns, index=0)
-        sort_asc = st.checkbox("Ascending", value=True)
-        filtered_df = filtered_df.sort_values(by=sort_col, ascending=sort_asc)
 
         # Display the table
-        st.dataframe(filtered_df, use_container_width=True)
+        event = st.dataframe(
+            filtered_df,
+            use_container_width=True,
+            on_select="rerun",
+            selection_mode="single-row",
+        )
 
         # Add visualization for selected row
         st.subheader("Visualize Selected Frame")
-        selected_row = st.selectbox(
-            "Select a row to visualize",
-            options=range(len(filtered_df)),
-            format_func=lambda x: f"Video {filtered_df.iloc[x]['video_id']}, Frame {filtered_df.iloc[x]['frame_id']}",
-        )
+        rows = event.get("selection", {}).get("rows", [])
+        selected_row = rows[0] if rows else None
 
         if selected_row is not None:
-            row = filtered_df.iloc[selected_row]
-            video_id = int(row["video_id"])
-            frame_id = int(row["frame_id"])
+            video_id = int(filtered_df.iloc[selected_row]["video_id"])
+            frame_id = int(filtered_df.iloc[selected_row]["frame_id"])
 
             # Get the prediction
             raw_input_image, normalized_input_image, predicted_depth, ground_truth = (
@@ -361,6 +345,8 @@ with tab3:
                 label2="Ground Truth",
                 width=700,
             )
+        else:
+            st.warning("Please select a row to visualize.")
     else:
         st.warning(
             "No metrics data found. Please run the quantitative analysis notebook first."

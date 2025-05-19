@@ -211,3 +211,4 @@ practicals/p1/src_remote/visualization.py
 practicals/fetch_from_remote.bat
 
 .tmp/
+temp/
