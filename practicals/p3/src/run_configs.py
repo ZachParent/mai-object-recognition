@@ -24,10 +24,11 @@ class UNet2DConfig(pydantic.BaseModel):
 
 class RunConfig(pydantic.BaseModel):
     id: int
+    name: str
     model_name: ModelName
     learning_rate: float
     batch_size: int = 16
-    epochs: int = 2
+    epochs: int = 6
     augmentation: bool = False
     perceptual_loss: Literal["L1", "L2"] = "L2"
     perceptual_loss_weight: Optional[float] = None
@@ -42,43 +43,97 @@ class RunSet(pydantic.BaseModel):
     configs: list[RunConfig]
 
 
-BASE_RUN_SET = RunSet(
-    title="Base",
-    configs=[
-        RunConfig(
-            id=1,
-            model_name=ModelName.UNET2D,
-            learning_rate=0.0001,
-            batch_size=16,
-            augmentation=False,
-            unet2d_config=UNet2DConfig(),  # Default config
-            save_video_ids=[0],
-        ),
-    ],
-)
+id_start = 0
 
 HYPERPARAM_RUN_SET = RunSet(
     title="Hyperparameter Tuning",
     configs=[
         RunConfig(
-            id=2,
+            id=id_start,
+            name="Base",
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0001,
+            batch_size=16,
+            augmentation=False,
+            unet2d_config=UNet2DConfig(),
+            save_video_ids=[0],
+            seed=seed,
+        )
+        for seed in range(3)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 1,
+            name="Reduced Depth",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             batch_size=16,
             augmentation=False,
             unet2d_config=UNet2DConfig(
-                filter_num=[64, 256, 1024],  # Reduced depth, increased width
+                filter_num=[64, 256, 1024],
             ),
             save_video_ids=[0],
-        ),
+            seed=seed,
+        )
+        for seed in range(3)
+    ]
+    + [
         RunConfig(
-            id=3,
+            id=id_start + 2,
+            name="No Batch Norm",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             batch_size=16,
             augmentation=False,
-            unet2d_config=UNet2DConfig(batch_norm=False),  # No batch normalization
+            unet2d_config=UNet2DConfig(batch_norm=False),
             save_video_ids=[0],
-        ),
+            seed=seed,
+        )
+        for seed in range(3)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 3,
+            name="Higher Learning Rate",
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0003,
+            batch_size=16,
+            augmentation=False,
+            unet2d_config=UNet2DConfig(batch_norm=False),
+            save_video_ids=[0],
+            seed=seed,
+        )
+        for seed in range(3)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 4,
+            name="Lower Learning Rate",
+            model_name=ModelName.UNET2D,
+            learning_rate=0.00003,
+            batch_size=16,
+            augmentation=False,
+            unet2d_config=UNet2DConfig(batch_norm=False),
+            save_video_ids=[0],
+            seed=seed,
+        )
+        for seed in range(3)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 5,
+            name="With augmentation",
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0001,
+            batch_size=16,
+            augmentation=True,
+            unet2d_config=UNet2DConfig(),
+            save_video_ids=[0],
+            seed=seed,
+        )
+        for seed in range(3)
     ],
 )
+
+
+id_start += len(HYPERPARAM_RUN_SET.configs)

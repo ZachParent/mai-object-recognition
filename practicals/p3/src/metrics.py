@@ -247,6 +247,7 @@ def get_metric_collection(run_config: RunConfig) -> MetricCollection:
 if __name__ == "__main__":
     run_config = RunConfig(
         id=0,
+        name="demo",
         model_name=ModelName.UNET2D,
         learning_rate=0.001,
         perceptual_loss="L2",

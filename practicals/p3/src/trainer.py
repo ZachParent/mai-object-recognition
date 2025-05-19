@@ -262,6 +262,7 @@ if __name__ == "__main__":
     # Example usage
     config = RunConfig(
         id=0,
+        name="demo",
         model_name=ModelName.UNET2D,
         learning_rate=3e-4,
         batch_size=64,
