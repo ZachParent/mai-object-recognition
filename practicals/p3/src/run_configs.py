@@ -28,7 +28,7 @@ class RunConfig(pydantic.BaseModel):
     model_name: ModelName
     learning_rate: float
     batch_size: int = 64
-    epochs: int = 6
+    epochs: int = 12
     augmentation: bool = False
     perceptual_loss: Literal["L1", "L2"] = "L2"
     perceptual_loss_weight: Optional[float] = None
@@ -51,76 +51,60 @@ HYPERPARAM_RUN_SET = RunSet(
         RunConfig(
             id=id_start,
             name="Base",
+            epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
-            seed=seed,
-        )
-        for seed in range(3)
-    ]
-    + [
+        ),
         RunConfig(
             id=id_start + 1,
             name="Reduced Depth",
+            epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(
-                filter_num=[64, 256, 1024],
+                filter_num=[64, 128, 256, 1024],
             ),
             save_video_ids=[0],
-            seed=seed,
-        )
-        for seed in range(3)
-    ]
-    + [
+        ),
         RunConfig(
             id=id_start + 2,
             name="No Batch Norm",
+            epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(batch_norm=False),
             save_video_ids=[0],
-            seed=seed,
-        )
-        for seed in range(3)
-    ]
-    + [
+        ),
         RunConfig(
             id=id_start + 3,
             name="Higher Learning Rate",
+            epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0003,
             unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
-            seed=seed,
-        )
-        for seed in range(3)
-    ]
-    + [
+        ),
         RunConfig(
             id=id_start + 4,
             name="Lower Learning Rate",
+            epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.00003,
             unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
-            seed=seed,
-        )
-        for seed in range(3)
-    ]
-    + [
+        ),
         RunConfig(
             id=id_start + 5,
             name="With augmentation",
+            epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             augmentation=True,
             unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
-            seed=seed,
-        )
-        for seed in range(3)
+        ),
     ],
 )
 
