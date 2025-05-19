@@ -264,7 +264,7 @@ if __name__ == "__main__":
         id=0,
         model_name=ModelName.UNET2D,
         learning_rate=3e-4,
-        batch_size=1,
+        batch_size=64,
         epochs=10,
         save_path=CHECKPOINTS_DIR,
         unet2d_config=UNet2DConfig(),
