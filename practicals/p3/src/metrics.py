@@ -1,10 +1,12 @@
 import abc
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 import numpy as np
 import pandas as pd
 import torch
+
+from .run_configs import ModelName, RunConfig
 
 
 class Metric(abc.ABC):
@@ -124,15 +126,12 @@ class MSE(Metric):
         self.values.append(self.loss_fn(preds, target).item())
 
 
-class PerceptualLoss(torch.nn.MSELoss):
+class PerceptualLoss(torch.nn.Module):
     def __init__(
         self,
-        discrepancy_error: str = "L2",
-        size_average=None,
-        reduce=None,
-        reduction: str = "mean",
+        discrepancy_error: Literal["L1", "L2"] = "L2",
     ) -> None:
-        super().__init__(size_average, reduce, reduction)
+        super().__init__()
         if discrepancy_error not in ["L1", "L2"]:
             raise ValueError("discrepancy_error must be 'L1' or 'L2'")
         self.discrepancy_error = discrepancy_error
@@ -186,9 +185,6 @@ class PerceptualLoss(torch.nn.MSELoss):
     def forward(self, preds: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # preds and target shape: [B, 1, H, W]
 
-        # Calculate the mean squared error loss
-        mse_loss = super().forward(preds, target)
-
         # Compute normal maps from the predicted and target depth images
         normal_preds = self._compute_normal_map(preds)
         normal_target = self._compute_normal_map(target)
@@ -199,34 +195,74 @@ class PerceptualLoss(torch.nn.MSELoss):
         else:
             perceptual_loss = torch.mean((normal_preds - normal_target) ** 2)
 
-        return mse_loss + perceptual_loss
+        return perceptual_loss
 
 
-def get_metric_collection() -> MetricCollection:
+class CombinedLoss(torch.nn.Module):
+    def __init__(
+        self, discrepancy_error: Literal["L1", "L2"] = "L2", weight: float = 0.5
+    ):
+        super().__init__()
+        self.weight = weight
+        self.mse_loss = torch.nn.MSELoss()
+        self.perceptual_loss = PerceptualLoss(discrepancy_error)
+
+    def forward(self, preds: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        perceptual_loss = self.perceptual_loss(preds, target)
+        mse_loss = self.mse_loss(preds, target)
+        return self.weight * perceptual_loss + (1 - self.weight) * mse_loss
+
+
+class PerceptualLossMetric(Metric):
+    def __init__(self, perceptual_loss: Literal["L1", "L2"] = "L2"):
+        super().__init__()
+        self.loss_fn = PerceptualLoss(perceptual_loss)
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        self.values.append(self.loss_fn(preds, target).item())
+
+
+class CombinedLossMetric(Metric):
+    def __init__(
+        self, perceptual_loss: Literal["L1", "L2"] = "L2", weight: float = 0.5
+    ):
+        super().__init__()
+        self.loss_fn = CombinedLoss(perceptual_loss, weight)
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        self.values.append(self.loss_fn(preds, target).item())
+
+
+def get_metric_collection(run_config: RunConfig) -> MetricCollection:
+    loss = (
+        CombinedLossMetric(
+            run_config.perceptual_loss, run_config.perceptual_loss_weight
+        )
+        if run_config.perceptual_loss_weight is not None
+        else MSE()
+    )
     return MetricCollection(
         {
             "mae": MAE(),
             "mse": MSE(),
+            "perceptual_l2": PerceptualLossMetric("L2"),
+            "perceptual_l1": PerceptualLossMetric("L1"),
+            "loss": loss,
         }
     )
 
 
 if __name__ == "__main__":
-    mc = MetricCollection(
-        {
-            "mae": MAE(),
-            "mse": MSE(),
-        }
+    run_config = RunConfig(
+        id=0,
+        model_name=ModelName.UNET2D,
+        learning_rate=0.001,
+        perceptual_loss="L2",
+        perceptual_loss_weight=0.5,
     )
-    tracker = MetricTracker(mc.metrics)
-    tracker.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
-    tracker.increment()
-    tracker.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
-    tracker.increment()
-    print(tracker.get_values())
 
-    train_mc = MetricCollection({"mae": MAE(), "mse": MSE()})
-    val_mc = MetricCollection({"mae": MAE(), "mse": MSE()})
+    train_mc = get_metric_collection(run_config)
+    val_mc = get_metric_collection(run_config)
     logger = MetricLogger(0, train_mc, val_mc)
     train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
 
@@ -234,15 +270,6 @@ if __name__ == "__main__":
     val_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
     logger.log_metrics()
     logger.save_metrics(Path(".tmp/metrics.csv"))
-
-    l2_perceptual = PerceptualLoss(discrepancy_error="L2")
-    l1_perceptual = PerceptualLoss(discrepancy_error="L1")
-    depth_pred = torch.randn(1, 1, 10, 10)
-    depth_target = torch.randn(1, 1, 10, 10)
-    loss_l2 = l2_perceptual(depth_pred, depth_target)
-    loss_l1 = l1_perceptual(depth_pred, depth_target)
-    print(f"L2 Perceptual Loss: {loss_l2.item()}")
-    print(f"L1 Perceptual Loss: {loss_l1.item()}")
 
     visualize_normal_map = False  # Set to True to visualize the normal maps
     if visualize_normal_map:

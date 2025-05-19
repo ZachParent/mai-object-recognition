@@ -10,9 +10,9 @@ from tqdm import tqdm
 from .config import CHECKPOINTS_DIR, RESULTS_DIR
 from .datasets.cloth3d import Cloth3dDataset
 from .metrics import (
+    CombinedLoss,
     MetricCollection,
     MetricLogger,
-    PerceptualLoss,
     get_metric_collection,
 )
 from .models import get_model
@@ -201,16 +201,17 @@ def run_experiment(
 
     # Initialize optimizer and loss function
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    if config.perceptual_loss == "L1":
-        criterion = PerceptualLoss(discrepancy_error="L1")
-    elif config.perceptual_loss == "L2":
-        criterion = PerceptualLoss(discrepancy_error="L2")
+    if config.perceptual_loss_weight is not None:
+        criterion = CombinedLoss(
+            discrepancy_error=config.perceptual_loss,
+            weight=config.perceptual_loss_weight,
+        )
     else:
-        criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
+        criterion = torch.nn.MSELoss()
 
     # Initialize metrics
-    train_metric_collection = get_metric_collection()
-    val_metric_collection = get_metric_collection()
+    train_metric_collection = get_metric_collection(config)
+    val_metric_collection = get_metric_collection(config)
 
     # Initialize trainer
     trainer = Trainer(
@@ -242,7 +243,7 @@ def run_experiment(
         # Log metrics
         metrics_logger.log_metrics()
 
-    test_metric_collection = get_metric_collection()
+    test_metric_collection = get_metric_collection(config)
     trainer.evaluate(test_dataloader, test_metric_collection)
 
     print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
@@ -263,11 +264,13 @@ if __name__ == "__main__":
         id=0,
         model_name=ModelName.UNET2D,
         learning_rate=3e-4,
-        batch_size=64,
+        batch_size=1,
         epochs=10,
         save_path=CHECKPOINTS_DIR,
         unet2d_config=UNet2DConfig(),
         seed=42,
+        perceptual_loss="L2",
+        perceptual_loss_weight=0.5,
     )
 
     run_experiment(config=config)
