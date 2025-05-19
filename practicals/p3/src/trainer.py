@@ -9,7 +9,12 @@ from tqdm import tqdm
 
 from .config import CHECKPOINTS_DIR, RESULTS_DIR
 from .datasets.cloth3d import Cloth3dDataset
-from .metrics import MetricCollection, MetricLogger, get_metric_collection
+from .metrics import (
+    MetricCollection,
+    MetricLogger,
+    PerceptualLoss,
+    get_metric_collection,
+)
 from .models import get_model
 from .models.unet2d import UNet2D
 from .run_configs import ModelName, RunConfig, UNet2DConfig
@@ -196,7 +201,12 @@ def run_experiment(
 
     # Initialize optimizer and loss function
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
+    if config.perceptual_loss == "L1":
+        criterion = PerceptualLoss(discrepancy_error="L1")
+    elif config.perceptual_loss == "L2":
+        criterion = PerceptualLoss(discrepancy_error="L2")
+    else:
+        criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
 
     # Initialize metrics
     train_metric_collection = get_metric_collection()

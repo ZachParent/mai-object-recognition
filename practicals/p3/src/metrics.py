@@ -148,16 +148,18 @@ class MSE(Metric):
         )
 
 
-class PerceptualLoss(Metric):
-    def __init__(self, discrepancy_error: str = "L2"):
+class PerceptualLoss(torch.nn.MSELoss):
+    def __init__(
+        self,
+        discrepancy_error: str = "L2",
+        size_average=None,
+        reduce=None,
+        reduction: str = "mean",
+    ) -> None:
+        super().__init__(size_average, reduce, reduction)
         if discrepancy_error not in ["L1", "L2"]:
             raise ValueError("discrepancy_error must be 'L1' or 'L2'")
         self.discrepancy_error = discrepancy_error
-        self.reset()
-
-    def reset(self):
-        self.total_loss = 0.0
-        self.num_samples = 0
 
     @staticmethod
     def _compute_normal_map(depth_map: torch.Tensor) -> torch.Tensor:
@@ -205,8 +207,11 @@ class PerceptualLoss(Metric):
 
         return normals
 
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
+    def forward(self, preds: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # preds and target shape: [B, 1, H, W]
+
+        # Calculate the mean squared error loss
+        mse_loss = super().forward(preds, target)
 
         # Compute normal maps from the predicted and target depth images
         normal_preds = self._compute_normal_map(preds)
@@ -214,15 +219,11 @@ class PerceptualLoss(Metric):
 
         # Calculate the discrepancy error between the normal maps
         if self.discrepancy_error == "L1":
-            loss = torch.mean(torch.abs(normal_preds - normal_target))
+            perceptual_loss = torch.mean(torch.abs(normal_preds - normal_target))
         else:
-            loss = torch.mean((normal_preds - normal_target) ** 2)
+            perceptual_loss = torch.mean((normal_preds - normal_target) ** 2)
 
-        self.total_loss += loss.item()
-        self.num_samples += preds.size(0)
-
-    def compute(self) -> float:
-        return self.total_loss / self.num_samples if self.num_samples > 0 else 0.0
+        return mse_loss + perceptual_loss
 
 
 def get_metric_collection() -> MetricCollection:
@@ -230,8 +231,6 @@ def get_metric_collection() -> MetricCollection:
         {
             "mae": MAE(),
             "mse": MSE(),
-            "perceptual_l2": PerceptualLoss(discrepancy_error="L2"),
-            "perceptual_l1": PerceptualLoss(discrepancy_error="L1"),
         }
     )
 
@@ -240,8 +239,7 @@ if __name__ == "__main__":
     mc = MetricCollection(
         {
             "mae": MAE(),
-            "perceptual_l2": PerceptualLoss(),
-            "perceptual_l1": PerceptualLoss(discrepancy_error="L1"),
+            "mse": MSE(),
         }
     )
     tracker = MetricTracker(mc.metrics)
@@ -251,8 +249,8 @@ if __name__ == "__main__":
     tracker.increment()
     print(tracker.get_values())
 
-    train_mc = MetricCollection({"mae": MAE(), "perceptual_l2": PerceptualLoss()})
-    val_mc = MetricCollection({"mae": MAE(), "perceptual_l2": PerceptualLoss()})
+    train_mc = MetricCollection({"mae": MAE(), "mse": MSE()})
+    val_mc = MetricCollection({"mae": MAE(), "mse": MSE()})
     logger = MetricLogger(0, train_mc, val_mc)
     train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
 
@@ -260,3 +258,12 @@ if __name__ == "__main__":
     val_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
     logger.log_metrics()
     logger.save_metrics(Path(".tmp/metrics.csv"))
+
+    l2_perceptual = PerceptualLoss(discrepancy_error="L2")
+    l1_perceptual = PerceptualLoss(discrepancy_error="L1")
+    depth_pred = torch.randn(1, 1, 10, 10)
+    depth_target = torch.randn(1, 1, 10, 10)
+    loss_l2 = l2_perceptual(depth_pred, depth_target)
+    loss_l1 = l1_perceptual(depth_pred, depth_target)
+    print(f"L2 Perceptual Loss: {loss_l2.item()}")
+    print(f"L1 Perceptual Loss: {loss_l1.item()}")

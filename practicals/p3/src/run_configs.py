@@ -29,6 +29,7 @@ class RunConfig(pydantic.BaseModel):
     batch_size: int = 16
     epochs: int = 2
     augmentation: bool = False
+    perceptual_loss: str = None
     save_path: Optional[Path] = None
     unet2d_config: Optional[UNet2DConfig] = None
     save_video_ids: list[int] = []
