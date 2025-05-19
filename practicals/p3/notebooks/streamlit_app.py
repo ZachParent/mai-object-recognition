@@ -36,9 +36,6 @@ inferrer = load_model(model_path)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
-# Main content
-st.header("Input Parameters")
-
 # Create tabs for different visualization modes
 tab1, tab2 = st.tabs(["Single Frame", "GIF Creation"])
 
