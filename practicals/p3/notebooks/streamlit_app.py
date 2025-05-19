@@ -12,6 +12,7 @@ import streamlit as st
 from src.config import CHECKPOINTS_DIR, VISUALIZATIONS_DIR
 from src.datasets.cloth3d import Cloth3dDataset
 from src.inferrer import load_model
+from streamlit_image_comparison import image_comparison
 
 # Set page config
 st.set_page_config(
@@ -32,7 +33,7 @@ st.sidebar.title("Model Selection")
 model_path = str(CHECKPOINTS_DIR / "run_0.pt")
 inferrer = load_model(model_path)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
-normalized_dataset = Cloth3dDataset(start_idx=0)
+normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
 # Main content
 st.header("Input Parameters")
@@ -114,6 +115,36 @@ with tab1:
         # Display the plot in Streamlit
         plot_placeholder.pyplot(fig)
         plt.close()
+
+        # Add image comparison widget
+        st.subheader("Compare Predicted Depth with Ground Truth")
+
+        # Convert depth maps to RGB for comparison
+        def depth_to_rgb(depth_map):
+            # Normalize to [0, 1]
+            depth_norm = (depth_map - depth_map.min()) / (
+                depth_map.max() - depth_map.min() + 1e-8
+            )
+            # Convert to RGB using viridis colormap
+            depth_rgb = plt.get_cmap("viridis")(depth_norm)[
+                ..., :3
+            ]  # Remove alpha channel
+            # Convert to uint8 (0-255)
+            depth_rgb = (depth_rgb * 255).astype(np.uint8)
+            return depth_rgb
+
+        # Convert depth maps to RGB
+        predicted_rgb = depth_to_rgb(predicted_depth[0])
+        ground_truth_rgb = depth_to_rgb(ground_truth[0])
+
+        # Create image comparison
+        image_comparison(
+            img1=predicted_rgb,
+            img2=ground_truth_rgb,
+            label1="Predicted Depth",
+            label2="Ground Truth",
+            width=700,
+        )
 
 with tab2:
     st.header("Create GIF Animation")
