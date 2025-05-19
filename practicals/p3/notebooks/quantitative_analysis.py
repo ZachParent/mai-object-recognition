@@ -15,13 +15,28 @@ sys.path.append(str(ROOT_DIR / "src"))
 from src.config import CHECKPOINTS_DIR, RESULTS_DIR
 from src.datasets.cloth3d import Cloth3dDataset
 from src.inferrer import load_model
-from src.metrics import compute_metrics
+from src.metrics import get_metric_collection
+from src.run_configs import ModelName, RunConfig
 
 # %%
 # Load the trained model
 run_id = 0
 model_path = str(CHECKPOINTS_DIR / f"run_{run_id:03d}.pt")
 inferrer = load_model(model_path)
+
+# Create a RunConfig for metrics (adjust as needed)
+run_config = RunConfig(
+    id=run_id,
+    name="quant_eval",
+    model_name=ModelName.UNET2D,
+    learning_rate=0.001,
+    batch_size=1,
+    epochs=1,
+    perceptual_loss="L2",
+    perceptual_loss_weight=0.5,
+)
+video_metric_collection = get_metric_collection(run_config)
+frame_metric_collection = get_metric_collection(run_config)
 
 # %%
 # Create dataset
@@ -30,6 +45,7 @@ dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 # %%
 # Initialize lists to store results
 results = []
+frame_results = []  # <-- new list for per-frame metrics
 
 # Process each video
 for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
@@ -37,6 +53,9 @@ for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
     video_frames = [
         i for i in range(len(dataset)) if dataset.get_video_id(i) == video_id
     ]
+
+    # Reset metrics for each video if you want per-video metrics
+    video_metric_collection.reset()
 
     # Process each frame
     for frame_idx in tqdm(
@@ -50,11 +69,14 @@ for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
             pred_depth = inferrer.model(image.unsqueeze(0))
             pred_depth = pred_depth.squeeze(0)
 
-        # Compute metrics
-        metrics = compute_metrics(pred_depth, depth)
+        # Update metric collection
+        frame_metric_collection.reset()
+        frame_metric_collection.update(pred_depth, depth)
+        video_metric_collection.update(pred_depth, depth)
 
-        # Store results
-        results.append(
+        # Store per-frame metrics
+        metrics = frame_metric_collection.compute()
+        frame_results.append(
             {
                 "run_id": run_id,
                 "video_id": video_id,
@@ -63,23 +85,30 @@ for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
             }
         )
 
+    # After all frames in video, store per-video metrics
+    metrics = video_metric_collection.compute()
+    results.append(
+        {
+            "run_id": run_id,
+            "video_id": video_id,
+            **metrics,
+        }
+    )
+
 # %%
 # Convert results to DataFrame
 results_df = pd.DataFrame(results)
+frame_results_df = pd.DataFrame(frame_results)
 
 # Save results
 RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-results_df.to_csv(RESULTS_DIR / "quantitative_analysis.csv", index=False)
+frame_results_df.to_csv(RESULTS_DIR / "frame_metrics.csv", index=False)
 
 # %%
 # Print summary statistics
 print("\nSummary Statistics:")
 print(results_df.describe())
 
-# Group by video and compute mean metrics
-video_metrics = results_df.groupby("video_id").mean()
-print("\nMean Metrics by Video:")
-print(video_metrics)
-
-# Save video-level metrics
-video_metrics.to_csv(RESULTS_DIR / "video_metrics.csv")
+# No need to group by video, as each row is already per video
+# Save video-level metrics (already per video)
+results_df.to_csv(RESULTS_DIR / "video_metrics.csv", index=False)

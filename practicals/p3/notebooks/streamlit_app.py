@@ -231,7 +231,7 @@ with tab3:
     st.header("Quantitative Analysis")
 
     # Load metrics data
-    metrics_path = Path(RESULTS_DIR / "quantitative_analysis.csv")
+    metrics_path = Path(RESULTS_DIR / "frame_metrics.csv")
     if metrics_path.exists():
         df = pd.read_csv(metrics_path)
 
