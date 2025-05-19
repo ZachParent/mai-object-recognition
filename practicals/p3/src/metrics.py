@@ -12,16 +12,14 @@ class Metric(abc.ABC):
         self.values = []
         self.reset()
 
-    @abc.abstractmethod
     def reset(self):
         self.values = []
 
     @abc.abstractmethod
     def update(self, preds: torch.Tensor, target: torch.Tensor): ...
 
-    @abc.abstractmethod
     def compute(self) -> float:
-        return np.sum(self.values) / len(self.values)
+        return np.sum(self.values) / len(self.values) if self.values else 0.0
 
 
 class MetricCollection(Metric):
@@ -109,43 +107,21 @@ class MetricLogger:
 
 class MAE(Metric):
     def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.total_abs_error = 0.0
-        self.total_pixels = 0
+        self.loss_fn = torch.nn.L1Loss(reduction="mean")
+        super().__init__()
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         # preds and target should be [B, 1, H, W] tensors
-        abs_error = torch.abs(preds - target)
-        self.total_abs_error += abs_error.sum().item()
-        self.total_pixels += target.numel()
-
-    def compute(self) -> float:
-        return (
-            self.total_abs_error / self.total_pixels if self.total_pixels > 0 else 0.0
-        )
+        self.values.append(self.loss_fn(preds, target).item())
 
 
 class MSE(Metric):
     def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.total_squared_error = 0.0
-        self.total_pixels = 0
+        self.loss_fn = torch.nn.MSELoss(reduction="mean")
+        super().__init__()
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        squared_error = (preds - target) ** 2
-        self.total_squared_error += squared_error.sum().item()
-        self.total_pixels += target.numel()
-
-    def compute(self) -> float:
-        return (
-            self.total_squared_error / self.total_pixels
-            if self.total_pixels > 0
-            else 0.0
-        )
+        self.values.append(self.loss_fn(preds, target).item())
 
 
 class PerceptualLoss(torch.nn.MSELoss):
