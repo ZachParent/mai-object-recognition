@@ -1,3 +1,5 @@
+import re
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import einops
@@ -73,12 +75,36 @@ class Cloth3dDataset(Dataset):
     ):
         self.enable_normalization = enable_normalization
         self.enable_augmentation = enable_augmentation
+
+        # Get parent folders to calculate num_videos and store video_ids
+        parent_folders = sorted(PREPROCESSED_DATA_DIR.glob("0*"))
+        if end_idx is None:
+            end_idx = len(parent_folders)
+        self.num_videos = end_idx - start_idx
+        self.video_ids = [
+            int(folder.name) for folder in parent_folders[start_idx:end_idx]
+        ]
+
         self.image_paths, self.depth_paths = get_image_and_depth_paths(
             start_idx, end_idx
         )
 
     def _get_image_and_depth_paths(self, idx: int) -> Tuple[str, str]:
         return self.image_paths[idx], self.depth_paths[idx]
+
+    def get_video_id(self, idx: int) -> int:
+        """Get the video ID for a given dataset index."""
+        path = Path(self.image_paths[idx])
+        return int(path.parent.parent.name)
+
+    def get_frame_id(self, idx: int) -> int:
+        """Get the frame ID for a given dataset index."""
+        path = Path(self.image_paths[idx])
+        match = re.search(r"frame(\d+)", path.stem)
+        if match:
+            return int(match.group(1))
+        else:
+            raise ValueError(f"Could not extract frame id from {path.stem}")
 
     def __len__(self):
         return len(self.image_paths)

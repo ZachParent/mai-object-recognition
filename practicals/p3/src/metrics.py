@@ -244,6 +244,59 @@ def get_metric_collection(run_config: RunConfig) -> MetricCollection:
     )
 
 
+def compute_metrics(pred_depth: torch.Tensor, gt_depth: torch.Tensor) -> dict:
+    """
+    Compute various depth estimation metrics.
+
+    Args:
+        pred_depth: Predicted depth map
+        gt_depth: Ground truth depth map
+
+    Returns:
+        Dictionary containing the following metrics:
+        - rmse: Root Mean Square Error
+        - mae: Mean Absolute Error
+        - rel: Relative Error
+        - rel_sqr: Relative Squared Error
+        - log10: Log10 Error
+        - delta_1: Percentage of pixels with relative error < 1.25
+        - delta_2: Percentage of pixels with relative error < 1.25^2
+        - delta_3: Percentage of pixels with relative error < 1.25^3
+    """
+    # Convert to numpy for easier computation
+    pred = pred_depth.cpu().numpy()
+    gt = gt_depth.cpu().numpy()
+
+    # Remove invalid pixels (where gt is 0)
+    mask = gt > 0
+    pred = pred[mask]
+    gt = gt[mask]
+
+    # Compute metrics
+    rmse = np.sqrt(np.mean((pred - gt) ** 2))
+    mae = np.mean(np.abs(pred - gt))
+    rel = np.mean(np.abs(pred - gt) / gt)
+    rel_sqr = np.mean(((pred - gt) ** 2) / gt)
+    log10 = np.mean(np.abs(np.log10(pred) - np.log10(gt)))
+
+    # Compute delta metrics
+    thresh = np.maximum((gt / pred), (pred / gt))
+    delta_1 = (thresh < 1.25).mean()
+    delta_2 = (thresh < 1.25**2).mean()
+    delta_3 = (thresh < 1.25**3).mean()
+
+    return {
+        "rmse": rmse,
+        "mae": mae,
+        "rel": rel,
+        "rel_sqr": rel_sqr,
+        "log10": log10,
+        "delta_1": delta_1,
+        "delta_2": delta_2,
+        "delta_3": delta_3,
+    }
+
+
 if __name__ == "__main__":
     run_config = RunConfig(
         id=0,
