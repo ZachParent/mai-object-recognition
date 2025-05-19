@@ -15,7 +15,10 @@ from src.inferrer import load_model
 # Load the trained model
 model_path = str(CHECKPOINTS_DIR / "run_0.pt")
 inferrer = load_model(model_path)
-dataset = Cloth3dDataset(start_idx=0)
+
+# Create both raw and normalized datasets
+raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
+normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
 VISUALIZATIONS_DIR.mkdir(exist_ok=True, parents=True)
 
@@ -28,7 +31,10 @@ for video_id in video_ids:
     for frame_id in frame_ids:
         print(f"\nVisualizing Video {video_id}, Frame {frame_id}")
         inferrer.visualize_prediction(
-            video_id=video_id, frame_id=frame_id, dataset=dataset
+            video_id=video_id,
+            frame_id=frame_id,
+            raw_dataset=raw_dataset,
+            normalized_dataset=normalized_dataset,
         )
 
 # %%
@@ -38,7 +44,12 @@ frame_ids = range(0, 100, 10)  # Every 10th frame
 
 for frame_id in frame_ids:
     print(f"\nVisualizing Video {video_id}, Frame {frame_id}")
-    inferrer.visualize_prediction(video_id=video_id, frame_id=frame_id, dataset=dataset)
+    inferrer.visualize_prediction(
+        video_id=video_id,
+        frame_id=frame_id,
+        raw_dataset=raw_dataset,
+        normalized_dataset=normalized_dataset,
+    )
 
 # %%
 # Save visualizations to disk
@@ -48,7 +59,11 @@ frame_ids = [0, 25, 50, 75]
 for frame_id in frame_ids:
     save_path = VISUALIZATIONS_DIR / f"video_{video_id}_frame_{frame_id}.png"
     inferrer.visualize_prediction(
-        video_id=video_id, frame_id=frame_id, save_path=str(save_path), dataset=dataset
+        video_id=video_id,
+        frame_id=frame_id,
+        save_path=str(save_path),
+        raw_dataset=raw_dataset,
+        normalized_dataset=normalized_dataset,
     )
     print(f"Saved visualization to {save_path}")
 
@@ -57,7 +72,12 @@ for frame_id in frame_ids:
 # Interactive visualization
 def visualize_frame(video_id: int, frame_id: int):
     """Helper function to visualize a single frame."""
-    inferrer.visualize_prediction(video_id=video_id, frame_id=frame_id, dataset=dataset)
+    inferrer.visualize_prediction(
+        video_id=video_id,
+        frame_id=frame_id,
+        raw_dataset=raw_dataset,
+        normalized_dataset=normalized_dataset,
+    )
 
 
 # Example usage:
@@ -75,5 +95,6 @@ inferrer.create_prediction_gif(
     output_path=output_path,
     fps=10,
     dpi=100,
-    dataset=dataset,
+    raw_dataset=raw_dataset,
+    normalized_dataset=normalized_dataset,
 )

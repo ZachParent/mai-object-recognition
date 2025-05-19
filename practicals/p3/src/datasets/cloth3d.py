@@ -14,6 +14,13 @@ from ..config import PREPROCESSED_DATA_DIR
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
+# Non-normalized input transform
+NON_NORMALIZED_INPUT_TRANSFORM = v2.Compose(
+    [
+        v2.ToDtype(torch.float32, scale=True),
+    ]
+)
+
 # Transform for non-augmented input image
 DEFAULT_INPUT_TRANSFORM = v2.Compose(
     [
@@ -61,8 +68,10 @@ class Cloth3dDataset(Dataset):
         self,
         start_idx: int = 0,
         end_idx: Optional[int] = None,
-        enable_augmentation=False,
+        enable_normalization: bool = True,
+        enable_augmentation: bool = False,
     ):
+        self.enable_normalization = enable_normalization
         self.enable_augmentation = enable_augmentation
         self.image_paths, self.depth_paths = get_image_and_depth_paths(
             start_idx, end_idx
@@ -93,9 +102,12 @@ class Cloth3dDataset(Dataset):
         if self.enable_augmentation:
             # Apply the unified augmentation transform to the pair
             input_tensor, target_tensor = AUGMENT_TRANSFORM(input_tensor, target_tensor)
-        else:
+        elif self.enable_normalization:
             # Apply default transform to input; target mask usually doesn't get image normalization
             input_tensor = DEFAULT_INPUT_TRANSFORM(input_tensor)
+        else:
+            input_tensor = NON_NORMALIZED_INPUT_TRANSFORM(input_tensor)
+
         return input_tensor, target_tensor
 
 

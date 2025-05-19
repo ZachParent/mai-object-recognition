@@ -31,7 +31,8 @@ Select a video ID and frame ID to see the model's predictions.
 st.sidebar.title("Model Selection")
 model_path = str(CHECKPOINTS_DIR / "run_0.pt")
 inferrer = load_model(model_path)
-dataset = Cloth3dDataset(start_idx=0)
+raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
+normalized_dataset = Cloth3dDataset(start_idx=0)
 
 # Main content
 st.header("Input Parameters")
@@ -67,34 +68,45 @@ with tab1:
         plot_placeholder = st.empty()
 
         # Get the prediction
-        input_image, predicted_depth, ground_truth = inferrer.infer(
-            video_id=video_id, frame_id=frame_id, dataset=dataset
+        raw_input_image, normalized_input_image, predicted_depth, ground_truth = (
+            inferrer.infer(
+                video_id=video_id,
+                frame_id=frame_id,
+                raw_dataset=raw_dataset,
+                normalized_dataset=normalized_dataset,
+            )
         )
 
         # Move tensors to CPU and convert to numpy
-        input_image = input_image.cpu().numpy()
+        raw_input_image = raw_input_image.cpu().numpy()
+        normalized_input_image = normalized_input_image.cpu().numpy()
         predicted_depth = predicted_depth.cpu().numpy()
         ground_truth = ground_truth.cpu().numpy()
 
         # Create the visualization
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(20, 5))
 
         # Plot input image
-        ax1.imshow(np.transpose(input_image, (1, 2, 0)))
-        ax1.set_title("Input Image")
+        ax1.imshow(np.transpose(raw_input_image, (1, 2, 0)))
+        ax1.set_title("Raw Input Image")
         ax1.axis("off")
 
-        # Plot predicted depth
-        im2 = ax2.imshow(predicted_depth[0], cmap="viridis")
-        ax2.set_title("Predicted Depth")
+        # Plot normalized input image
+        ax2.imshow(np.transpose(normalized_input_image, (1, 2, 0)))
+        ax2.set_title("Normalized Input Image")
         ax2.axis("off")
-        plt.colorbar(im2, ax=ax2)
 
-        # Plot ground truth depth
-        im3 = ax3.imshow(ground_truth[0], cmap="viridis")
-        ax3.set_title("Ground Truth Depth")
+        # Plot predicted depth
+        im3 = ax3.imshow(predicted_depth[0], cmap="viridis")
+        ax3.set_title("Predicted Depth")
         ax3.axis("off")
         plt.colorbar(im3, ax=ax3)
+
+        # Plot ground truth depth
+        im4 = ax4.imshow(ground_truth[0], cmap="viridis")
+        ax4.set_title("Ground Truth Depth")
+        ax4.axis("off")
+        plt.colorbar(im4, ax=ax4)
 
         plt.suptitle(f"Video {video_id}, Frame {frame_id}")
         plt.tight_layout()
@@ -171,7 +183,8 @@ with tab2:
             output_path=output_path,
             fps=fps,
             dpi=100,
-            dataset=dataset,
+            raw_dataset=raw_dataset,
+            normalized_dataset=normalized_dataset,
         )
 
         # Show success message
