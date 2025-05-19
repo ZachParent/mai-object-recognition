@@ -150,7 +150,7 @@ class MSE(Metric):
 
 class PerceptualLoss(Metric):
     def __init__(self, discrepancy_error: str = "L2"):
-        if self.discrepancy_error not in ["L1", "L2"]:
+        if discrepancy_error not in ["L1", "L2"]:
             raise ValueError("discrepancy_error must be 'L1' or 'L2'")
         self.discrepancy_error = discrepancy_error
         self.reset()
