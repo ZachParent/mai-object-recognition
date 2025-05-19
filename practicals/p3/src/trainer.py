@@ -246,8 +246,8 @@ def run_experiment(
     test_metric_collection = get_metric_collection(config)
     trainer.evaluate(test_dataloader, test_metric_collection)
 
-    print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
-    print(f"Test Perceptual: {test_metric_collection.metrics['perceptual'].compute()}")
+    for metric_name, metric in test_metric_collection.metrics.items():
+        print(f"Test {metric_name.upper()}: {metric.compute()}")
 
     metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id}")
     test_df = pd.DataFrame(test_metric_collection.compute(), index=[0])
