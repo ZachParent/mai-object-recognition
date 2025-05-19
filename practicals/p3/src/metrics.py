@@ -24,6 +24,15 @@ class Metric(abc.ABC):
         return np.sum(self.values) / len(self.values) if self.values else 0.0
 
 
+class LossMetric(Metric):
+    def __init__(self, loss_fn: torch.nn.Module):
+        super().__init__()
+        self.loss_fn = loss_fn
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        self.values.append(self.loss_fn(preds, target).item())
+
+
 class MetricCollection(Metric):
     def __init__(self, metrics: Dict[str, Metric]):
         self.metrics = metrics
@@ -105,25 +114,6 @@ class MetricLogger:
         df.to_csv(csv_dir_path / f"train_{self.experiment_id}.csv", index=False)
         df = pd.DataFrame(self.val_tracker.get_values())
         df.to_csv(csv_dir_path / f"val_{self.experiment_id}.csv", index=False)
-
-
-class MAE(Metric):
-    def __init__(self):
-        self.loss_fn = torch.nn.L1Loss(reduction="mean")
-        super().__init__()
-
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        # preds and target should be [B, 1, H, W] tensors
-        self.values.append(self.loss_fn(preds, target).item())
-
-
-class MSE(Metric):
-    def __init__(self):
-        self.loss_fn = torch.nn.MSELoss(reduction="mean")
-        super().__init__()
-
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.values.append(self.loss_fn(preds, target).item())
 
 
 class PerceptualLoss(torch.nn.Module):
@@ -213,24 +203,26 @@ class CombinedLoss(torch.nn.Module):
         return self.weight * perceptual_loss + (1 - self.weight) * mse_loss
 
 
-class PerceptualLossMetric(Metric):
+class PerceptualLossMetric(LossMetric):
     def __init__(self, perceptual_loss: Literal["L1", "L2"] = "L2"):
-        super().__init__()
-        self.loss_fn = PerceptualLoss(perceptual_loss)
-
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.values.append(self.loss_fn(preds, target).item())
+        super().__init__(PerceptualLoss(perceptual_loss))
 
 
-class CombinedLossMetric(Metric):
+class CombinedLossMetric(LossMetric):
     def __init__(
         self, perceptual_loss: Literal["L1", "L2"] = "L2", weight: float = 0.5
     ):
-        super().__init__()
-        self.loss_fn = CombinedLoss(perceptual_loss, weight)
+        super().__init__(CombinedLoss(perceptual_loss, weight))
 
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.values.append(self.loss_fn(preds, target).item())
+
+class MAEMetric(LossMetric):
+    def __init__(self):
+        super().__init__(torch.nn.L1Loss(reduction="mean"))
+
+
+class MSEMetric(LossMetric):
+    def __init__(self):
+        super().__init__(torch.nn.MSELoss(reduction="mean"))
 
 
 def get_metric_collection(run_config: RunConfig) -> MetricCollection:
@@ -239,12 +231,12 @@ def get_metric_collection(run_config: RunConfig) -> MetricCollection:
             run_config.perceptual_loss, run_config.perceptual_loss_weight
         )
         if run_config.perceptual_loss_weight is not None
-        else MSE()
+        else MSEMetric()
     )
     return MetricCollection(
         {
-            "mae": MAE(),
-            "mse": MSE(),
+            "mae": MAEMetric(),
+            "mse": MSEMetric(),
             "perceptual_l2": PerceptualLossMetric("L2"),
             "perceptual_l1": PerceptualLossMetric("L1"),
             "loss": loss,
