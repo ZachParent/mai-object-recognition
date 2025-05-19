@@ -149,7 +149,10 @@ class MSE(Metric):
 
 
 class PerceptualLoss(Metric):
-    def __init__(self):
+    def __init__(self, discrepancy_error: str = "L2"):
+        if self.discrepancy_error not in ["L1", "L2"]:
+            raise ValueError("discrepancy_error must be 'L1' or 'L2'")
+        self.discrepancy_error = discrepancy_error
         self.reset()
 
     def reset(self):
@@ -209,8 +212,11 @@ class PerceptualLoss(Metric):
         normal_preds = self._compute_normal_map(preds)
         normal_target = self._compute_normal_map(target)
 
-        # Calculate the L2 discrepancy error (Mean Squared Error) between the normal maps
-        loss = torch.mean((normal_preds - normal_target) ** 2)
+        # Calculate the discrepancy error between the normal maps
+        if self.discrepancy_error == "L1":
+            loss = torch.mean(torch.abs(normal_preds - normal_target))
+        else:
+            loss = torch.mean((normal_preds - normal_target) ** 2)
 
         self.total_loss += loss.item()
         self.num_samples += preds.size(0)
@@ -224,13 +230,20 @@ def get_metric_collection() -> MetricCollection:
         {
             "mae": MAE(),
             "mse": MSE(),
-            "perceptual": PerceptualLoss(),
+            "perceptual_l2": PerceptualLoss(discrepancy_error="L2"),
+            "perceptual_l1": PerceptualLoss(discrepancy_error="L1"),
         }
     )
 
 
 if __name__ == "__main__":
-    mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
+    mc = MetricCollection(
+        {
+            "mae": MAE(),
+            "perceptual_l2": PerceptualLoss(),
+            "perceptual_l1": PerceptualLoss(discrepancy_error="L1"),
+        }
+    )
     tracker = MetricTracker(mc.metrics)
     tracker.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
     tracker.increment()
@@ -238,8 +251,8 @@ if __name__ == "__main__":
     tracker.increment()
     print(tracker.get_values())
 
-    train_mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
-    val_mc = MetricCollection({"mae": MAE(), "perceptual": PerceptualLoss()})
+    train_mc = MetricCollection({"mae": MAE(), "perceptual_l2": PerceptualLoss()})
+    val_mc = MetricCollection({"mae": MAE(), "perceptual_l2": PerceptualLoss()})
     logger = MetricLogger(0, train_mc, val_mc)
     train_mc.update(torch.randn(1, 1, 10, 10), torch.randn(1, 1, 10, 10))
 
