@@ -231,7 +231,7 @@ def run_experiment(
 
     # Training loop
     for epoch in range(config.epochs):
-        width = 90
+        width = 100
         print("\n" + "=" * width)
         print(f"EPOCH {epoch+1} / {config.epochs}".center(width))
         print("-" * width)
