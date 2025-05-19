@@ -158,13 +158,12 @@ with tab1:
                 img2=ground_truth_rgb,
                 label1="Predicted Depth",
                 label2="Ground Truth",
-                width=700,
             )
         else:
             st.warning("Please select a row to visualize.")
     else:
         st.warning(
-            "No metrics data found. Please run the quantitative analysis notebook first."
+            "No metrics data found. Please run the quantitative_analysis.py notebook first."
         )
 
 with tab2:
