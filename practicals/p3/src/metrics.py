@@ -267,3 +267,40 @@ if __name__ == "__main__":
     loss_l1 = l1_perceptual(depth_pred, depth_target)
     print(f"L2 Perceptual Loss: {loss_l2.item()}")
     print(f"L1 Perceptual Loss: {loss_l1.item()}")
+
+    visualize_normal_map = False  # Set to True to visualize the normal maps
+    if visualize_normal_map:
+        import matplotlib.pyplot as plt
+
+        # Visualize the normal maps
+        depth = (
+            torch.from_numpy(
+                np.load("practicals/p3/demo/cloth3d/data/depth/03543_0.npy")
+            )
+            .unsqueeze(0)
+            .unsqueeze(0)
+            .float()
+        )
+        normal_map = PerceptualLoss._compute_normal_map(depth)
+
+        # Move tensors to CPU and convert to numpy for visualization
+        depth_np = depth[0, 0].detach().cpu().numpy()
+        normal_map_np = normal_map[0].detach().cpu().numpy()
+
+        # Transpose normal_map to (H, W, C) for visualization
+        normal_map_img = np.transpose(normal_map_np, (1, 2, 0))
+
+        # Normalize normal_map to [0, 1] for display
+        normal_map_img = (normal_map_img - normal_map_img.min()) / (
+            normal_map_img.max() - normal_map_img.min() + 1e-8
+        )
+
+        fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+        axs[0].imshow(depth_np, cmap="gray")
+        axs[0].set_title("Depth Map")
+        axs[0].axis("off")
+        axs[1].imshow(normal_map_img)
+        axs[1].set_title("Normal Map")
+        axs[1].axis("off")
+        plt.tight_layout()
+        plt.show()
