@@ -27,7 +27,7 @@ class RunConfig(pydantic.BaseModel):
     name: str
     model_name: ModelName
     learning_rate: float
-    batch_size: int = 16
+    batch_size: int = 64
     epochs: int = 6
     augmentation: bool = False
     perceptual_loss: Literal["L1", "L2"] = "L2"
@@ -53,8 +53,6 @@ HYPERPARAM_RUN_SET = RunSet(
             name="Base",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
-            batch_size=16,
-            augmentation=False,
             unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
             seed=seed,
@@ -67,8 +65,6 @@ HYPERPARAM_RUN_SET = RunSet(
             name="Reduced Depth",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
-            batch_size=16,
-            augmentation=False,
             unet2d_config=UNet2DConfig(
                 filter_num=[64, 256, 1024],
             ),
@@ -83,8 +79,6 @@ HYPERPARAM_RUN_SET = RunSet(
             name="No Batch Norm",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
-            batch_size=16,
-            augmentation=False,
             unet2d_config=UNet2DConfig(batch_norm=False),
             save_video_ids=[0],
             seed=seed,
@@ -97,9 +91,7 @@ HYPERPARAM_RUN_SET = RunSet(
             name="Higher Learning Rate",
             model_name=ModelName.UNET2D,
             learning_rate=0.0003,
-            batch_size=16,
-            augmentation=False,
-            unet2d_config=UNet2DConfig(batch_norm=False),
+            unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
             seed=seed,
         )
@@ -111,9 +103,7 @@ HYPERPARAM_RUN_SET = RunSet(
             name="Lower Learning Rate",
             model_name=ModelName.UNET2D,
             learning_rate=0.00003,
-            batch_size=16,
-            augmentation=False,
-            unet2d_config=UNet2DConfig(batch_norm=False),
+            unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
             seed=seed,
         )
@@ -125,7 +115,6 @@ HYPERPARAM_RUN_SET = RunSet(
             name="With augmentation",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
-            batch_size=16,
             augmentation=True,
             unet2d_config=UNet2DConfig(),
             save_video_ids=[0],
