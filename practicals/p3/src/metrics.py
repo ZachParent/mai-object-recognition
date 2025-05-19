@@ -148,24 +148,75 @@ class MSE(Metric):
         )
 
 
-# TODO(@Bruno): Implement perceptual loss
 class PerceptualLoss(Metric):
     def __init__(self):
         self.reset()
 
     def reset(self):
         self.total_loss = 0.0
-        self.num_batches = 0
+        self.num_samples = 0
+
+    @staticmethod
+    def _compute_normal_map(depth_map: torch.Tensor) -> torch.Tensor:
+        # depth_map shape: [B, 1, H, W]
+        # Ensure kernel is on the same device and dtype as depth_map
+        kernel_dtype = depth_map.dtype
+        kernel_device = depth_map.device
+
+        # Sobel kernels for X and Y gradients
+        sobel_x_kernel = (
+            torch.tensor(
+                [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+                dtype=kernel_dtype,
+                device=kernel_device,
+            )
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+        sobel_y_kernel = (
+            torch.tensor(
+                [[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+                dtype=kernel_dtype,
+                device=kernel_device,
+            )
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+
+        # Compute gradients using 2D convolution
+        gx = torch.nn.functional.conv2d(
+            depth_map, sobel_x_kernel, padding=1
+        )  #  [B, 1, H, W]
+        gy = torch.nn.functional.conv2d(
+            depth_map, sobel_y_kernel, padding=1
+        )  #  [B, 1, H, W]
+
+        # Create the nz component for the normal vector (gx, gy, nz)
+        nz = torch.ones_like(gx)  #  [B, 1, H, W]
+
+        # Concatenate gx, gy, nz along the channel dimension (dim=1) to form normal vectors
+        normals = torch.cat((gx, gy, nz), dim=1)  #  [B, 3, H, W]
+
+        # Normalize the normal vectors to unit length along the channel dimension (dim=1)
+        normals = torch.nn.functional.normalize(normals, p=2, dim=1, eps=1e-6)
+
+        return normals
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
+        # preds and target shape: [B, 1, H, W]
 
-        # Garbage loss
-        loss = torch.mean((preds / sum(preds) - target / sum(target)) ** 2).item()
-        self.total_loss += loss
-        self.num_batches += 1
+        # Compute normal maps from the predicted and target depth images
+        normal_preds = self._compute_normal_map(preds)
+        normal_target = self._compute_normal_map(target)
+
+        # Calculate the L2 discrepancy error (Mean Squared Error) between the normal maps
+        loss = torch.mean((normal_preds - normal_target) ** 2)
+
+        self.total_loss += loss.item()
+        self.num_samples += preds.size(0)
 
     def compute(self) -> float:
-        return self.total_loss / self.num_batches if self.num_batches > 0 else 0.0
+        return self.total_loss / self.num_samples if self.num_samples > 0 else 0.0
 
 
 def get_metric_collection() -> MetricCollection:
