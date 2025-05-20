@@ -3,6 +3,7 @@ matplotlib
 pandas
 pydantic
 requests
+seaborn
 streamlit
 streamlit-image-comparison
 tensorboard

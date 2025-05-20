@@ -2,115 +2,93 @@
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import torch
-from tqdm import tqdm
+import seaborn as sns
 
-# %%
 # Add src to Python path
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 sys.path.append(str(ROOT_DIR / "src"))
 
-from src.config import CHECKPOINTS_DIR, RESULTS_DIR
-from src.datasets.cloth3d import Cloth3dDataset
-from src.inferrer import load_model
-from src.metrics import get_metric_collection
-from src.run_configs import ModelName, RunConfig
+from src.config import RESULTS_DIR
 
 # %%
-# Load the trained model
-run_id = 0
-model_path = str(CHECKPOINTS_DIR / f"run_{run_id:03d}.pt")
-inferrer = load_model(model_path)
-device = "cuda" if torch.cuda.is_available() else "cpu"
-inferrer.model.to(device)
-
-# Create a RunConfig for metrics (adjust as needed)
-run_config = RunConfig(
-    id=run_id,
-    name="quant_eval",
-    model_name=ModelName.UNET2D,
-    learning_rate=0.001,
-    batch_size=1,
-    epochs=1,
-    perceptual_loss="L2",
-    perceptual_loss_weight=0.5,
-)
-video_metric_collection = get_metric_collection(run_config)
-frame_metric_collection = get_metric_collection(run_config)
+# Load the metrics data
+frame_metrics = pd.read_csv(RESULTS_DIR / "frame_metrics.csv")
+video_metrics = pd.read_csv(RESULTS_DIR / "video_metrics.csv")
 
 # %%
-# Create dataset
-dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
+# Set up the plotting style
+plt.style.use("seaborn-v0_8-whitegrid")  # Using a specific seaborn style
+sns.set_palette("husl")
+
 
 # %%
-# Initialize lists to store results
-results = []
-frame_results = []  # <-- new list for per-frame metrics
+# Plot distribution of metrics across all runs
+def plot_metric_distribution(df, metric_name, title=None):
+    plt.figure(figsize=(10, 6))
+    sns.violinplot(data=df, x="run_id", y=metric_name)
+    plt.title(title or f"Distribution of {metric_name} across runs")
+    plt.xlabel("Run ID")
+    plt.ylabel(metric_name)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
 
-# Process each video
-for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
-    # Get all frames for this video
-    video_frames = [
-        i for i in range(len(dataset)) if dataset.get_video_id(i) == video_id
-    ]
 
-    # Reset metrics for each video if you want per-video metrics
-    video_metric_collection.reset()
+# %%
+# Get all metric columns (excluding run_id, video_id, frame_id)
+metric_columns = [
+    col
+    for col in frame_metrics.columns
+    if col not in ["run_id", "video_id", "frame_id"]
+]
 
-    # Process each frame
-    for frame_idx in tqdm(
-        video_frames, desc=f"Processing frames for video {video_id}", leave=False
-    ):
-        # Get data
-        image, depth = dataset[frame_idx]
-
-        # Get prediction
-        with torch.no_grad():
-            pred_depth = inferrer.model(image.unsqueeze(0).to(device))
-            pred_depth = pred_depth.squeeze(0).cpu()
-
-        # Update metric collection
-        frame_metric_collection.reset()
-        frame_metric_collection.update(pred_depth, depth)
-        video_metric_collection.update(pred_depth, depth)
-
-        # Store per-frame metrics
-        metrics = frame_metric_collection.compute()
-        frame_results.append(
-            {
-                "run_id": run_id,
-                "video_id": video_id,
-                "frame_id": dataset.get_frame_id(frame_idx),
-                **metrics,
-            }
-        )
-
-    # After all frames in video, store per-video metrics
-    metrics = video_metric_collection.compute()
-    results.append(
-        {
-            "run_id": run_id,
-            "video_id": video_id,
-            **metrics,
-        }
+# %%
+# Plot distributions for each metric
+for metric in metric_columns:
+    plot_metric_distribution(
+        frame_metrics, metric, f"Frame-level {metric} Distribution"
+    )
+    plot_metric_distribution(
+        video_metrics, metric, f"Video-level {metric} Distribution"
     )
 
-# %%
-# Convert results to DataFrame
-results_df = pd.DataFrame(results)
-frame_results_df = pd.DataFrame(frame_results)
-
-# Save results
-RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-frame_results_df.to_csv(RESULTS_DIR / "frame_metrics.csv", index=False)
 
 # %%
-# Print summary statistics
-print("\nSummary Statistics:")
-print(results_df.describe())
+# Plot correlation heatmap for metrics
+def plot_correlation_heatmap(df, title):
+    plt.figure(figsize=(12, 10))
+    # Ensure only numeric columns are used for correlation
+    numeric_df = df[metric_columns].select_dtypes(include=np.number)
+    correlation_matrix = numeric_df.corr()
+    sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", center=0)
+    plt.title(title)
+    plt.tight_layout()
+    plt.show()
 
-# No need to group by video, as each row is already per video
-# Save video-level metrics (already per video)
-results_df.to_csv(RESULTS_DIR / "video_metrics.csv", index=False)
+
+plot_correlation_heatmap(frame_metrics, "Frame-level Metrics Correlation")
+plot_correlation_heatmap(video_metrics, "Video-level Metrics Correlation")
+
+
+# %%
+# Plot metric trends across runs
+def plot_metric_trends(df, metric_name, title=None):
+    plt.figure(figsize=(12, 6))
+    sns.lineplot(data=df, x="run_id", y=metric_name, errorbar="ci", marker="o")
+    plt.title(title or f"{metric_name} Trends Across Runs")
+    plt.xlabel("Run ID")
+    plt.ylabel(metric_name)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+# %%
+# Plot trends for each metric
+for metric in metric_columns:
+    plot_metric_trends(frame_metrics, metric, f"Frame-level {metric} Trends")
+    plot_metric_trends(video_metrics, metric, f"Video-level {metric} Trends")
