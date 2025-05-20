@@ -4,17 +4,19 @@ from typing import List, Optional, Tuple
 
 import einops
 import numpy as np
+import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import tv_tensors
 from torchvision.transforms import v2
 
-from ..config import PREPROCESSED_DATA_DIR
+from ..config import PREPROCESSED_DATA_DIR, RESULTS_DIR
 
-# @TODO: Calculate dataset means and stds for actual dataset
-MEAN = [0.485, 0.456, 0.406]
-STD = [0.229, 0.224, 0.225]
+with open(RESULTS_DIR / "pixel_distribution.csv", "r") as f:
+    df = pd.read_csv(f)
+    MEAN = df["mean"].tolist()
+    STD = df["std_dev"].tolist()
 
 # Non-normalized input transform
 NON_NORMALIZED_INPUT_TRANSFORM = v2.Compose(
@@ -34,7 +36,8 @@ DEFAULT_INPUT_TRANSFORM = v2.Compose(
 # Transform for unified augmentation of input image and target mask
 AUGMENT_TRANSFORM = v2.Compose(
     [
-        v2.RandomRotation([-5, 5]),
+        # TODO: Add rotation back in
+        # v2.RandomRotation([-5, 5]),
         v2.RandomHorizontalFlip(p=0.5),
         v2.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
         v2.ToDtype(torch.float32, scale=True),
