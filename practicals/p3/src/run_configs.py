@@ -4,7 +4,8 @@ from typing import Literal, Optional
 
 import pandas as pd
 import pydantic
-from config import RESULTS_DIR
+
+from .config import RESULTS_DIR
 
 
 class ModelName(str, Enum):

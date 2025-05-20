@@ -80,7 +80,7 @@ def normalize_depth(depth: tv_tensors.Mask) -> tv_tensors.Mask:
     depth[bg_mask | zero_mask] = new_bg_value
     # normalize the depth map to the range [0, 1]
     depth[...] = (depth - depth.min()) / (new_bg_value - depth.min())
-    return depth
+    return tv_tensors.Mask(depth.to(torch.float32))
 
 
 class Cloth3dDataset(Dataset):

@@ -180,6 +180,7 @@ def run_experiment(
         dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=False),
         batch_size=config.batch_size,
         shuffle=True,
+        num_workers=4,
     )
     val_dataloader = DataLoader(
         dataset=Cloth3dDataset(
@@ -187,6 +188,7 @@ def run_experiment(
         ),
         batch_size=config.batch_size,
         shuffle=False,
+        num_workers=4,
     )
     test_dataloader = DataLoader(
         dataset=Cloth3dDataset(
@@ -194,6 +196,7 @@ def run_experiment(
         ),
         batch_size=config.batch_size,
         shuffle=False,
+        num_workers=4,
     )
 
     # Initialize model
