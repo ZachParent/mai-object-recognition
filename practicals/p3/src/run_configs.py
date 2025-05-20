@@ -1,3 +1,4 @@
+import itertools
 from enum import Enum
 from typing import Literal, Optional
 
@@ -43,6 +44,8 @@ class RunSet(pydantic.BaseModel):
 
 id_start = 0
 
+
+# TODO: use 3 seeds each run throughout
 HYPERPARAM_RUN_SET = RunSet(
     title="Hyperparameter Tuning",
     configs=[
@@ -100,5 +103,45 @@ HYPERPARAM_RUN_SET = RunSet(
     ],
 )
 
+VIT_RUN_SET = None  # TODO: add vit runs
+
+# 1 per architecture
+
+PERCEPTUAL_LOSS_RUN_SET = RunSet(
+    title="Perceptual Loss",
+    configs=[
+        RunConfig(
+            id=id_start,
+            name=f"{weight} {l1_l2} perceptual {1 - weight} MSE - seed: {seed}",
+            epochs=12,
+            # TODO: use the best network config
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0001,
+            unet2d_config=UNet2DConfig(),
+            perceptual_loss_weight=weight,
+            perceptual_loss=l1_l2,  # type: ignore
+            seed=seed,
+        )
+        for weight, l1_l2, seed in itertools.product(
+            [0.25, 0.5, 0.75], ["L1", "L2"], [0, 1, 2]
+        )
+    ],
+)
+
+SMPL_RUN_SET = RunSet(
+    title="SMPL",
+    configs=[
+        RunConfig(
+            id=id_start,
+            name="SMPL",
+            model_name=ModelName.UNET2D,
+            learning_rate=0.0001,
+            unet2d_config=UNet2DConfig(input_size=(256, 256, 6)),
+            seed=seed,
+            # TODO: use a flag to add pose information
+        )
+        for seed in [0, 1, 2]
+    ],
+)
 
 id_start += len(HYPERPARAM_RUN_SET.configs)
