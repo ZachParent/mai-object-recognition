@@ -1,5 +1,4 @@
 from enum import Enum
-from pathlib import Path
 from typing import Literal, Optional
 
 import pydantic
@@ -32,7 +31,7 @@ class RunConfig(pydantic.BaseModel):
     augmentation: bool = False
     perceptual_loss: Literal["L1", "L2"] = "L2"
     perceptual_loss_weight: Optional[float] = None
-    save_path: Optional[Path] = None
+    save_model: bool = True
     unet2d_config: Optional[UNet2DConfig] = None
     save_video_ids: list[int] = []
     seed: Optional[int] = None

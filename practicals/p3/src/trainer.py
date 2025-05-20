@@ -254,8 +254,8 @@ def run_experiment(
     test_df.to_csv(RESULTS_DIR / f"run_{config.id:03d}" / "test.csv", index=False)
 
     # Save model if path is provided
-    if config.save_path:
-        trainer.save_model(str(config.save_path / f"run_{config.id:03d}.pt"))
+    if config.save_model:
+        trainer.save_model(str(CHECKPOINTS_DIR / f"run_{config.id:03d}.pt"))
 
 
 if __name__ == "__main__":
@@ -267,7 +267,7 @@ if __name__ == "__main__":
         learning_rate=3e-4,
         batch_size=64,
         epochs=10,
-        save_path=CHECKPOINTS_DIR,
+        save_model=True,
         unet2d_config=UNet2DConfig(),
         seed=42,
         perceptual_loss="L2",
