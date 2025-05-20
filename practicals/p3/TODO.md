@@ -1,16 +1,18 @@
 ## TODO
-- [ ] dataset @pedro
-- [ ] preprocessing + image generation @pedro
-- [ ] runner @zach
-  - [ ] get base U-Net2D replica in torch with standard hyperparameters
-- [ ] baseline model @bruno
+- [x] dataset @pedro
+- [x] preprocessing + image generation @pedro
+- [x] runner @zach
+  - [x] get base U-Net2D replica in torch with standard hyperparameters
+- [x] baseline model @bruno
   - [ ] Hyperparameter tuning
   - [ ] Data Augmentation
-- [ ] perceptual loss @bruno
-  - [ ] Normal Maps
-  - [ ] L1 or L2 discrepancy error
+- [x] perceptual loss @bruno
+  - [x] Normal Maps
+  - [x] L1 or L2 discrepancy error
+- [x] BSC running compatibility @zach
+- [x] visualizations @zach
+- [ ] include smpl in the input @zach
 - [ ] vision transformers x 3 @ sheena
-- [ ] run at scale @zach
 - [ ] analyze results @all
 - [ ] report / presentation @all
 
@@ -30,15 +32,15 @@
 - [ ] Given an image of a person, cropped in the preprocessing (red rectangle), the goal is to estimate its corresponding depth image.
 
 ### Dataset
-- [ ] A subset of the CLOTH3D++ dataset (https://chalearnlap.cvc.uab.cat/dataset/38/description/), could be downloaded from [cloth3d++_subset.zip](https://cvcuab-my.sharepoint.com/:u:/g/personal/mmadadi_cvc_uab_cat/EaJUHQv5N2dEjvA51WbGLdIB5aVjZfQraF0Fa0tprVMBYA?e=rJv9sZ).
+- [x] A subset of the CLOTH3D++ dataset (https://chalearnlap.cvc.uab.cat/dataset/38/description/), could be downloaded from [cloth3d++_subset.zip](https://cvcuab-my.sharepoint.com/:u:/g/personal/mmadadi_cvc_uab_cat/EaJUHQv5N2dEjvA51WbGLdIB5aVjZfQraF0Fa0tprVMBYA?e=rJv9sZ).
     - The first 128 folders (00001 to 00152) must be used for training.
     - The following 16 folders (00153 to 00168) for validation.
     - The rest for test.
-- [ ] You can play with the data, see data structure, visualize the 3D, render depth images and extract frames from the RGB videos using the given starter kit.
-- [ ] If you use Colab, the content of the starter kit must be uploaded to your Google Drive under "cloth3d" folder.
+- [x] You can play with the data, see data structure, visualize the 3D, render depth images and extract frames from the RGB videos using the given starter kit.
+- [x] If you use Colab, the content of the starter kit must be uploaded to your Google Drive under "cloth3d" folder.
 
 ### Preprocessing
-- [ ] Crop and save the images such that:
+- [x] Crop and save the images such that:
     - 1 The center of the subject and cropping to be the same.
     - 2 Leave 10px margin between cropping and subject boundaries.
     - 3 Apply square cropping.
@@ -51,8 +53,8 @@
 ### Tasks
 - A simple baseline code is given for depth estimation using UNET architecture.
 - Perform the following tasks:
-    - [ ] Preprocess the data.
-    - [ ] Tune some of the hyperparameters of your choice and apply data augmentation relevant to the problem.
+    - [x] Preprocess the data.
+    - [x] Tune some of the hyperparameters of your choice and apply data augmentation relevant to the problem.
     - [ ] Study the vision transformer architectures by replacing the UNET backbone. Try no more than 3 options.
     - [ ] Develop a perceptual loss, along with the main loss, by computing the normal map from the estimated and ground truth depth images and minimize their discrepancy error by L1, L2 or any relevant loss. Apply the loss on your best performing network so far and compare the results.
     - [ ] By the help of the starter kit, create a color-coded SMPL pose image, similar to the next image, concatenate it with the RGB image and use it to train/test your best network. Can this complementary information help the network to improve the results? Note that we will use ground truth pose for test images as well just to study the impact of this extra information.
