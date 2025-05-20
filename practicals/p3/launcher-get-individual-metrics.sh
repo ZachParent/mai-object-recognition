@@ -14,17 +14,17 @@
 
 ###
 
-#SBATCH --job-name="p3_quantitative_analysis"
+#SBATCH --job-name="p3_get_individual_metrics"
 
 #SBATCH --chdir=.
 
-#SBATCH --output=data/03_logs/p3_quantitative_analysis_%j.out
+#SBATCH --output=data/03_logs/p3_get_individual_metrics_%j.out
 
-#SBATCH --error=data/03_logs/p3_quantitative_analysis_%j.err
+#SBATCH --error=data/03_logs/p3_get_individual_metrics_%j.err
 
 ###
 
 module purgue
 module load  impi  intel  hdf5  mkl  python/3.12.1-gcc
 
-time python notebooks/quantitative_analysis.py
+time python scripts/get_individual_metrics.py
