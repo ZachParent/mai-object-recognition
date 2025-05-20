@@ -1,13 +1,15 @@
+import torch.nn as nn
+
 from ..run_configs import ModelName, RunConfig
 from .unet2d import UNet2D
 
 
-def get_model(config: RunConfig) -> UNet2D:
+def get_model(config: RunConfig) -> nn.Module:
     if config.model_name == ModelName.UNET2D:
         if config.unet2d_config is None:
             raise ValueError("UNet2D config is required")
         return UNet2D(
-            input_size=config.unet2d_config.input_size,
+            input_size=config.input_size,
             filter_num=config.unet2d_config.filter_num,
             n_labels=config.unet2d_config.n_labels,
             stack_num_down=config.unet2d_config.stack_num_down,

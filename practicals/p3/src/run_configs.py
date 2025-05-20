@@ -10,7 +10,6 @@ class ModelName(str, Enum):
 
 
 class UNet2DConfig(pydantic.BaseModel):
-    input_size: tuple[int, int, int] = (256, 256, 3)
     filter_num: list[int] = [64, 128, 256, 512, 1024]
     n_labels: int = 1  # For depth estimation, we only need one channel
     stack_num_down: int = 2
@@ -27,6 +26,7 @@ class RunConfig(pydantic.BaseModel):
     name: str
     model_name: ModelName
     learning_rate: float
+    input_size: tuple[int, int, int] = (256, 256, 3)
     batch_size: int = 64
     epochs: int = 12
     augmentation: bool = False
@@ -136,7 +136,8 @@ SMPL_RUN_SET = RunSet(
             name="SMPL",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
-            unet2d_config=UNet2DConfig(input_size=(256, 256, 6)),
+            input_size=(256, 256, 6),
+            unet2d_config=UNet2DConfig(),
             seed=seed,
             # TODO: use a flag to add pose information
         )

@@ -4,6 +4,7 @@ import random
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -16,7 +17,6 @@ from .metrics import (
     get_metric_collection,
 )
 from .models import get_model
-from .models.unet2d import UNet2D
 from .run_configs import ModelName, RunConfig, UNet2DConfig
 
 
@@ -48,7 +48,7 @@ class TrainingProgress:
 class Trainer:
     def __init__(
         self,
-        model: UNet2D,
+        model: nn.Module,
         optimizer: torch.optim.Optimizer,
         criterion: torch.nn.Module,
         train_metric_collection: MetricCollection,
