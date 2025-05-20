@@ -2,7 +2,9 @@ import itertools
 from enum import Enum
 from typing import Literal, Optional
 
+import pandas as pd
 import pydantic
+from config import RESULTS_DIR
 
 
 class ModelName(str, Enum):
@@ -42,23 +44,27 @@ class RunSet(pydantic.BaseModel):
     configs: list[RunConfig]
 
 
+SEEDS = [0, 1, 2]
+
 id_start = 0
 
-
-# TODO: use 3 seeds each run throughout
 HYPERPARAM_RUN_SET = RunSet(
     title="Hyperparameter Tuning",
     configs=[
         RunConfig(
-            id=id_start,
+            id=id_start + i,
             name="Base",
             epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(),
-        ),
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
         RunConfig(
-            id=id_start + 1,
+            id=id_start + 1 * len(SEEDS) + i,
             name="Reduced Depth",
             epochs=12,
             model_name=ModelName.UNET2D,
@@ -66,52 +72,73 @@ HYPERPARAM_RUN_SET = RunSet(
             unet2d_config=UNet2DConfig(
                 filter_num=[64, 128, 256, 1024],
             ),
-        ),
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
         RunConfig(
-            id=id_start + 2,
+            id=id_start + 2 * len(SEEDS) + i,
             name="No Batch Norm",
             epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(batch_norm=False),
-        ),
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
         RunConfig(
-            id=id_start + 3,
+            id=id_start + 3 * len(SEEDS) + i,
             name="Higher Learning Rate",
             epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0003,
             unet2d_config=UNet2DConfig(),
-        ),
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
         RunConfig(
-            id=id_start + 4,
+            id=id_start + 4 * len(SEEDS) + i,
             name="Lower Learning Rate",
             epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.00003,
             unet2d_config=UNet2DConfig(),
-        ),
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
         RunConfig(
-            id=id_start + 5,
+            id=id_start + 5 * len(SEEDS) + i,
             name="With augmentation",
             epochs=12,
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             augmentation=True,
             unet2d_config=UNet2DConfig(),
-        ),
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
     ],
 )
 
-VIT_RUN_SET = None  # TODO: add vit runs
+id_start += len(HYPERPARAM_RUN_SET.configs)
 
-# 1 per architecture
+# TODO: add vit runs
+VIT_RUN_SET = RunSet(title="VIT", configs=[])
+
+id_start += len(VIT_RUN_SET.configs)
 
 PERCEPTUAL_LOSS_RUN_SET = RunSet(
     title="Perceptual Loss",
     configs=[
         RunConfig(
-            id=id_start,
+            id=id_start + i,
             name=f"{weight} {l1_l2} perceptual {1 - weight} MSE - seed: {seed}",
             epochs=12,
             # TODO: use the best network config
@@ -122,17 +149,19 @@ PERCEPTUAL_LOSS_RUN_SET = RunSet(
             perceptual_loss=l1_l2,  # type: ignore
             seed=seed,
         )
-        for weight, l1_l2, seed in itertools.product(
-            [0.25, 0.5, 0.75], ["L1", "L2"], [0, 1, 2]
+        for i, (weight, l1_l2, seed) in enumerate(
+            itertools.product([0.25, 0.5, 0.75], ["L1", "L2"], SEEDS)
         )
     ],
 )
+
+id_start += len(PERCEPTUAL_LOSS_RUN_SET.configs)
 
 SMPL_RUN_SET = RunSet(
     title="SMPL",
     configs=[
         RunConfig(
-            id=id_start,
+            id=id_start + i,
             name="SMPL",
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
@@ -141,8 +170,31 @@ SMPL_RUN_SET = RunSet(
             seed=seed,
             # TODO: use a flag to add pose information
         )
-        for seed in [0, 1, 2]
+        for i, seed in enumerate(SEEDS)
     ],
 )
 
-id_start += len(HYPERPARAM_RUN_SET.configs)
+ALL_RUNS_SETS = [
+    HYPERPARAM_RUN_SET,
+    VIT_RUN_SET,
+    PERCEPTUAL_LOSS_RUN_SET,
+    SMPL_RUN_SET,
+]
+
+
+if __name__ == "__main__":
+    run_dfs = []
+    for run_set in ALL_RUNS_SETS:
+        new_df = pd.DataFrame([run.model_dump() for run in run_set.configs])
+        if new_df.empty:
+            continue
+        new_df["run_set"] = run_set.title
+        new_df["id"] = new_df["id"].astype(int)
+        if "unet2d_config" in new_df.columns:
+            new_df["unet2d_filter_num"] = new_df["unet2d_config"].apply(
+                lambda x: x["filter_num"]
+            )
+            new_df = new_df.drop(columns=["unet2d_config"])
+        run_dfs.append(new_df)
+    df = pd.concat(run_dfs, ignore_index=True)
+    df.to_csv(RESULTS_DIR / "run_configs.csv", index=False)
