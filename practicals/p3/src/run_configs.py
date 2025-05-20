@@ -33,7 +33,6 @@ class RunConfig(pydantic.BaseModel):
     perceptual_loss_weight: Optional[float] = None
     save_model: bool = True
     unet2d_config: Optional[UNet2DConfig] = None
-    save_video_ids: list[int] = []
     seed: Optional[int] = None
 
 
@@ -54,7 +53,6 @@ HYPERPARAM_RUN_SET = RunSet(
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(),
-            save_video_ids=[0],
         ),
         RunConfig(
             id=id_start + 1,
@@ -65,7 +63,6 @@ HYPERPARAM_RUN_SET = RunSet(
             unet2d_config=UNet2DConfig(
                 filter_num=[64, 128, 256, 1024],
             ),
-            save_video_ids=[0],
         ),
         RunConfig(
             id=id_start + 2,
@@ -74,7 +71,6 @@ HYPERPARAM_RUN_SET = RunSet(
             model_name=ModelName.UNET2D,
             learning_rate=0.0001,
             unet2d_config=UNet2DConfig(batch_norm=False),
-            save_video_ids=[0],
         ),
         RunConfig(
             id=id_start + 3,
@@ -83,7 +79,6 @@ HYPERPARAM_RUN_SET = RunSet(
             model_name=ModelName.UNET2D,
             learning_rate=0.0003,
             unet2d_config=UNet2DConfig(),
-            save_video_ids=[0],
         ),
         RunConfig(
             id=id_start + 4,
@@ -92,7 +87,6 @@ HYPERPARAM_RUN_SET = RunSet(
             model_name=ModelName.UNET2D,
             learning_rate=0.00003,
             unet2d_config=UNet2DConfig(),
-            save_video_ids=[0],
         ),
         RunConfig(
             id=id_start + 5,
@@ -102,7 +96,6 @@ HYPERPARAM_RUN_SET = RunSet(
             learning_rate=0.0001,
             augmentation=True,
             unet2d_config=UNet2DConfig(),
-            save_video_ids=[0],
         ),
     ],
 )
