@@ -111,9 +111,9 @@ class MetricLogger:
     def save_metrics(self, csv_dir_path: Path):
         csv_dir_path.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(self.train_tracker.get_values())
-        df.to_csv(csv_dir_path / f"train_{self.experiment_id}.csv", index=False)
+        df.to_csv(csv_dir_path / f"train.csv", index=False)
         df = pd.DataFrame(self.val_tracker.get_values())
-        df.to_csv(csv_dir_path / f"val_{self.experiment_id}.csv", index=False)
+        df.to_csv(csv_dir_path / f"val.csv", index=False)
 
 
 class PerceptualLoss(torch.nn.Module):
