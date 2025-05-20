@@ -68,6 +68,16 @@ def get_image_and_depth_paths(
     return image_paths, depth_paths
 
 
+def normalize_depth(depth: tv_tensors.Mask) -> tv_tensors.Mask:
+    bg_value = depth.max()
+    bg_mask = depth == bg_value
+    max_fg_value = depth[~bg_mask].max()
+    new_bg_value = max_fg_value * 1.1
+    depth[bg_mask] = new_bg_value
+    depth[...] = (depth - depth.min()) / (new_bg_value - depth.min())
+    return depth
+
+
 class Cloth3dDataset(Dataset):
     def __init__(
         self,
@@ -114,7 +124,7 @@ class Cloth3dDataset(Dataset):
 
     def __getitem__(self, idx) -> Tuple[tv_tensors.Image, tv_tensors.Mask]:
         input_data = torch.from_numpy(np.array(Image.open(self.image_paths[idx])))
-        target_data = torch.from_numpy(np.load(self.depth_paths[idx])).float() / 255.0
+        target_data = torch.from_numpy(np.load(self.depth_paths[idx]))
 
         # move channel to first dimension, and drop alpha channel
         input_data = einops.rearrange(input_data, "h w c -> c h w")[:3]
@@ -130,9 +140,15 @@ class Cloth3dDataset(Dataset):
             input_tensor, target_tensor = AUGMENT_TRANSFORM(input_tensor, target_tensor)
         elif self.enable_normalization:
             # Apply default transform to input; target mask usually doesn't get image normalization
-            input_tensor = DEFAULT_INPUT_TRANSFORM(input_tensor)
+            input_tensor, target_tensor = DEFAULT_INPUT_TRANSFORM(
+                input_tensor, target_tensor
+            )
         else:
-            input_tensor = NON_NORMALIZED_INPUT_TRANSFORM(input_tensor)
+            input_tensor, target_tensor = NON_NORMALIZED_INPUT_TRANSFORM(
+                input_tensor, target_tensor
+            )
+
+        target_tensor = normalize_depth(target_tensor)
 
         return input_tensor, target_tensor
 
