@@ -61,13 +61,13 @@ for frame_id in frame_ids:
     save_path = (
         VISUALIZATIONS_DIR / f"run_{run_id:03d}_video_{video_id}_frame_{frame_id}.png"
     )
-    inferrer.visualize_prediction(
+    fig = inferrer.visualize_prediction(
         video_id=video_id,
         frame_id=frame_id,
-        save_path=str(save_path),
         raw_dataset=raw_dataset,
         normalized_dataset=normalized_dataset,
     )
+    fig.savefig(save_path)
     print(f"Saved visualization to {save_path}")
 
 

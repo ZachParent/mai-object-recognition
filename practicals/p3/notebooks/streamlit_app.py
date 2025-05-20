@@ -103,32 +103,12 @@ with tab1:
             ground_truth = ground_truth.cpu().numpy()
 
             # Create the visualization
-            fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(20, 5))
-
-            # Plot input image
-            ax1.imshow(np.transpose(raw_input_image, (1, 2, 0)))
-            ax1.set_title("Raw Input Image")
-            ax1.axis("off")
-
-            # Plot normalized input image
-            ax2.imshow(np.transpose(normalized_input_image, (1, 2, 0)))
-            ax2.set_title("Normalized Input Image")
-            ax2.axis("off")
-
-            # Plot predicted depth
-            im3 = ax3.imshow(predicted_depth[0], cmap="viridis")
-            ax3.set_title("Predicted Depth")
-            ax3.axis("off")
-            plt.colorbar(im3, ax=ax3)
-
-            # Plot ground truth depth
-            im4 = ax4.imshow(ground_truth[0], cmap="viridis")
-            ax4.set_title("Ground Truth Depth")
-            ax4.axis("off")
-            plt.colorbar(im4, ax=ax4)
-
-            plt.suptitle(f"Video {video_id}, Frame {frame_id}")
-            plt.tight_layout()
+            fig = inferrer.visualize_prediction(
+                video_id=video_id,
+                frame_id=frame_id,
+                raw_dataset=raw_dataset,
+                normalized_dataset=normalized_dataset,
+            )
 
             # Display the plot in Streamlit
             st.pyplot(fig)
@@ -139,12 +119,9 @@ with tab1:
 
             # Convert depth maps to RGB for comparison
             def depth_to_rgb(depth_map):
-                # Normalize to [0, 1]
-                depth_norm = (depth_map - depth_map.min()) / (
-                    depth_map.max() - depth_map.min() + 1e-8
-                )
                 # Convert to RGB using viridis colormap
-                depth_rgb = plt.get_cmap("viridis")(depth_norm)[
+                depth_rgb = np.clip(depth_map, 0, 1)
+                depth_rgb = plt.get_cmap("viridis")(depth_map)[
                     ..., :3
                 ]  # Remove alpha channel
                 # Convert to uint8 (0-255)

@@ -4,6 +4,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from matplotlib.figure import Figure
 
 from .config import CHECKPOINTS_DIR
 from .datasets.cloth3d import Cloth3dDataset
@@ -110,8 +111,7 @@ class Inferrer:
         frame_id: int,
         raw_dataset: Optional[Cloth3dDataset] = None,
         normalized_dataset: Optional[Cloth3dDataset] = None,
-        save_path: Optional[str] = None,
-    ) -> None:
+    ) -> Figure:
         """Visualize the model's prediction for a specific video and frame.
 
         Args:
@@ -131,6 +131,10 @@ class Inferrer:
         predicted_depth = predicted_depth.cpu().numpy()
         ground_truth = ground_truth.cpu().numpy()
 
+        # Clip depth values to [0, 1]
+        predicted_depth = np.clip(predicted_depth, 0, 1)
+        ground_truth = np.clip(ground_truth, 0, 1)
+
         # Create figure with 4 subplots
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(20, 5))
 
@@ -145,13 +149,13 @@ class Inferrer:
         ax2.axis("off")
 
         # Plot predicted depth
-        im3 = ax3.imshow(predicted_depth[0], cmap="viridis")
+        im3 = ax3.imshow(predicted_depth[0], cmap="viridis", vmin=0, vmax=1)
         ax3.set_title("Predicted Depth")
         ax3.axis("off")
         plt.colorbar(im3, ax=ax3)
 
         # Plot ground truth depth
-        im4 = ax4.imshow(ground_truth[0], cmap="viridis")
+        im4 = ax4.imshow(ground_truth[0], cmap="viridis", vmin=0, vmax=1)
         ax4.set_title("Ground Truth Depth")
         ax4.axis("off")
         plt.colorbar(im4, ax=ax4)
@@ -159,12 +163,7 @@ class Inferrer:
         plt.suptitle(f"Video {video_id}, Frame {frame_id}")
         plt.tight_layout()
 
-        if save_path:
-            plt.savefig(save_path)
-        else:
-            plt.show()
-
-        plt.close()
+        return fig
 
     def create_prediction_gif(
         self,
@@ -193,8 +192,8 @@ class Inferrer:
         # Initialize empty images
         im1 = ax1.imshow(np.zeros((256, 256, 3)))
         im2 = ax2.imshow(np.zeros((256, 256, 3)))
-        im3 = ax3.imshow(np.zeros((256, 256)), cmap="viridis")
-        im4 = ax4.imshow(np.zeros((256, 256)), cmap="viridis")
+        im3 = ax3.imshow(np.zeros((256, 256)), cmap="viridis", vmin=0, vmax=1)
+        im4 = ax4.imshow(np.zeros((256, 256)), cmap="viridis", vmin=0, vmax=1)
 
         # Add colorbars
         plt.colorbar(im3, ax=ax3)
@@ -224,6 +223,10 @@ class Inferrer:
             normalized_input_image = normalized_input_image.cpu().numpy()
             predicted_depth = predicted_depth.cpu().numpy()
             ground_truth = ground_truth.cpu().numpy()
+
+            # Clip depth values to [0, 1]
+            predicted_depth = np.clip(predicted_depth, 0, 1)
+            ground_truth = np.clip(ground_truth, 0, 1)
 
             # Update images
             im1.set_array(np.transpose(raw_input_image, (1, 2, 0)))
