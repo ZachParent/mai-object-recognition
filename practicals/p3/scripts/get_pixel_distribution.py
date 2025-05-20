@@ -78,15 +78,52 @@ def calculate_pixel_distribution():
                 )
                 return
             images_batch_f64 = images_batch_f64[:, :3, :, :]  # Take first 3 channels
+            # C is now guaranteed to be 3 for the below logic if C was >3, or error returned if C < 3.
 
-        # Sum pixel values over Batch, Height, and Width dimensions for each channel
-        channel_sum += torch.sum(images_batch_f64, dim=(0, 2, 3))  # Result shape: (3,)
-        channel_sum_sq += torch.sum(
-            images_batch_f64.pow(2), dim=(0, 2, 3)
-        )  # Result shape: (3,)
+        # Identify black pixels (R=0, G=0, B=0)
+        # images_batch_f64 shape is (B, 3, H, W)
+        is_r_zero = images_batch_f64[:, 0, :, :] == 0.0
+        is_g_zero = images_batch_f64[:, 1, :, :] == 0.0
+        is_b_zero = images_batch_f64[:, 2, :, :] == 0.0
 
-        # Accumulate the count of pixels processed for each channel
-        total_pixels_processed_per_channel += B * H * W
+        # Mask for pixels that are entirely black across all three channels
+        is_black_pixel_bhw = is_r_zero & is_g_zero & is_b_zero  # Shape (B, H, W)
+
+        # Mask for non-black pixels (pixels where at least one channel is non-zero)
+        non_black_mask_bhw = ~is_black_pixel_bhw  # Shape (B, H, W), dtype=torch.bool
+
+        # Count number of non-black pixels in this batch (scalar)
+        num_non_black_pixels_this_batch = (
+            non_black_mask_bhw.sum().item()
+        )  # sum() on bool tensor gives int tensor
+
+        if num_non_black_pixels_this_batch > 0:
+            # Expand non_black_mask_bhw to apply to each channel for element-wise multiplication
+            # (B, H, W) -> (B, 1, H, W) -> (B, 3, H, W)
+            non_black_mask_bchw = non_black_mask_bhw.unsqueeze(1).expand_as(
+                images_batch_f64
+            )
+
+            # Zero out the black pixels by multiplying with the mask (True=1, False=0).
+            # This ensures that black pixels contribute 0 to the sums.
+            # Values of non-black pixels are preserved.
+            # Convert boolean mask to the dtype of images_batch_f64 for multiplication.
+            masked_images = images_batch_f64 * non_black_mask_bchw.to(
+                images_batch_f64.dtype
+            )
+
+            # Sum pixel values from non-black pixels over Batch, Height, and Width dimensions for each channel
+            channel_sum += torch.sum(masked_images, dim=(0, 2, 3))  # Result shape: (3,)
+            channel_sum_sq += torch.sum(
+                masked_images.pow(2), dim=(0, 2, 3)
+            )  # Result shape: (3,)
+
+            # Accumulate the count of non-black pixels processed.
+            # This count is used as N in mean (Sum(X)/N) and std dev calculations.
+            total_pixels_processed_per_channel += num_non_black_pixels_this_batch
+        # If num_non_black_pixels_this_batch is 0 for this batch (e.g. all pixels in batch are black),
+        # then no values are added to sums, and total_pixels_processed_per_channel is not increased for this batch.
+
         num_images_processed += B
 
         if (i + 1) % 50 == 0 or (i + 1) == len(
