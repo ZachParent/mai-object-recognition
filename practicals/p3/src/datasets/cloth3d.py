@@ -59,7 +59,7 @@ def get_image_and_depth_paths(
     depth_paths = []
     for folder in selected_folders:
         image_paths.extend(sorted(folder.glob("rgb/*.png")))
-        depth_paths.extend(sorted(folder.glob("depth_vis/*.png")))
+        depth_paths.extend(sorted(folder.glob("depth/*.npy")))
 
     assert len(image_paths) == len(depth_paths)
     return image_paths, depth_paths
@@ -111,10 +111,7 @@ class Cloth3dDataset(Dataset):
 
     def __getitem__(self, idx) -> Tuple[tv_tensors.Image, tv_tensors.Mask]:
         input_data = torch.from_numpy(np.array(Image.open(self.image_paths[idx])))
-        target_data = (
-            torch.from_numpy(np.array(Image.open(self.depth_paths[idx]))).float()
-            / 255.0
-        )
+        target_data = torch.from_numpy(np.load(self.depth_paths[idx])).float() / 255.0
 
         # move channel to first dimension, and drop alpha channel
         input_data = einops.rearrange(input_data, "h w c -> c h w")[:3]
