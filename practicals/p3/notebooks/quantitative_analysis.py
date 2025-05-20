@@ -23,6 +23,8 @@ from src.run_configs import ModelName, RunConfig
 run_id = 0
 model_path = str(CHECKPOINTS_DIR / f"run_{run_id:03d}.pt")
 inferrer = load_model(model_path)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+inferrer.model.to(device)
 
 # Create a RunConfig for metrics (adjust as needed)
 run_config = RunConfig(
@@ -66,8 +68,8 @@ for video_id in tqdm(dataset.video_ids, desc="Processing videos"):
 
         # Get prediction
         with torch.no_grad():
-            pred_depth = inferrer.model(image.unsqueeze(0))
-            pred_depth = pred_depth.squeeze(0)
+            pred_depth = inferrer.model(image.unsqueeze(0).to(device))
+            pred_depth = pred_depth.squeeze(0).cpu()
 
         # Update metric collection
         frame_metric_collection.reset()
