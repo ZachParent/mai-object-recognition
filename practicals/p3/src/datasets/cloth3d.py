@@ -36,8 +36,7 @@ DEFAULT_INPUT_TRANSFORM = v2.Compose(
 # Transform for unified augmentation of input image and target mask
 AUGMENT_TRANSFORM = v2.Compose(
     [
-        # TODO: Add rotation back in
-        # v2.RandomRotation([-5, 5]),
+        v2.RandomRotation([-5, 5]),
         v2.RandomHorizontalFlip(p=0.5),
         v2.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
         v2.ToDtype(torch.float32, scale=True),
@@ -69,11 +68,17 @@ def get_image_and_depth_paths(
 
 
 def normalize_depth(depth: tv_tensors.Mask) -> tv_tensors.Mask:
+    # the background value is the max value in the depth map
     bg_value = depth.max()
     bg_mask = depth == bg_value
+    zero_mask = depth == 0
+    # the max foreground value is the max of the non-background values
     max_fg_value = depth[~bg_mask].max()
     new_bg_value = max_fg_value * 1.1
-    depth[bg_mask] = new_bg_value
+    # set the background and zero values to the new background value
+    # zero values only occur as a result of rotation, so we can just set them to the new background value
+    depth[bg_mask | zero_mask] = new_bg_value
+    # normalize the depth map to the range [0, 1]
     depth[...] = (depth - depth.min()) / (new_bg_value - depth.min())
     return depth
 
