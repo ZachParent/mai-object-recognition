@@ -34,11 +34,11 @@ DEFAULT_INPUT_TRANSFORM = v2.Compose(
 # Transform for unified augmentation of input image and target mask
 AUGMENT_TRANSFORM = v2.Compose(
     [
-        v2.RandomRotation([-10, 10]),
+        v2.RandomRotation([-5, 5]),
         v2.RandomHorizontalFlip(p=0.5),
-        v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        v2.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
         v2.ToDtype(torch.float32, scale=True),
-        v2.RandomErasing(p=0.2),
+        v2.RandomErasing(p=0.1, scale=(0.02, 0.1)),
         v2.Normalize(mean=MEAN, std=STD),
     ]
 )
