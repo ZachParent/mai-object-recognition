@@ -176,12 +176,11 @@ def run_experiment(
 
     # Initialize dataloaders
     train_dataloader = DataLoader(
-        # TODO: enable augmentation
         dataset=Cloth3dDataset(
             start_idx=0,
             end_idx=128,
             include_pose=config.include_pose,
-            enable_augmentation=False,
+            enable_augmentation=config.augmentation,
         ),
         batch_size=config.batch_size,
         shuffle=True,
