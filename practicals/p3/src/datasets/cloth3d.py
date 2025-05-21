@@ -46,9 +46,11 @@ AUGMENT_TRANSFORM = v2.Compose(
 )
 
 
-def get_image_and_depth_paths(
-    start_idx: int, end_idx: Optional[int] = None
-) -> Tuple[List[str], List[str]]:
+def get_data_paths(
+    start_idx: int,
+    end_idx: Optional[int] = None,
+    include_pose: bool = False,
+) -> Tuple[List[str], List[str], List[str]]:
     # Get all parent folders and sort them
     parent_folders = sorted(PREPROCESSED_DATA_DIR.glob("0*"))
     if end_idx is None:
@@ -59,12 +61,17 @@ def get_image_and_depth_paths(
     # Get image and depth paths only from selected folders
     image_paths = []
     depth_paths = []
+    pose_paths = []
     for folder in selected_folders:
         image_paths.extend(sorted(folder.glob("rgb/*.png")))
         depth_paths.extend(sorted(folder.glob("depth/*.npy")))
+        if include_pose:
+            pose_paths.extend(sorted(folder.glob("pose/*.png")))
 
     assert len(image_paths) == len(depth_paths)
-    return image_paths, depth_paths
+    if include_pose:
+        assert len(image_paths) == len(pose_paths)
+    return image_paths, depth_paths, pose_paths
 
 
 def normalize_depth(depth: tv_tensors.Mask) -> tv_tensors.Mask:
@@ -90,9 +97,11 @@ class Cloth3dDataset(Dataset):
         end_idx: Optional[int] = None,
         enable_normalization: bool = True,
         enable_augmentation: bool = False,
+        include_pose: bool = False,
     ):
         self.enable_normalization = enable_normalization
         self.enable_augmentation = enable_augmentation
+        self.include_pose = include_pose
 
         # Get parent folders to calculate num_videos and store video_ids
         parent_folders = sorted(PREPROCESSED_DATA_DIR.glob("0*"))
@@ -103,12 +112,19 @@ class Cloth3dDataset(Dataset):
             int(folder.name) for folder in parent_folders[start_idx:end_idx]
         ]
 
-        self.image_paths, self.depth_paths = get_image_and_depth_paths(
-            start_idx, end_idx
+        self.image_paths, self.depth_paths, self.pose_paths = get_data_paths(
+            start_idx, end_idx, include_pose=include_pose
         )
 
-    def _get_image_and_depth_paths(self, idx: int) -> Tuple[str, str]:
-        return self.image_paths[idx], self.depth_paths[idx]
+    def _get_data_paths(self, idx: int) -> Tuple[str, str, str] | Tuple[str, str]:
+        if self.include_pose:
+            return (
+                self.image_paths[idx],
+                self.depth_paths[idx],
+                self.pose_paths[idx],
+            )
+        else:
+            return self.image_paths[idx], self.depth_paths[idx]
 
     def get_video_id(self, idx: int) -> int:
         """Get the video ID for a given dataset index."""
@@ -139,20 +155,32 @@ class Cloth3dDataset(Dataset):
         # This allows v2 transforms to correctly identify and process them.
         input_tensor = tv_tensors.Image(input_data)
         target_tensor = tv_tensors.Mask(target_data)
+        if self.include_pose:
+            pose_data = torch.from_numpy(np.array(Image.open(self.pose_paths[idx])))
+            pose_data = einops.rearrange(pose_data, "h w c -> c h w")[:3]
+            pose_tensor = tv_tensors.Image(pose_data)
+        else:
+            pose_tensor = None
 
         if self.enable_augmentation:
             # Apply the unified augmentation transform to the pair
-            input_tensor, target_tensor = AUGMENT_TRANSFORM(input_tensor, target_tensor)
+            input_tensor, target_tensor, pose_tensor = AUGMENT_TRANSFORM(
+                input_tensor, target_tensor, pose_tensor
+            )
         elif self.enable_normalization:
             # Apply default transform to input; target mask usually doesn't get image normalization
-            input_tensor, target_tensor = DEFAULT_INPUT_TRANSFORM(
-                input_tensor, target_tensor
+            input_tensor, target_tensor, pose_tensor = DEFAULT_INPUT_TRANSFORM(
+                input_tensor, target_tensor, pose_tensor
             )
         else:
-            input_tensor, target_tensor = NON_NORMALIZED_INPUT_TRANSFORM(
-                input_tensor, target_tensor
+            input_tensor, target_tensor, pose_tensor = NON_NORMALIZED_INPUT_TRANSFORM(
+                input_tensor, target_tensor, pose_tensor
             )
 
+        if self.include_pose:
+            input_tensor = tv_tensors.Image(
+                torch.cat([input_tensor, pose_tensor], dim=0)
+            )
         target_tensor = normalize_depth(target_tensor)
 
         return input_tensor, target_tensor
@@ -161,15 +189,23 @@ class Cloth3dDataset(Dataset):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    dataset = Cloth3dDataset(start_idx=0, end_idx=10, enable_augmentation=True)
+    dataset = Cloth3dDataset(
+        start_idx=0, end_idx=10, enable_augmentation=True, include_pose=True
+    )
     print(len(dataset))
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
     input_batch, target_batch = next(iter(dataloader))
     input_tensor, target_tensor = input_batch[0], target_batch[0]
     print(input_tensor.shape, target_tensor.shape)
-    plt.imshow(input_tensor.permute(1, 2, 0))
-    plt.show()
-    plt.imshow(target_tensor.squeeze(0))
-    plt.colorbar()
+
+    img = input_tensor[:3].permute(1, 2, 0)
+
+    cmap = plt.get_cmap("viridis")  # Get the viridis colormap directly
+    depth = cmap(target_tensor.squeeze(0))[..., :3]
+    pose = input_tensor[3:].permute(1, 2, 0)
+
+    combined = np.concatenate([img, depth, pose], axis=1)
+    plt.imshow(combined)
+    plt.tight_layout()
     plt.show()
