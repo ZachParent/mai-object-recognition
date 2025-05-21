@@ -67,14 +67,14 @@ sns.set_palette("husl")
 # %%
 # Plot distribution of metrics across all runs
 def plot_metric_violin(df, metric_name, title=None):
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     sns.violinplot(data=df, x="run_id", y=metric_name, inner="quartile")
     plt.title(title or f"Distribution of {metric_name} across runs")
     plt.xlabel("Run ID")
     plt.ylabel(metric_name)
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
 # %%
@@ -89,31 +89,36 @@ metric_columns = [
 # Plot distributions for each metric
 for metric in metric_columns:
     plot_metric_violin(frame_metrics, metric, f"Frame-level {metric} Distribution")
+    plt.show()
     plot_metric_violin(video_metrics, metric, f"Video-level {metric} Distribution")
+    plt.show()
 
 
 # %%
 # Plot correlation heatmap for metrics
 def plot_correlation_heatmap(df, title):
-    plt.figure(figsize=(12, 10))
+    fig = plt.figure(figsize=(12, 10))
     # Ensure only numeric columns are used for correlation
     numeric_df = df[metric_columns].select_dtypes(include=np.number)
     correlation_matrix = numeric_df.corr()
     sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", center=0)
     plt.title(title)
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
+# %%
 plot_correlation_heatmap(frame_metrics, "Frame-level Metrics Correlation")
+plt.show()
 plot_correlation_heatmap(video_metrics, "Video-level Metrics Correlation")
+plt.show()
 
 
 # %%
 # Plot combined distribution of frame and video metrics across all runs
 def plot_combined_metric_distribution(frame_df, video_df, metric_name, title=None):
     """Plots a split violin plot comparing frame-level and video-level metric distributions."""
-    plt.figure(figsize=(12, 7))
+    fig = plt.figure(figsize=(12, 7))
 
     # Prepare data for combined plot
     frame_data = frame_df[["run_id", metric_name]].copy()
@@ -138,13 +143,14 @@ def plot_combined_metric_distribution(frame_df, video_df, metric_name, title=Non
     plt.xticks(rotation=45)
     plt.legend(title="Metric Level")
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
 # %%
 # Plot combined distributions for each metric
 for metric in metric_columns:
     plot_combined_metric_distribution(frame_metrics, video_metrics, metric)
+    plt.show()
 
 
 # %%
@@ -277,7 +283,7 @@ def plot_training_curves(runs_df, metric_name, title=None):
         fig.delaxes(axes_flat[j])
 
     plt.tight_layout(rect=(0, 0, 1, 0.95))
-    plt.show()
+    return fig
 
 
 # %%
@@ -292,6 +298,7 @@ if not runs_df.empty:
     # Plot training curves for each relevant metric
     for metric in run_metric_columns:
         plot_training_curves(runs_df, metric)
+        plt.show()
 else:
     print("runs_df is empty. Skipping training curve plots.")
 
