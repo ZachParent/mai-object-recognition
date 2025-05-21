@@ -19,7 +19,7 @@ from notebooks.quantitative_analysis import (
 )
 from src.config import CHECKPOINTS_DIR, RESULTS_DIR, VISUALIZATIONS_DIR
 from src.datasets.cloth3d import Cloth3dDataset
-from src.inferrer import load_model
+from src.inferrer import get_run_config, load_model
 from streamlit_image_comparison import image_comparison
 
 # Set page config
@@ -29,11 +29,36 @@ st.set_page_config(
 
 # Title and description
 st.title("P3 Depth Estimation")
+st.sidebar.markdown("---")
 
 # Sidebar for model selection
 st.sidebar.title("Model Selection")
-model_path = str(CHECKPOINTS_DIR / f"run_{0:03d}.pt")
-inferrer = load_model(model_path)
+model_ids = sorted(
+    int(path.stem.split("_")[1]) for path in CHECKPOINTS_DIR.glob("run_*.pt")
+)
+
+st.sidebar.markdown("---")
+st.sidebar.header("Instructions")
+st.sidebar.markdown(
+    """
+1. Select a frame from the Single Frame tab
+2. View the predicted depth map and the ground truth depth map
+3. Compare the prediction and ground truth with the image comparison widget
+4. Use the GIF Creation tab to create animations
+5. View the model performance in the Model Performance tab
+"""
+)
+
+
+@st.cache_data
+def load_model_cached(model_id: int):
+    config = get_run_config(model_id)
+    model_path = str(CHECKPOINTS_DIR / f"run_{model_id:03d}.pt")
+    return load_model(model_path, config)
+
+
+model_id = st.sidebar.selectbox("Model", model_ids, index=0)
+inferrer = load_model_cached(model_id)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
@@ -413,27 +438,3 @@ def display_model_performance():
 
 with tab4:
     display_model_performance()
-
-
-# Add some information about the model
-st.sidebar.markdown("---")
-st.sidebar.header("About")
-st.sidebar.info(
-    """
-This app uses a UNet2D model trained on the Cloth3D dataset for depth estimation.
-The model takes RGB images as input and predicts depth maps.
-"""
-)
-
-# Add instructions
-st.sidebar.markdown("---")
-st.sidebar.header("Instructions")
-st.sidebar.markdown(
-    """
-1. Select a frame from the Single Frame tab
-2. View the predicted depth map and the ground truth depth map
-3. Compare the prediction and ground truth with the image comparison widget
-4. Use the GIF Creation tab to create animations
-5. View the model performance in the Model Performance tab
-"""
-)

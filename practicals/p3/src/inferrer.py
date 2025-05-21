@@ -3,19 +3,27 @@ from typing import Optional, Tuple
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from matplotlib.figure import Figure
 
-from .config import CHECKPOINTS_DIR
+from .config import CHECKPOINTS_DIR, RESULTS_DIR
 from .datasets.cloth3d import Cloth3dDataset
 from .models import get_model
 from .run_configs import ModelName, RunConfig, UNet2DConfig
+
+
+def get_run_config(id: int) -> RunConfig:
+    run_confgs = pd.read_csv(RESULTS_DIR / "run_configs.csv")
+    run_config = run_confgs[run_confgs["id"] == id].to_dict(orient="records")[0]
+    return RunConfig.model_validate_json(run_config["json"])
 
 
 class Inferrer:
     def __init__(
         self,
         model_path: str,
+        config: Optional[RunConfig] = None,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ):
         """Initialize the inferrer with a trained model.
@@ -25,10 +33,12 @@ class Inferrer:
             device: Device to run inference on ('cuda' or 'cpu')
         """
         self.device = device
-        self.model = self._load_model(model_path)
+        self.model = self._load_model(model_path, config)
         self.model.eval()  # Set model to evaluation mode
 
-    def _load_model(self, model_path: str) -> torch.nn.Module:
+    def _load_model(
+        self, model_path: str, config: Optional[RunConfig]
+    ) -> torch.nn.Module:
         """Load a trained model from disk.
 
         Args:
@@ -37,20 +47,22 @@ class Inferrer:
         Returns:
             Loaded model
         """
-        # Create a default config for the model
-        config = RunConfig(
-            id=0,
-            name="inference",
-            model_name=ModelName.UNET2D,
-            learning_rate=0.0001,  # Not used for inference
-            unet2d_config=UNet2DConfig(),
-        )
+        if config is None:
+            config = RunConfig(
+                id=0,
+                name="inference",
+                model_name=ModelName.UNET2D,
+                unet2d_config=UNet2DConfig(),
+                learning_rate=0.0001,  # Not used for inference
+            )
 
         # Initialize model with config
         model = get_model(config)
 
         # Load weights
-        model.load_state_dict(torch.load(model_path, map_location=self.device))
+        model.load_state_dict(
+            torch.load(model_path, map_location=self.device, weights_only=True)
+        )
         model.to(self.device)
 
         return model
@@ -260,7 +272,7 @@ class Inferrer:
         print(f"Saved GIF to {output_path}")
 
 
-def load_model(model_path: str) -> Inferrer:
+def load_model(model_path: str, config: Optional[RunConfig] = None) -> Inferrer:
     """Helper function to create an Inferrer instance.
 
     Args:
@@ -269,7 +281,7 @@ def load_model(model_path: str) -> Inferrer:
     Returns:
         Inferrer instance
     """
-    return Inferrer(model_path)
+    return Inferrer(model_path, config)
 
 
 if __name__ == "__main__":
