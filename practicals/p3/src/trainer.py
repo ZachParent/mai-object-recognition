@@ -177,14 +177,22 @@ def run_experiment(
     # Initialize dataloaders
     train_dataloader = DataLoader(
         # TODO: enable augmentation
-        dataset=Cloth3dDataset(start_idx=0, end_idx=128, enable_augmentation=False),
+        dataset=Cloth3dDataset(
+            start_idx=0,
+            end_idx=128,
+            include_pose=config.include_pose,
+            enable_augmentation=False,
+        ),
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=4,
     )
     val_dataloader = DataLoader(
         dataset=Cloth3dDataset(
-            start_idx=128, end_idx=128 + 16, enable_augmentation=False
+            start_idx=128,
+            end_idx=128 + 16,
+            include_pose=config.include_pose,
+            enable_augmentation=False,
         ),
         batch_size=config.batch_size,
         shuffle=False,
@@ -192,7 +200,10 @@ def run_experiment(
     )
     test_dataloader = DataLoader(
         dataset=Cloth3dDataset(
-            start_idx=128 + 16, end_idx=None, enable_augmentation=False
+            start_idx=128 + 16,
+            end_idx=None,
+            include_pose=config.include_pose,
+            enable_augmentation=False,
         ),
         batch_size=config.batch_size,
         shuffle=False,
@@ -264,17 +275,15 @@ def run_experiment(
 if __name__ == "__main__":
     # Example usage
     config = RunConfig(
-        id=0,
-        name="demo",
+        id=1000,
+        name="SMPL",
         model_name=ModelName.UNET2D,
-        learning_rate=3e-4,
-        batch_size=64,
-        epochs=10,
-        save_model=True,
+        learning_rate=0.0001,
         unet2d_config=UNet2DConfig(),
-        seed=42,
-        perceptual_loss="L2",
-        perceptual_loss_weight=0.5,
+        seed=0,
+        batch_size=1,
+        include_pose=True,
+        input_size=(256, 256, 6),
     )
 
     run_experiment(config=config)

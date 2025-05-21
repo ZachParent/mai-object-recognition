@@ -37,6 +37,7 @@ class RunConfig(pydantic.BaseModel):
     perceptual_loss_weight: Optional[float] = None
     save_model: bool = True
     unet2d_config: Optional[UNet2DConfig] = None
+    include_pose: bool = False
     seed: Optional[int] = None
 
 
@@ -169,7 +170,7 @@ SMPL_RUN_SET = RunSet(
             input_size=(256, 256, 6),
             unet2d_config=UNet2DConfig(),
             seed=seed,
-            # TODO: use a flag to add pose information
+            include_pose=True,
         )
         for i, seed in enumerate(SEEDS)
     ],
