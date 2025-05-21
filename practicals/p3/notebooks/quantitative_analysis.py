@@ -1,5 +1,4 @@
 # %%
-import re
 import sys
 from pathlib import Path
 
@@ -13,42 +12,7 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 sys.path.append(str(ROOT_DIR / "src"))
 
-from src.config import RESULTS_DIR
-
-
-# %%
-# Load the metrics data
-def get_metrics_dfs():
-    frame_metrics = pd.read_csv(RESULTS_DIR / "frame_metrics.csv")
-    video_metrics = pd.read_csv(RESULTS_DIR / "video_metrics.csv")
-    return frame_metrics, video_metrics
-
-
-def get_runs_df():
-    run_dirs = sorted(RESULTS_DIR.glob("run_*"))
-    runs_df = pd.DataFrame()
-    for run_dir in run_dirs:
-        match = re.search(r"run_(\d+)", run_dir.name)
-        if not match:
-            print(
-                f"Warning: Could not extract run_id from directory {run_dir.name}. Skipping."
-            )
-            continue
-        run_id = int(match.group(1))
-        for set_name in ["train", "val", "test"]:
-            metrics_file = run_dir / f"{set_name}.csv"
-            try:
-                metrics_df = pd.read_csv(metrics_file)
-                metrics_df["run_id"] = run_id
-                metrics_df["set"] = set_name
-                metrics_df["epoch"] = metrics_df.index
-                runs_df = pd.concat([runs_df, metrics_df], ignore_index=True)
-            except Exception as e:
-                print(
-                    f"Warning: Could not process file {metrics_file}. Error: {e}. Skipping."
-                )
-    return runs_df
-
+from get_results import get_metrics_dfs, get_runs_df
 
 # %%
 # Get the metrics dataframes

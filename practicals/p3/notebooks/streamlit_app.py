@@ -9,11 +9,10 @@ sys.path.append(str(ROOT_DIR / "src"))
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import streamlit as st
-
-# Import functions from quantitative_analysis.py
-from quantitative_analysis import (
-    get_metrics_dfs,
+from notebooks.get_results import get_metrics_dfs, get_runs_df
+from notebooks.quantitative_analysis import (
     plot_combined_metric_distribution,
     plot_correlation_heatmap,
     plot_metric_violin,
@@ -29,13 +28,7 @@ st.set_page_config(
 )
 
 # Title and description
-st.title("Depth Estimation Visualization")
-st.markdown(
-    """
-This app allows you to visualize depth estimation results from our trained model.
-Select a video ID and frame ID to see the model's predictions.
-"""
-)
+st.title("P3 Depth Estimation")
 
 # Sidebar for model selection
 st.sidebar.title("Model Selection")
@@ -45,9 +38,18 @@ raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
 # Create tabs for different visualization modes
-tab1, tab2, tab3 = st.tabs(["Single Frame", "GIF Creation", "Quantitative Analysis"])
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["Single Frame", "GIF Creation", "Quantitative Analysis", "Model Performance"]
+)
 
 with tab1:
+    st.header("Single Frame Depth Visualization")
+    st.markdown(
+        """
+    Visualize depth estimation results from our trained model.
+    Select a video ID and frame ID to see the model's predictions.
+    """
+    )
     # Load metrics data
     metrics_path = Path(RESULTS_DIR / "frame_metrics.csv")
     if metrics_path.exists():
@@ -313,6 +315,60 @@ with tab3:
         )
     except Exception as e:
         st.error(f"An error occurred while loading or plotting data: {e}")
+
+
+def training_results_df(runs_df):
+    runs_df["run_id_group"] = runs_df["run_id"].apply(lambda x: x // 3)
+    # Group by 'run_id_group' and 'epoch', then aggregate 'mse'
+    runs_by_group_df = (
+        runs_df.groupby(["run_id_group", "epoch", "set"])["mse"]
+        .agg(mse_median="median", mse_min="min", mse_max="max")
+        .reset_index()
+    )
+
+    set_name = st.selectbox("Set", ["train", "val", "test"], index=2)
+    runs_by_group_df = runs_by_group_df[runs_by_group_df["set"] == set_name]
+    return runs_by_group_df
+
+
+def plot_training_curves(runs_df):
+    train_and_val_df = runs_df[runs_df["set"].isin(["train", "val"])]
+    train_and_val_df["run_id_group"] = train_and_val_df["run_id"].apply(
+        lambda x: x // 3
+    )
+    # Group by 'run_id_group' and 'epoch', then aggregate 'mse'
+    train_and_val_by_group_df = (
+        train_and_val_df.groupby(["run_id_group", "epoch", "set"])["mse"]
+        .agg(mse_median="median", mse_min="min", mse_max="max")
+        .reset_index()
+    )
+    plot = px.line(
+        train_and_val_by_group_df,
+        x="epoch",
+        y="mse_median",
+        color="run_id_group",
+        facet_col="set",
+        error_y_minus="mse_min",
+        error_y="mse_max",
+    )
+    return plot
+
+
+with tab4:
+    st.header("Model Performance")
+    runs_df = get_runs_df()
+    runs_by_group_df = training_results_df(runs_df)
+    st.dataframe(
+        runs_by_group_df,
+        hide_index=True,
+        column_config={
+            "mse_median": st.column_config.NumberColumn(format="%.6f"),
+            "mse_min": st.column_config.NumberColumn(format="%.6f"),
+            "mse_max": st.column_config.NumberColumn(format="%.6f"),
+        },
+    )
+    plot = plot_training_curves(runs_df)
+    st.plotly_chart(plot)
 
 
 # Add some information about the model
