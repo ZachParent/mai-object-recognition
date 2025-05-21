@@ -42,7 +42,23 @@ tab1, tab2, tab3, tab4 = st.tabs(
     ["Single Frame", "GIF Creation", "Quantitative Analysis", "Model Performance"]
 )
 
-with tab1:
+
+@st.cache_data
+def get_metrics_df_cached():
+    if not Path(RESULTS_DIR / "frame_metrics.csv").exists():
+        st.error(
+            "Frame metrics file not found. Please run the `get_individual_metrics.py` script first to generate it."
+        )
+    return pd.read_csv(Path(RESULTS_DIR / "frame_metrics.csv"))
+
+
+@st.cache_data
+def get_metrics_dfs_cached():
+    return get_metrics_dfs()
+
+
+@st.fragment
+def display_single_frame_depth_visualization():
     st.header("Single Frame Depth Visualization")
     st.markdown(
         """
@@ -51,104 +67,104 @@ with tab1:
     """
     )
     # Load metrics data
-    metrics_path = Path(RESULTS_DIR / "frame_metrics.csv")
-    if metrics_path.exists():
-        df = pd.read_csv(metrics_path)
+    df = get_metrics_df_cached()
 
-        # Add filters
-        st.subheader("Filters")
-        col1, col2 = st.columns(2)
+    # Add filters
+    st.subheader("Filters")
+    col1, col2 = st.columns(2)
 
-        with col1:
-            video_filter = st.multiselect(
-                "Filter by Video ID",
-                options=sorted(df["video_id"].unique()),
-                default=[],
-            )
-
-        # Apply filters
-        filtered_df = df.copy()
-        if video_filter:
-            filtered_df = filtered_df[filtered_df["video_id"].isin(video_filter)]
-
-        # Display the table
-        event = st.dataframe(
-            filtered_df,
-            use_container_width=True,
-            on_select="rerun",
-            selection_mode="single-row",
+    with col1:
+        video_filter = st.multiselect(
+            "Filter by Video ID",
+            options=sorted(df["video_id"].unique()),
+            default=[],
         )
 
-        # Add visualization for selected row
-        st.subheader("Visualize Selected Frame")
-        rows = event.get("selection", {}).get("rows", [])
-        selected_row = rows[0] if rows else None
+    # Apply filters
+    filtered_df = df.copy()
+    if video_filter:
+        filtered_df = filtered_df[filtered_df["video_id"].isin(video_filter)]
 
-        if selected_row is not None:
-            video_id = int(filtered_df.iloc[selected_row]["video_id"])
-            frame_id = int(filtered_df.iloc[selected_row]["frame_id"])
+    # Display the table
+    event = st.dataframe(
+        filtered_df,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+    )
 
-            # Get the prediction
-            raw_input_image, normalized_input_image, predicted_depth, ground_truth = (
-                inferrer.infer(
-                    video_id=video_id,
-                    frame_id=frame_id,
-                    raw_dataset=raw_dataset,
-                    normalized_dataset=normalized_dataset,
-                )
-            )
+    # Add visualization for selected row
+    st.subheader("Visualize Selected Frame")
+    rows = event.get("selection", {}).get("rows", [])
+    selected_row = rows[0] if rows else None
 
-            # Move tensors to CPU and convert to numpy
-            raw_input_image = raw_input_image.cpu().numpy()
-            normalized_input_image = normalized_input_image.cpu().numpy()
-            predicted_depth = predicted_depth.cpu().numpy()
-            ground_truth = ground_truth.cpu().numpy()
+    if selected_row is not None:
+        video_id = int(filtered_df.iloc[selected_row]["video_id"])
+        frame_id = int(filtered_df.iloc[selected_row]["frame_id"])
 
-            # Create the visualization
-            fig = inferrer.visualize_prediction(
+        # Get the prediction
+        raw_input_image, normalized_input_image, predicted_depth, ground_truth = (
+            inferrer.infer(
                 video_id=video_id,
                 frame_id=frame_id,
                 raw_dataset=raw_dataset,
                 normalized_dataset=normalized_dataset,
             )
-
-            # Display the plot in Streamlit
-            st.pyplot(fig)
-            plt.close()
-
-            # Add image comparison widget
-            st.subheader("Compare Predicted Depth with Ground Truth")
-
-            # Convert depth maps to RGB for comparison
-            def depth_to_rgb(depth_map):
-                # Convert to RGB using viridis colormap
-                depth_rgb = np.clip(depth_map, 0, 1)
-                depth_rgb = plt.get_cmap("viridis")(depth_map)[
-                    ..., :3
-                ]  # Remove alpha channel
-                # Convert to uint8 (0-255)
-                depth_rgb = (depth_rgb * 255).astype(np.uint8)
-                return depth_rgb
-
-            # Convert depth maps to RGB
-            predicted_rgb = depth_to_rgb(predicted_depth[0])
-            ground_truth_rgb = depth_to_rgb(ground_truth[0])
-
-            # Create image comparison
-            image_comparison(
-                img1=predicted_rgb,
-                img2=ground_truth_rgb,
-                label1="Predicted Depth",
-                label2="Ground Truth",
-            )
-        else:
-            st.warning("Please select a row to visualize.")
-    else:
-        st.warning(
-            "No metrics data found. Please run the quantitative_analysis.py notebook first."
         )
 
-with tab2:
+        # Move tensors to CPU and convert to numpy
+        raw_input_image = raw_input_image.cpu().numpy()
+        normalized_input_image = normalized_input_image.cpu().numpy()
+        predicted_depth = predicted_depth.cpu().numpy()
+        ground_truth = ground_truth.cpu().numpy()
+
+        # Create the visualization
+        fig = inferrer.visualize_prediction(
+            video_id=video_id,
+            frame_id=frame_id,
+            raw_dataset=raw_dataset,
+            normalized_dataset=normalized_dataset,
+        )
+
+        # Display the plot in Streamlit
+        st.pyplot(fig)
+        plt.close()
+
+        # Add image comparison widget
+        st.subheader("Compare Predicted Depth with Ground Truth")
+
+        # Convert depth maps to RGB for comparison
+        def depth_to_rgb(depth_map):
+            # Convert to RGB using viridis colormap
+            depth_rgb = np.clip(depth_map, 0, 1)
+            depth_rgb = plt.get_cmap("viridis")(depth_map)[
+                ..., :3
+            ]  # Remove alpha channel
+            # Convert to uint8 (0-255)
+            depth_rgb = (depth_rgb * 255).astype(np.uint8)
+            return depth_rgb
+
+        # Convert depth maps to RGB
+        predicted_rgb = depth_to_rgb(predicted_depth[0])
+        ground_truth_rgb = depth_to_rgb(ground_truth[0])
+
+        # Create image comparison
+        image_comparison(
+            img1=predicted_rgb,
+            img2=ground_truth_rgb,
+            label1="Predicted Depth",
+            label2="Ground Truth",
+        )
+    else:
+        st.warning("Please select a row to visualize.")
+
+
+with tab1:
+    display_single_frame_depth_visualization()
+
+
+@st.fragment
+def display_gif_creation():
     st.header("Create GIF Animation")
 
     # GIF creation controls
@@ -228,10 +244,14 @@ with tab2:
         # Display the GIF
         st.image(output_path, caption=f"Video {gif_video_id} Animation")
 
+
+with tab2:
+    display_gif_creation()
+
 with tab3:
     # Load data
     try:
-        frame_metrics, video_metrics = get_metrics_dfs()
+        frame_metrics, video_metrics = get_metrics_dfs_cached()
 
         if frame_metrics.empty or video_metrics.empty:
             st.warning(
@@ -360,9 +380,19 @@ def plot_training_curves(runs_df):
     return plot
 
 
-with tab4:
+@st.cache_data
+def get_runs_df_cached():
+    return get_runs_df()
+
+
+@st.fragment
+def display_model_performance():
     st.header("Model Performance")
-    runs_df = get_runs_df()
+    runs_df = get_runs_df_cached()
+
+    plot = plot_training_curves(runs_df)
+    st.plotly_chart(plot)
+
     runs_by_group_df = training_results_df(runs_df)
     st.dataframe(
         runs_by_group_df,
@@ -373,8 +403,10 @@ with tab4:
             "mse_max": st.column_config.NumberColumn(format="%.6f"),
         },
     )
-    plot = plot_training_curves(runs_df)
-    st.plotly_chart(plot)
+
+
+with tab4:
+    display_model_performance()
 
 
 # Add some information about the model
@@ -396,5 +428,6 @@ st.sidebar.markdown(
 2. View the predicted depth map and the ground truth depth map
 3. Compare the prediction and ground truth with the image comparison widget
 4. Use the GIF Creation tab to create animations
+5. View the model performance in the Model Performance tab
 """
 )
