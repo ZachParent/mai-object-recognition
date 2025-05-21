@@ -1,3 +1,5 @@
+from typing import List
+
 import einops
 import torch
 import torch.nn as nn
@@ -58,7 +60,9 @@ class UNetLeft(nn.Module):
         if pool:
             self.down = nn.MaxPool2d(2)
         else:
-            down_layers = [nn.Conv2d(in_channels, in_channels, 3, stride=2, padding=1)]
+            down_layers: List[nn.Module] = [
+                nn.Conv2d(in_channels, in_channels, 3, stride=2, padding=1)
+            ]
             if batch_norm:
                 down_layers.append(nn.BatchNorm2d(in_channels))
             down_layers.append(nn.ReLU() if activation == "relu" else nn.GELU())
@@ -91,7 +95,9 @@ class UNetRight(nn.Module):
         if unpool:
             self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         else:
-            up_layers = [nn.ConvTranspose2d(in_channels, in_channels, 2, stride=2)]
+            up_layers: List[nn.Module] = [
+                nn.ConvTranspose2d(in_channels, in_channels, 2, stride=2)
+            ]
             if batch_norm:
                 up_layers.append(nn.BatchNorm2d(in_channels))
             up_layers.append(nn.ReLU() if activation == "relu" else nn.GELU())
