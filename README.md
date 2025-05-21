@@ -12,6 +12,15 @@ pre-commit install
 
 ## Development Setup
 
+### Running the code locally
+
+Because we use module imports, it's important to run the code from the `practicals/p3` directory using the `-m` flag.
+
+```bash
+cd practicals/p3
+python -m src.main
+```
+
 ### Using VS Code with Remote SSH
 
 Developing directly on a remote server (like the BSC login nodes) via SSH is highly recommended for this project. VS Code provides excellent support for this.
@@ -61,7 +70,7 @@ Replace `<remote_host_alias>` with the name defined in your `~/.ssh/config`. The
 The code can be run on the BSC cluster using the `launcher-main.sh` script.
 
 ```bash
-cd practicals/p3/src
+cd practicals/p3
 sbatch -A nct_328 -q acc_training launcher-main.sh
 ```
 

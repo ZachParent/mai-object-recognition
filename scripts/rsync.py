@@ -146,6 +146,7 @@ if __name__ == "__main__":
                 "p1/",
                 "p2/",
                 "cloth3d*/",
+                "preprocessed_dataset/",  # you may want to remove this when you send the preprocessed dataset
             ]
         )
 

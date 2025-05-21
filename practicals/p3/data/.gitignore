@@ -1,2 +1,4 @@
-*
-!.gitignore
+02_checkpoints/
+03_logs/
+cloth3d++_subset/
+preprocessed_dataset/

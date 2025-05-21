@@ -4,14 +4,20 @@ import random
 import numpy as np
 import pandas as pd
 import torch
-from config import CHECKPOINTS_DIR, RESULTS_DIR
-from datasets.dummy import get_dummy_dataloader
-from metrics import MetricCollection, MetricLogger, get_metric_collection
-from models import get_model
-from models.unet2d import UNet2D
-from run_configs import ModelName, RunConfig, UNet2DConfig
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+from .config import CHECKPOINTS_DIR, RESULTS_DIR
+from .datasets.cloth3d import Cloth3dDataset
+from .metrics import (
+    CombinedLoss,
+    MetricCollection,
+    MetricLogger,
+    get_metric_collection,
+)
+from .models import get_model
+from .run_configs import ModelName, RunConfig, UNet2DConfig
 
 
 class TrainingProgress:
@@ -42,7 +48,7 @@ class TrainingProgress:
 class Trainer:
     def __init__(
         self,
-        model: UNet2D,
+        model: nn.Module,
         optimizer: torch.optim.Optimizer,
         criterion: torch.nn.Module,
         train_metric_collection: MetricCollection,
@@ -92,7 +98,7 @@ class Trainer:
             self.optimizer.step()
 
             # Update progress
-            progress.update(loss.item())
+            progress.update(total_loss / num_batches)
 
         progress.close()
 
@@ -131,7 +137,7 @@ class Trainer:
                 metric_collection.update(pred_depth.detach(), depth)
 
                 # Update progress
-                progress.update(loss.item())
+                progress.update(total_loss / num_batches)
 
         progress.close()
 
@@ -163,24 +169,62 @@ def set_seed(seed: int) -> None:
 
 def run_experiment(
     config: RunConfig,
-    train_dataloader: DataLoader,
-    val_dataloader: DataLoader,
-    test_dataloader: DataLoader,
 ) -> None:
     # Set random seed for reproducibility
     if config.seed is not None:
         set_seed(config.seed)
+
+    # Initialize dataloaders
+    train_dataloader = DataLoader(
+        dataset=Cloth3dDataset(
+            start_idx=0,
+            end_idx=128,
+            include_pose=config.include_pose,
+            enable_augmentation=config.augmentation,
+        ),
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=4,
+    )
+    val_dataloader = DataLoader(
+        dataset=Cloth3dDataset(
+            start_idx=128,
+            end_idx=128 + 16,
+            include_pose=config.include_pose,
+            enable_augmentation=False,
+        ),
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=4,
+    )
+    test_dataloader = DataLoader(
+        dataset=Cloth3dDataset(
+            start_idx=128 + 16,
+            end_idx=None,
+            include_pose=config.include_pose,
+            enable_augmentation=False,
+        ),
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=4,
+    )
 
     # Initialize model
     model = get_model(config)
 
     # Initialize optimizer and loss function
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    criterion = torch.nn.MSELoss()  # MSE loss for depth estimation
+    if config.perceptual_loss_weight is not None:
+        criterion = CombinedLoss(
+            discrepancy_error=config.perceptual_loss,
+            weight=config.perceptual_loss_weight,
+        )
+    else:
+        criterion = torch.nn.MSELoss()
 
     # Initialize metrics
-    train_metric_collection = get_metric_collection()
-    val_metric_collection = get_metric_collection()
+    train_metric_collection = get_metric_collection(config)
+    val_metric_collection = get_metric_collection(config)
 
     # Initialize trainer
     trainer = Trainer(
@@ -200,7 +244,7 @@ def run_experiment(
 
     # Training loop
     for epoch in range(config.epochs):
-        width = 90
+        width = 100
         print("\n" + "=" * width)
         print(f"EPOCH {epoch+1} / {config.epochs}".center(width))
         print("-" * width)
@@ -212,43 +256,33 @@ def run_experiment(
         # Log metrics
         metrics_logger.log_metrics()
 
-    test_metric_collection = get_metric_collection()
+    test_metric_collection = get_metric_collection(config)
     trainer.evaluate(test_dataloader, test_metric_collection)
 
-    print(f"Test MAE: {test_metric_collection.metrics['mae'].compute()}")
-    print(f"Test Perceptual: {test_metric_collection.metrics['perceptual'].compute()}")
+    for metric_name, metric in test_metric_collection.metrics.items():
+        print(f"Test {metric_name.upper()}: {metric.compute()}")
 
-    metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id}")
+    metrics_logger.save_metrics(RESULTS_DIR / f"run_{config.id:03d}")
     test_df = pd.DataFrame(test_metric_collection.compute(), index=[0])
-    test_df.to_csv(RESULTS_DIR / f"run_{config.id}" / "test.csv", index=False)
+    test_df.to_csv(RESULTS_DIR / f"run_{config.id:03d}" / "test.csv", index=False)
 
     # Save model if path is provided
-    if config.save_path:
-        trainer.save_model(str(config.save_path / f"run_{config.id}.pt"))
+    if config.save_model:
+        trainer.save_model(str(CHECKPOINTS_DIR / f"run_{config.id:03d}.pt"))
 
 
 if __name__ == "__main__":
     # Example usage
     config = RunConfig(
-        id=0,
+        id=1000,
+        name="SMPL",
         model_name=ModelName.UNET2D,
-        learning_rate=1e-2,
-        batch_size=1,
-        epochs=2,
-        save_path=CHECKPOINTS_DIR,
+        learning_rate=0.0001,
         unet2d_config=UNet2DConfig(),
-        seed=42,
+        seed=0,
+        batch_size=1,
+        include_pose=True,
+        input_size=(256, 256, 6),
     )
 
-    # Create dummy dataloaders for testing
-    torch.manual_seed(config.seed)
-    train_dataloader = get_dummy_dataloader(config.batch_size)
-    val_dataloader = get_dummy_dataloader(config.batch_size)
-    test_dataloader = get_dummy_dataloader(config.batch_size)
-
-    run_experiment(
-        config=config,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        test_dataloader=test_dataloader,
-    )
+    run_experiment(config=config)
