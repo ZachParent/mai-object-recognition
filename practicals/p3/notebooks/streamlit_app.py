@@ -342,14 +342,20 @@ def plot_training_curves(runs_df):
         .agg(mse_median="median", mse_min="min", mse_max="max")
         .reset_index()
     )
+    train_and_val_by_group_df["error_y"] = (
+        train_and_val_by_group_df["mse_max"] - train_and_val_by_group_df["mse_median"]
+    )
+    train_and_val_by_group_df["error_y_minus"] = (
+        train_and_val_by_group_df["mse_median"] - train_and_val_by_group_df["mse_min"]
+    )
     plot = px.line(
         train_and_val_by_group_df,
         x="epoch",
         y="mse_median",
         color="run_id_group",
         facet_col="set",
-        error_y_minus="mse_min",
-        error_y="mse_max",
+        error_y_minus="error_y_minus",
+        error_y="error_y",
     )
     return plot
 
