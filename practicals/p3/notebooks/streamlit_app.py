@@ -363,20 +363,11 @@ with tab3:
 
 
 def display_training_results_df(runs_df):
-    runs_df["run_id_group"] = runs_df["run_id"].apply(lambda x: x // 3)
-    # Group by 'run_id_group' and 'epoch', then aggregate 'mse'
     runs_by_group_df = (
-        runs_df.groupby(["run_id_group", "epoch", "set", "name"])["mse"]
+        runs_df.groupby(["name", "set", "epoch"])["mse"]
         .agg(mse_median="median", mse_min="min", mse_max="max")
         .reset_index()
     )
-    first = ["run_id_group", "name", "set", "epoch"]
-    runs_by_group_df = runs_by_group_df[
-        sorted(
-            runs_by_group_df.columns,
-            key=lambda x: first.index(x) if x in first else 1000,
-        )
-    ]
 
     set_name = st.selectbox("Set", ["train", "val", "test"], index=2)
     runs_by_group_df = runs_by_group_df[runs_by_group_df["set"] == set_name]
@@ -391,28 +382,26 @@ def display_training_results_df(runs_df):
     )
 
 
-def plot_training_curves(runs_df):
+def plot_training_curves(runs_df, metric_name: str = "mse"):
     train_and_val_df = runs_df[runs_df["set"].isin(["train", "val"])]
-    train_and_val_df.loc[:, "run_id_group"] = train_and_val_df["run_id"].apply(
-        lambda x: x // 3
-    )
-    # Group by 'run_id_group' and 'epoch', then aggregate 'mse'
     train_and_val_by_group_df = (
-        train_and_val_df.groupby(["run_id_group", "epoch", "set"])["mse"]
-        .agg(mse_median="median", mse_min="min", mse_max="max")
+        train_and_val_df.groupby(["name", "set", "epoch"])[metric_name]
+        .agg(median="median", min="min", max="max")
         .reset_index()
     )
     train_and_val_by_group_df["error_y"] = (
-        train_and_val_by_group_df["mse_max"] - train_and_val_by_group_df["mse_median"]
+        train_and_val_by_group_df["max"] - train_and_val_by_group_df["median"]
     )
     train_and_val_by_group_df["error_y_minus"] = (
-        train_and_val_by_group_df["mse_median"] - train_and_val_by_group_df["mse_min"]
+        train_and_val_by_group_df["max"] - train_and_val_by_group_df["median"]
     )
+    train_and_val_by_group_df.rename(columns={"median": metric_name}, inplace=True)
     plot = px.line(
         train_and_val_by_group_df,
         x="epoch",
-        y="mse_median",
-        color="run_id_group",
+        y=metric_name,
+        log_y=True,
+        color="name",
         facet_col="set",
         error_y_minus="error_y_minus",
         error_y="error_y",
@@ -430,10 +419,13 @@ def display_model_performance():
     st.header("Model Performance")
     runs_df = get_runs_df_cached()
 
-    plot = plot_training_curves(runs_df)
+    metric_name = st.selectbox(
+        "Metric", ["mse", "mae", "perceptual_l1", "perceptual_l2"], index=0
+    )
+    plot = plot_training_curves(runs_df, metric_name)
     st.plotly_chart(plot)
 
-    runs_by_group_df = display_training_results_df(runs_df)
+    display_training_results_df(runs_df)
 
 
 with tab4:
