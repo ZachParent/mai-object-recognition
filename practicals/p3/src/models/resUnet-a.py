@@ -14,8 +14,8 @@ class ConvBlock(nn.Module):
         out_channels,
         kernel_size=3,
         stack_num=2,
-        activation="relu",
-        batch_norm=False,
+        activation="GELU",
+        batch_norm=True,
     ):
         super().__init__()
         self.stack_num = stack_num
@@ -52,14 +52,14 @@ def create_normalization_layer(num_features, layer_norm="batch"):
 
 
 class ResUnetA(nn.Module):
-    """PyTorch implementation of ResUnet-a architecture"""
+    """PyTorch implementation of ResUnet-a architecture adapted for depth estimation"""
 
     def __init__(
         self,
         input_size: Tuple[int, int, int],
-        n_labels: int,
+        n_labels: int = 1,  # Default to 1 for depth map
         layer_norm: str = "batch",
-        output_activation: str = "Softmax",
+        output_activation: str = "Sigmoid",  # Default to None for depth map
     ):
         super().__init__()
 
@@ -132,51 +132,21 @@ class ResUnetA(nn.Module):
         # Final PSP Pooling
         self.final_psp = self._psp_pooling(64, 32)  # 64 = 32 + 32 (x + x1)
 
-        # Distance branch
-        self.dist_conv1 = nn.Sequential(
+        # Depth output branch - simplified from the original three branches
+        self.depth_conv1 = nn.Sequential(
             nn.ZeroPad2d(1),
-            nn.Conv2d(64, 32, 3),
+            nn.Conv2d(64, 32, 3),  # Input from concatenated features
             create_normalization_layer(32, self.layer_norm),
             nn.ReLU(),
         )
-        self.dist_conv2 = nn.Sequential(
-            nn.ZeroPad2d(1),
-            nn.Conv2d(32, 32, 3),
-            create_normalization_layer(32, self.layer_norm),
-            nn.ReLU(),
-        )
-        self.dist_output = nn.Conv2d(32, self.num_classes, 1)
-
-        # Boundary branch
-        self.bound_conv = nn.Sequential(
-            nn.ZeroPad2d(1),
-            nn.Conv2d(32 + self.num_classes, 32, 3),
-            create_normalization_layer(32, self.layer_norm),
-            nn.ReLU(),
-        )
-        self.bound_output = nn.Conv2d(32, self.num_classes, 1)
-
-        # Segmentation branch
-        self.seg_conv1 = nn.Sequential(
-            nn.ZeroPad2d(1),
-            nn.Conv2d(32 + 2 * self.num_classes, 32, 3),
-            create_normalization_layer(32, self.layer_norm),
-            nn.ReLU(),
-        )
-        self.seg_conv2 = nn.Sequential(
+        self.depth_conv2 = nn.Sequential(
             nn.ZeroPad2d(1),
             nn.Conv2d(32, 32, 3),
             create_normalization_layer(32, self.layer_norm),
             nn.ReLU(),
         )
-        self.seg_output = nn.Conv2d(32, self.num_classes, 1)
-
-    def _normalization(self, num_features):
-        """Apply batch norm or instance norm based on configuration"""
-        if self.layer_norm == "batch":
-            return nn.BatchNorm2d(num_features)
-        else:
-            return nn.InstanceNorm2d(num_features, affine=True)
+        # Final output layer for depth map
+        self.depth_output = nn.Conv2d(32, self.num_classes, 1)
 
     def _residual_block(self, in_channels, out_channels, dilation_rates):
         """Implement the residual block with dilated convolutions"""
@@ -225,31 +195,19 @@ class ResUnetA(nn.Module):
 
         # Concatenate with initial features
         x_cat = torch.cat([x, x1], dim=1)
-        x_psp = self.final_psp(x_cat)
-        x_psp = F.relu(x_psp)
 
-        # Distance branch
-        dist = self.dist_conv1(x_cat)
-        dist = self.dist_conv2(dist)
-        dist = self.dist_output(dist)
+        # Process through depth estimation branch
+        depth = self.depth_conv1(x_cat)
+        depth = self.depth_conv2(depth)
+        depth = self.depth_output(depth)
+
+        # Apply output activation if specified
         if self.output_activation == "Softmax":
-            dist = F.softmax(dist, dim=1)
+            depth = F.softmax(depth, dim=1)
+        elif self.output_activation == "Sigmoid":
+            depth = torch.sigmoid(depth)
 
-        # Boundary branch
-        bound_input = torch.cat([x_psp, dist], dim=1)
-        bound = self.bound_conv(bound_input)
-        bound = self.bound_output(bound)
-        bound = torch.sigmoid(bound)
-
-        # Segmentation branch
-        seg_input = torch.cat([x_psp, bound, dist], dim=1)
-        seg = self.seg_conv1(seg_input)
-        seg = self.seg_conv2(seg)
-        seg = self.seg_output(seg)
-        if self.output_activation == "Softmax":
-            seg = F.softmax(seg, dim=1)
-
-        return {"seg": seg, "bound": bound, "dist": dist}
+        return depth
 
 
 class ResidualBlock(nn.Module):
@@ -363,10 +321,10 @@ if __name__ == "__main__":
     from torchinfo import summary
 
     model = ResUnetA(
-        input_size=(480, 640, 3),
-        n_labels=1,
+        input_size=(256, 256, 3),
+        n_labels=1,  # One channel for depth map
         layer_norm="batch",
-        output_activation="Softmax",
+        output_activation="Sigmoid",  # No activation for depth regression
     )
 
     summary(model, (1, 3, 256, 256))
@@ -378,8 +336,6 @@ if __name__ == "__main__":
     print(f"Packed video shape: {packed_video.shape}")
     # pass packed video to model
     preds = model(packed_video)
-    print(f"Packed preds shape: {preds['seg'].shape}")
-    unpacked_preds = einops.unpack(
-        preds["seg"], packing_config, "* channel height width"
-    )[0]
+    print(f"Packed preds shape: {preds.shape}")
+    unpacked_preds = einops.unpack(preds, packing_config, "* channel height width")[0]
     print(f"Unpacked preds shape: {unpacked_preds.shape}")
