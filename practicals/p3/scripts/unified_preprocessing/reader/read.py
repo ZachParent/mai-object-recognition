@@ -10,11 +10,11 @@ from IO import readOBJ, readPC2Frame
 
 class DataReader:
 
-	def __init__(self):
+	def __init__(self, raw_dataset_path, smpl_path):
 		# Data paths
-		self.SRC = os.path.abspath(os.path.dirname(__file__)) + 'whereveryouplacetheextracteddataset'
+		self.SRC = raw_dataset_path
 		# SMPL model
-		smpl_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'whereveryouplacethesmplmodels')
+		smpl_path = smpl_path
 		self.smpl = {
 			'f': SMPLModel(os.path.join(smpl_path, 'model_f.pkl')),
 			'm': SMPLModel(os.path.join(smpl_path, 'model_m.pkl'))
@@ -57,16 +57,31 @@ class DataReader:
 	- F: mesh faces
 	"""
 	def read_human(self, sample, frame, absolute=True):
-		# Read sample data
+		# Read sample metadata
 		info = self.read_info(sample)
-		# SMPL parameters
+
+		# Read SMPL parameters
 		gender, pose, shape, trans = self.read_smpl_params(sample, frame)
-		# Compute SMPL
-		V, J = self.smpl[gender].set_params(pose=pose, beta=shape, trans=trans if absolute else None)
-		V -= J[0:1]
-		# Apply rotation on z-axis
+
+		# Compute SMPL vertices (without regressing joints yet)
+		V, J_original = self.smpl[gender].set_params(pose=pose, beta=shape, trans=trans if absolute else None)
+
+		V -= J_original[0:1]
+
+		# Compute joints using joint regressor
+		J_regressor = self.smpl[gender].J_regressor.toarray()
+		J = np.dot(J_regressor, V)
+
+		# Center around root joint (if absolute=False or for consistency)
+		# J -= J_original[0:1]
+
+		# Apply rotation around z-axis
 		zRot = zRotMatrix(info['zrot'])
-		return zRot.dot(V.T).T, self.smpl[gender].faces
+		V = zRot.dot(V.T).T
+		J = zRot.dot(J.T).T
+
+		return V, self.smpl[gender].faces, J
+
 	
 	""" Garment data """
 	"""

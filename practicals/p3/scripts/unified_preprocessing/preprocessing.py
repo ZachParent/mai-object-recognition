@@ -3,18 +3,17 @@ import sys
 import numpy as np
 import cv2 # For saving images and image manipulation
 from PIL import Image # For merging RGB and Alpha frames
+import argparse # For command-line options
 
 # Ensure DataReader and its dependencies are in the Python path
-sys.path.append('practicals/p3/scripts/unified_preprocessing')
-sys.path.append('practicals/p3/scripts/unified_preprocessing/starter-kit')
-sys.path.append('practicals/p3/scripts/unified_preprocessing/depth_reader')
+sys.path.append(os.path.join('practicals', 'p3', 'scripts', 'unified_preprocessing', 'starter-kit'))
+sys.path.append(os.path.join('practicals', 'p3', 'scripts', 'unified_preprocessing', 'reader'))
+sys.path.append(os.path.join('practicals', 'p3', 'src'))
 
-from depth_reader.read import DataReader
+from config import RAW_DATA_DIR, SMPL_DIR, PREPROCESSED_DATA_DIR
+from reader.read import DataReader
 from depth_render import Render
 from util import intrinsic, extrinsic
-
-# --- Configuration ---
-OUTPUT_DIR = 'practicals/p3/scripts/unified_preprocessing/dataset_unified_test'
 
 ORIG_IMG_WIDTH = 640
 ORIG_IMG_HEIGHT = 480
@@ -24,9 +23,114 @@ CONTENT_SIZE = TARGET_IMG_SIZE - 2 * MARGIN # This is 236, so content area is 23
 
 MAX_DEPTH_RENDER = 10.0 # Used for rendering and identifying background in depth map
 
+# --- SMPL Pose Visualization Constants ---
+# SMPL parent joint indices for 24 joints (0 is root: Pelvis)
+SMPL_PARENTS = np.array([
+    -1,  0,  0,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  9,  9, 12, 13, 14,
+    16, 17, 18, 19, 20, 21
+], dtype=np.int32)
+
+# Colors for joints (BGR format for OpenCV) - 24 distinct colors
+JOINT_COLORS_PALETTE = [
+    (255, 85, 85), (85, 255, 85), (85, 85, 255), (255, 255, 85), (85, 255, 255),
+    (255, 85, 255), (170, 85, 85), (85, 170, 85), (85, 85, 170), (170, 170, 85),
+    (85, 170, 170), (170, 85, 170), (255, 170, 85), (255, 85, 170), (85, 255, 170),
+    (170, 255, 85), (85, 170, 255), (170, 85, 255), (120, 120, 120), (200, 200, 200),
+    (255, 130, 130), (130, 255, 130), (130, 130, 255), (200, 200, 130)
+]
+
+# Colors for limbs based on body parts (BGR)
+LIMB_COLORS_DICT = {
+    "torso": (255, 255, 0),    # Yellow
+    "left_leg": (255, 0, 0),   # Blue (was Red, changed for better distinction from R Arm)
+    "right_leg": (0, 255, 0),  # Green
+    "left_arm": (0, 255, 255), # Cyan
+    "right_arm": (0, 0, 255),  # Red (was Blue)
+    "head_neck": (255, 0, 255) # Magenta
+}
+
+# Map child joints to body parts for limb coloring
+# This defines which limb color to use when drawing from PARENT[child_idx] to child_idx
+# Based on 24 SMPL joints
+CHILD_JOINT_TO_LIMB_COLOR_KEY = {
+    # Left Leg (child joints: 1-L_Hip, 4-L_Knee, 7-L_Ankle, 10-L_Foot)
+    1: "left_leg", 4: "left_leg", 7: "left_leg", 10: "left_leg",
+    # Right Leg (child joints: 2-R_Hip, 5-R_Knee, 8-R_Ankle, 11-R_Foot)
+    2: "right_leg", 5: "right_leg", 8: "right_leg", 11: "right_leg",
+    # Torso (child joints: 3-Spine1, 6-Spine2, 9-Spine3)
+    3: "torso", 6: "torso", 9: "torso",
+    # Neck and Head (child joints: 12-Neck (from Spine3), 15-Head (from Neck))
+    12: "torso", # Connection Spine3 to Neck can be torso color
+    15: "head_neck",
+    # Left Arm/Shoulder (child joints: 13-L_Collar, 16-L_Shoulder, 18-L_Elbow, 20-L_Wrist, 22-L_Hand)
+    13: "left_arm", # Connection Spine3 to L_Collar
+    16: "left_arm", 18: "left_arm", 20: "left_arm", 22: "left_arm",
+    # Right Arm/Shoulder (child joints: 14-R_Collar, 17-R_Shoulder, 19-R_Elbow, 21-R_Wrist, 23-R_Hand)
+    14: "right_arm", # Connection Spine3 to R_Collar
+    17: "right_arm", 19: "right_arm", 21: "right_arm", 23: "right_arm",
+}
+
 # --- Helper Functions ---
 
-# Removed generate_smpl_pose_visualization function
+def generate_smpl_pose_visualization(J_human_abs, K_matrix, E_matrix, img_w, img_h):
+    """
+    Generates a BGRA image visualizing the SMPL skeleton.
+    J_human_abs: Absolute 3D joint locations (N_joints, 3)
+    K_matrix: Camera intrinsic matrix (3, 3)
+    E_matrix: Camera extrinsic matrix (4, 4) world to cam
+    img_w, img_h: Dimensions of the output image
+    Returns: BGRA numpy array (img_h, img_w, 4)
+    """
+    if J_human_abs is None or J_human_abs.shape[0] == 0:
+        return np.zeros((img_h, img_w, 4), dtype=np.uint8) # Return empty transparent image
+
+    num_joints = J_human_abs.shape[0]
+
+    # Project 3D joints to 2D image coordinates
+    J_cam = (E_matrix[:3, :3] @ J_human_abs.T + E_matrix[:3, 3:4]).T  # (N_joints, 3) in camera space
+    J_proj_homogeneous = (K_matrix @ J_cam.T).T  # (N_joints, 3) projected, homogeneous
+
+    # Perspective divide, handle division by zero for points behind camera (or at optical center)
+    # Set points with z_cam <= 0 to invalid coordinates (e.g., outside image) so they are not drawn.
+    valid_depth_mask = J_proj_homogeneous[:, 2] > 1e-5
+    
+    J_proj_2d = np.full((num_joints, 2), -1, dtype=np.float32) # Initialize with invalid coords
+
+    if np.any(valid_depth_mask):
+        J_proj_2d[valid_depth_mask, 0] = J_proj_homogeneous[valid_depth_mask, 0] / J_proj_homogeneous[valid_depth_mask, 2]
+        J_proj_2d[valid_depth_mask, 1] = J_proj_homogeneous[valid_depth_mask, 1] / J_proj_homogeneous[valid_depth_mask, 2]
+
+    # Create a blank BGRA image (black background, fully transparent)
+    canvas = np.zeros((img_h, img_w, 4), dtype=np.uint8)
+    
+    # Draw limbs
+    limb_thickness = max(1, int(round(min(img_w, img_h) / 160.0))) # Dynamic thickness
+    for i in range(num_joints): # Iterate through all joints (potential children)
+        parent_idx = SMPL_PARENTS[i] if i < len(SMPL_PARENTS) else -1
+        if parent_idx != -1:
+            # Check if child and parent are valid and in front of camera
+            if not (valid_depth_mask[i] and valid_depth_mask[parent_idx]):
+                continue
+
+            p_child = tuple(map(int, J_proj_2d[i]))
+            p_parent = tuple(map(int, J_proj_2d[parent_idx]))
+            
+            limb_color_key = CHILD_JOINT_TO_LIMB_COLOR_KEY.get(i)
+            if limb_color_key:
+                limb_color_bgr = LIMB_COLORS_DICT[limb_color_key]
+                cv2.line(canvas, p_parent, p_child, (*limb_color_bgr, 255), limb_thickness)
+
+    # Draw joints
+    joint_radius = max(1, int(round(min(img_w, img_h) / 100.0))) # Dynamic radius
+    for i in range(num_joints):
+        if not valid_depth_mask[i]: # Skip joints behind camera or at optical center
+            continue
+
+        center = tuple(map(int, J_proj_2d[i]))
+        joint_color_bgr = JOINT_COLORS_PALETTE[i % len(JOINT_COLORS_PALETTE)]
+        cv2.circle(canvas, center, joint_radius, (*joint_color_bgr, 255), -1) # Filled circle
+
+    return canvas
 
 def quads2tris(F_quads):
     out_tris = []
@@ -83,8 +187,9 @@ def transform_image_v2(image_full, crop_params, target_canvas_size, margin,
     if is_color_or_bgra and not isinstance(background_value, tuple):
         if num_channels == 3: # BGR
             background_value = (background_value, background_value, background_value)
-        elif num_channels == 4: # BGRA default to transparent black
-            background_value = (0,0,0,0) if background_value == 0 else (int(background_value), int(background_value), int(background_value), 255)
+        elif num_channels == 4: # BGRA default to transparent black for int 0, opaque for others
+             background_value = (0,0,0,0) if background_value == 0 else (int(background_value), int(background_value), int(background_value), 255)
+
 
     if is_color_or_bgra:
         cropped_canvas = np.full((int_h, int_w, num_channels), background_value, dtype=canvas_dtype)
@@ -184,8 +289,10 @@ def extract_and_merge_video_frames(sample_src_dir, sample_name, expected_num_fra
                 except OSError: pass
 
 def process_frame(reader, sample_name, frame_idx, info,
-                  depth_dir, depth_vis_dir, rgb_dir): # Removed pose_dir
-    V_human, F_human_smpl = reader.read_human(sample_name, frame_idx, absolute=True)
+                  depth_dir, depth_vis_dir, rgb_dir, pose_dir, # Directory args
+                  process_depth_flag, process_pose_flag): # Control flags
+    
+    V_human, F_human_smpl, J_human = reader.read_human(sample_name, frame_idx, absolute=True)
     F_human = np.array(F_human_smpl)
     V_combined_list, F_combined_list = [V_human], [F_human]
     current_v_offset = V_human.shape[0]
@@ -199,11 +306,20 @@ def process_frame(reader, sample_name, frame_idx, info,
             if F_g_tris.size > 0:
                 V_combined_list.append(V_g); F_combined_list.append(F_g_tris + current_v_offset)
                 current_v_offset += V_g.shape[0]
-    if not V_combined_list: return False
+    
+    if not V_combined_list or V_combined_list[0].shape[0] == 0 : # Check if human vertices exist
+        # print(f"    Skipping frame {frame_idx} for {sample_name}: No human vertices found.")
+        return False 
+        
     V_all = np.concatenate(V_combined_list, axis=0)
-    if not F_combined_list: return False
+    if not F_combined_list or F_combined_list[0].size == 0: # Check if human faces exist
+        # print(f"    Skipping frame {frame_idx} for {sample_name}: No human faces found.")
+        return False
+    
     F_all = np.concatenate(F_combined_list, axis=0).astype(np.int32)
-    if F_all.size == 0: return False
+    if F_all.size == 0: 
+        # print(f"    Skipping frame {frame_idx} for {sample_name}: No combined faces found.")
+        return False
 
     renderer = Render(max_depth=MAX_DEPTH_RENDER, depth_scale=1.0)
     renderer.set_mesh(V_all, F_all)
@@ -218,25 +334,34 @@ def process_frame(reader, sample_name, frame_idx, info,
     crop_p = calculate_crop_and_scale_params_from_mask_bbox(bbox, ORIG_IMG_WIDTH, ORIG_IMG_HEIGHT, CONTENT_SIZE, CONTENT_SIZE)
     if crop_p is None: return False
 
-    depth_256 = transform_image_v2(depth_full_np, crop_p, TARGET_IMG_SIZE, MARGIN, CONTENT_SIZE, CONTENT_SIZE, cv2.INTER_NEAREST, MAX_DEPTH_RENDER)
-    np.save(os.path.join(depth_dir, f"frame{frame_idx:04d}_depth256.npy"), depth_256)
-    depth_vis = depth_256.copy()
-    is_bg = depth_vis >= (MAX_DEPTH_RENDER - 1e-3); fg = depth_vis[~is_bg]
-    if fg.size > 0:
-        min_v, max_v = fg.min(), fg.max()
-        if max_v > min_v: # Avoid division by zero if all fg depths are the same
-             depth_vis[~is_bg] = (fg - min_v) / (max_v - min_v) * 255.0
-        else: # If all fg depths are the same, map to a mid-gray value
-            depth_vis[~is_bg] = 128.0
-    else: # No foreground pixels
-        pass # Background is already set
-    depth_vis[is_bg] = 0.0
-    cv2.imwrite(os.path.join(depth_vis_dir, f"frame{frame_idx:04d}_depth256.png"), depth_vis.astype(np.uint8))
+    any_output_saved = False
 
-    # Removed SMPL pose image generation and saving
-    # pose_full_bgra = generate_smpl_pose_visualization(reader, sample_name, frame_idx, ORIG_IMG_WIDTH, ORIG_IMG_HEIGHT)
-    # pose_256_bgra = transform_image_v2(pose_full_bgra, crop_p, TARGET_IMG_SIZE, MARGIN, CONTENT_SIZE, CONTENT_SIZE, cv2.INTER_LINEAR, (0,0,0,0))
-    # cv2.imwrite(os.path.join(pose_dir, f"frame{frame_idx:04d}_smpl_pose256.png"), pose_256_bgra)
+    if process_depth_flag:
+        depth_256 = transform_image_v2(depth_full_np, crop_p, TARGET_IMG_SIZE, MARGIN, CONTENT_SIZE, CONTENT_SIZE, cv2.INTER_NEAREST, MAX_DEPTH_RENDER)
+        np.save(os.path.join(depth_dir, f"frame{frame_idx:04d}_depth256.npy"), depth_256)
+        
+        depth_vis = depth_256.copy()
+        is_bg = depth_vis >= (MAX_DEPTH_RENDER - 1e-3); fg = depth_vis[~is_bg]
+        if fg.size > 0:
+            min_v, max_v = fg.min(), fg.max()
+            if max_v > min_v: 
+                 depth_vis[~is_bg] = (fg - min_v) / (max_v - min_v) * 255.0
+            else: 
+                depth_vis[~is_bg] = 128.0 # Single depth value, map to mid-gray
+        # else: all foreground is empty or single value, handled above or remains as is (background)
+        depth_vis[is_bg] = 0.0 # Background to black
+        cv2.imwrite(os.path.join(depth_vis_dir, f"frame{frame_idx:04d}_depth256.png"), depth_vis.astype(np.uint8))
+        any_output_saved = True
+
+    if process_pose_flag:
+        if J_human is not None and J_human.shape[0] > 0:
+            pose_full_bgra = generate_smpl_pose_visualization(J_human, K, E, ORIG_IMG_WIDTH, ORIG_IMG_HEIGHT)
+            pose_256_bgra = transform_image_v2(pose_full_bgra, crop_p, TARGET_IMG_SIZE, MARGIN, CONTENT_SIZE, CONTENT_SIZE, cv2.INTER_LINEAR, (0,0,0,0))
+            cv2.imwrite(os.path.join(pose_dir, f"frame{frame_idx:04d}_smpl_pose256.png"), pose_256_bgra)
+        else:
+            empty_pose_256_bgra = np.zeros((TARGET_IMG_SIZE, TARGET_IMG_SIZE, 4), dtype=np.uint8)
+            cv2.imwrite(os.path.join(pose_dir, f"frame{frame_idx:04d}_smpl_pose256.png"), empty_pose_256_bgra)
+        any_output_saved = True
 
     orig_rgb_fname = f"{(frame_idx + 1):04d}.png"
     orig_rgb_path = os.path.join(reader.SRC, sample_name, "frames", orig_rgb_fname)
@@ -247,15 +372,35 @@ def process_frame(reader, sample_name, frame_idx, info,
                 orig_rgb_image_bgra = cv2.cvtColor(orig_rgb_image_bgra, cv2.COLOR_GRAY2BGRA)
             elif orig_rgb_image_bgra.shape[2] == 3: # BGR
                 orig_rgb_image_bgra = cv2.cvtColor(orig_rgb_image_bgra, cv2.COLOR_BGR2BGRA)
-            # If already BGRA, it's fine.
+            
             transparent_bg_value = (0, 0, 0, 0)
             rgb_256_bgra = transform_image_v2(orig_rgb_image_bgra, crop_p, TARGET_IMG_SIZE, MARGIN, CONTENT_SIZE, CONTENT_SIZE, cv2.INTER_LINEAR, transparent_bg_value)
             cv2.imwrite(os.path.join(rgb_dir, f"frame{frame_idx:04d}_rgb256.png"), rgb_256_bgra)
-    return True
+            any_output_saved = True
+            
+    return any_output_saved
 
 def main():
-    ensure_dir(OUTPUT_DIR)
-    try: reader = DataReader()
+    parser = argparse.ArgumentParser(description="Preprocess depth and pose data.")
+    parser.add_argument('--no-depth', action='store_true', help="Skip depth map processing and saving.")
+    parser.add_argument('--no-pose', action='store_true', help="Skip SMPL pose visualization processing and saving.")
+    args = parser.parse_args()
+
+    do_process_depth = not args.no_depth
+    do_process_pose = not args.no_pose
+
+    if not do_process_depth and not do_process_pose:
+        print("Warning: Both depth and pose processing are disabled. Only RGB frames (if available) will be processed and saved.")
+    elif not do_process_depth:
+        print("Depth processing is disabled. Only pose and RGB (if available) will be processed.")
+    elif not do_process_pose:
+        print("Pose processing is disabled. Only depth and RGB (if available) will be processed.")
+    else:
+        print("Processing depth, pose, and RGB (if available).")
+
+
+    ensure_dir(PREPROCESSED_DATA_DIR)
+    try: reader = DataReader(raw_dataset_path=RAW_DATA_DIR, smpl_path=SMPL_DIR)
     except Exception as e: print(f"Fatal Error: Init DataReader: {e}"); return
 
     samples_base = reader.SRC
@@ -268,16 +413,29 @@ def main():
 
     if not sample_names: print(f"No samples in {samples_base}. Exiting."); return
 
-    print(f"Found {len(sample_names)} samples. Output: {os.path.abspath(OUTPUT_DIR)}")
+    print(f"Found {len(sample_names)} samples. Output: {os.path.abspath(PREPROCESSED_DATA_DIR)}")
     total_frames_global, success_frames_global = 0, 0
 
     for s_idx, s_name in enumerate(sample_names):
         print(f"\nProcessing sample {s_idx+1}/{len(sample_names)}: {s_name}")
-        s_out_base = os.path.join(OUTPUT_DIR, s_name)
-        # Removed "pose" from subdirectories
-        depth_d, vis_d, rgb_d = [os.path.join(s_out_base, sub) for sub in ["depth", "depth_vis", "rgb"]]
-        # Removed pose_d from directory creation loop
-        for d_path in [depth_d, vis_d, rgb_d]: ensure_dir(d_path)
+        s_out_base = os.path.join(PREPROCESSED_DATA_DIR, s_name)
+        
+        # Prepare directory paths
+        depth_d, vis_d, rgb_d, pose_d = None, None, None, None
+        
+        # Always create RGB directory as it's not flag-controlled for now
+        rgb_d = os.path.join(s_out_base, "rgb")
+        ensure_dir(rgb_d)
+
+        if do_process_depth:
+            depth_d = os.path.join(s_out_base, "depth")
+            vis_d = os.path.join(s_out_base, "depth_vis")
+            ensure_dir(depth_d)
+            ensure_dir(vis_d)
+        
+        if do_process_pose:
+            pose_d = os.path.join(s_out_base, "pose")
+            ensure_dir(pose_d)
 
         try: info = reader.read_info(s_name)
         except Exception as e: print(f"  Error reading info for '{s_name}': {e}. Skipping."); continue
@@ -299,9 +457,12 @@ def main():
         for f_idx in range(num_fs):
             if (f_idx + 1) % 25 == 0 or f_idx == num_fs -1: print(f"  Frame {f_idx + 1}/{num_fs}", end="\r", flush=True)
             try:
-                # Removed pose_d from process_frame call
-                if process_frame(reader, s_name, f_idx, info, depth_d, vis_d, rgb_d): s_success +=1
-                else: s_skip +=1
+                if process_frame(reader, s_name, f_idx, info, 
+                                 depth_d, vis_d, rgb_d, pose_d,
+                                 do_process_depth, do_process_pose): 
+                    s_success +=1
+                else: 
+                    s_skip +=1
             except Exception as e:
                 s_skip +=1; print(f"\n    CRITICAL ERROR processing {s_name} frame {f_idx}: {e}")
                 import traceback; traceback.print_exc()
