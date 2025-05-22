@@ -134,14 +134,16 @@ id_start += len(HYPERPARAM_RUN_SET.configs)
 # TODO: add vit runs
 VIT_RUN_SET = RunSet(title="VIT", configs=[])
 
-id_start += len(VIT_RUN_SET.configs)
+# id_start += len(VIT_RUN_SET.configs)
+# this is fixed to reserve space for the vit runs
+id_start = 40
 
 PERCEPTUAL_LOSS_RUN_SET = RunSet(
     title="Perceptual Loss",
     configs=[
         RunConfig(
             id=id_start + i,
-            name=f"{weight} {l1_l2} perceptual {1 - weight} MSE - seed: {seed}",
+            name=f"{weight} {l1_l2} perceptual {1 - weight} MSE",
             epochs=12,
             # TODO: use the best network config
             model_name=ModelName.UNET2D,
@@ -157,7 +159,9 @@ PERCEPTUAL_LOSS_RUN_SET = RunSet(
     ],
 )
 
-id_start += len(PERCEPTUAL_LOSS_RUN_SET.configs)
+# id_start += len(PERCEPTUAL_LOSS_RUN_SET.configs)
+
+id_start = 60
 
 SMPL_RUN_SET = RunSet(
     title="SMPL",
