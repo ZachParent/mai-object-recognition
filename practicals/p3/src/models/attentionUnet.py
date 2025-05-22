@@ -5,80 +5,30 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .unet2d import ConvBlock, UNetLeft
 
-class ConvBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size=3,
-        stack_num=2,
-        activation="relu",
-        batch_norm=False,
-    ):
+
+class AttentionGate(nn.Module):
+    def __init__(self, F_g, F_l, F_int):
         super().__init__()
-        self.stack_num = stack_num
-        self.activation = activation
-        self.batch_norm = batch_norm
+        self.W_g = nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True)
+        self.W_x = nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True)
+        self.psi = nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True)
 
-        # Create stack of conv layers
-        layers = []
-        for i in range(stack_num):
-            layers.append(
-                nn.Conv2d(
-                    in_channels if i == 0 else out_channels,
-                    out_channels,
-                    kernel_size,
-                    padding=kernel_size // 2,
-                )
-            )
-            if batch_norm:
-                layers.append(nn.BatchNorm2d(out_channels))
-            layers.append(nn.ReLU() if activation == "relu" else nn.GELU())
+        self.activation = nn.ReLU()
 
-        self.conv_stack = nn.Sequential(*layers)
+        self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        return self.conv_stack(x)
+    def forward(self, g, x_skip):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x_skip)
+        psi_input = self.activation(g1 + x1)
+        alpha_unnormalized = self.psi(psi_input)
+        alpha = self.sigmoid(alpha_unnormalized)
+        return x_skip * alpha
 
 
-class UNetLeft(nn.Module):
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size=3,
-        stack_num=2,
-        activation="relu",
-        pool=True,
-        batch_norm=False,
-    ):
-        super().__init__()
-        self.pool = pool
-
-        # Downsampling
-        if pool:
-            self.down = nn.MaxPool2d(2)
-        else:
-            down_layers: List[nn.Module] = [
-                nn.Conv2d(in_channels, in_channels, 3, stride=2, padding=1)
-            ]
-            if batch_norm:
-                down_layers.append(nn.BatchNorm2d(in_channels))
-            down_layers.append(nn.ReLU() if activation == "relu" else nn.GELU())
-            self.down = nn.Sequential(*down_layers)
-
-        # Convolution stack
-        self.conv = ConvBlock(
-            in_channels, out_channels, kernel_size, stack_num, activation, batch_norm
-        )
-
-    def forward(self, x):
-        x = self.down(x)
-        return self.conv(x)
-
-
-class UNetRight(nn.Module):
+class AttentionUNetRight(nn.Module):
     def __init__(
         self,
         in_channels,
@@ -108,6 +58,12 @@ class UNetRight(nn.Module):
             in_channels, out_channels, kernel_size, 1, activation, batch_norm
         )
 
+        self.attention_gate = AttentionGate(
+            F_g=out_channels,
+            F_l=out_channels,
+            F_int=out_channels // 2,
+        )
+
         # Convolution after concatenation
         self.conv_after = ConvBlock(
             out_channels * 2,
@@ -119,13 +75,16 @@ class UNetRight(nn.Module):
         )
 
     def forward(self, x, skip):
-        x = self.up(x)
-        x = self.conv_before(x)
-        x = torch.cat([x, skip], dim=1)
-        return self.conv_after(x)
+        x_up = self.up(x)
+        gating_signal = self.conv_before(x_up)
+
+        attended_skip = self.attention_gate(g=gating_signal, x_skip=skip)
+        x_concat = torch.cat([gating_signal, attended_skip], dim=1)
+
+        return self.conv_after(x_concat)
 
 
-class UNet2D(nn.Module):
+class AttentionUNet(nn.Module):
     def __init__(
         self,
         input_size,
@@ -176,7 +135,7 @@ class UNet2D(nn.Module):
         # Upsampling path
         self.up_path = nn.ModuleList(
             [
-                UNetRight(
+                AttentionUNetRight(
                     filter_num[-i - 1],
                     filter_num[-i - 2],
                     stack_num=stack_num_up,
@@ -224,7 +183,7 @@ class UNet2D(nn.Module):
 if __name__ == "__main__":
     from torchinfo import summary
 
-    model = UNet2D(
+    model = AttentionUNet(
         input_size=(480, 640, 3),
         filter_num=[64, 128, 256, 512, 1024],
         n_labels=1,

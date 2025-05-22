@@ -197,6 +197,7 @@ if __name__ == "__main__":
                 lambda x: x["filter_num"]
             )
             new_df = new_df.drop(columns=["unet2d_config"])
+        new_df["json"] = [run.model_dump_json() for run in run_set.configs]
         run_dfs.append(new_df)
     df = pd.concat(run_dfs, ignore_index=True)
     df.to_csv(RESULTS_DIR / "run_configs.csv", index=False)
