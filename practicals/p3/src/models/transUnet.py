@@ -20,7 +20,6 @@ from torch.nn.modules.utils import _pair
 # Assuming transunet.py is in project_root/src/models/
 # and config.py is in project_root/src/
 SRC_DIR = Path(__file__).parent.parent
-print(str(SRC_DIR))
 sys.path.append(str(SRC_DIR))
 
 from config import R50_VIT_B16_PRETRAINED_PATH # Adjusted import

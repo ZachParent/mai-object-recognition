@@ -2,9 +2,9 @@
 
 import torch.nn as nn
 
-from ..run_configs import ModelName, RunConfig, UNet2DConfig, TransUNetModelConfig
+from ..run_configs import ModelName, RunConfig, UNet2DConfig
 from .unet2d import UNet2D
-from .transunet import TransUNet # Import the TransUNet class
+from .transUnet import TransUNet # Import the TransUNet class
 
 
 def get_model(config: RunConfig) -> nn.Module:
@@ -24,20 +24,13 @@ def get_model(config: RunConfig) -> nn.Module:
             unpool=config.unet2d_config.unpool,
         )
     elif config.model_name == ModelName.TRANSUNET: # Added condition for TransUNet
-        if config.transunet_config is None:
-            raise ValueError("TransUNetModelConfig is required for TRANSUNET model.")
         
         # The TransUNet model expects in_channels from config.input_size
         # config.input_size is (H, W, C)
         in_channels = config.input_size[2] 
         
         return TransUNet(
-            config_name=config.transunet_config.name,
-            img_size=config.transunet_config.img_size, # Should be consistent with config.input_size[0] and [1]
-            in_channels=in_channels,
-            num_classes=config.transunet_config.num_classes,
-            load_pretrained_weights=config.transunet_config.load_pretrained,
-            output_activation=config.transunet_config.output_activation
+            load_resnet_weights=config.transunet_use_pretrained,
         )
     else:
         raise ValueError(f"Model {config.model_name} not found")
