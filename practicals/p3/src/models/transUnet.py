@@ -4,8 +4,7 @@ from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from .unet2d import ConvBlock, UNetLeft, UNetRight
+from unet2d import ConvBlock, UNetLeft, UNetRight
 
 
 class Attention(nn.Module):
@@ -122,9 +121,8 @@ class VisionTransformer(nn.Module):
         img_size=224,
         patch_size=16,
         in_chans=3,
-        num_classes=1000,
         embed_dim=768,
-        depth=12,
+        num_layers=12,
         num_heads=12,
         mlp_ratio=4.0,
         qkv_bias=False,
@@ -148,7 +146,7 @@ class VisionTransformer(nn.Module):
         self.pos_drop = nn.Dropout(p=drop_rate)
 
         dpr = [
-            x.item() for x in torch.linspace(0, drop_path_rate, depth)
+            x.item() for x in torch.linspace(0, drop_path_rate, num_layers)
         ]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
             [
@@ -163,13 +161,10 @@ class VisionTransformer(nn.Module):
                     drop_path=dpr[i],
                     norm_layer=norm_layer,
                 )
-                for i in range(depth)
+                for i in range(num_layers)
             ]
         )
         self.norm = norm_layer(embed_dim)
-
-        # Classifier head
-        # self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
         trunc_normal_(self.pos_embed, std=0.02)
         trunc_normal_(self.cls_token, std=0.02)
@@ -186,11 +181,11 @@ class VisionTransformer(nn.Module):
 
     def forward_features(self, x):
         B = x.shape[0]
-        x = self.patch_embed(x).flatten(2).transpose(1, 2)  # B, num_patches, embed_dim
+        x = (
+            self.patch_embed(x).flatten(2).transpose(1, 2)
+        )  # [B, num_patches, embed_dim]
 
-        cls_tokens = self.cls_token.expand(
-            B, -1, -1
-        )  # stole cls_tokens impl from Phil Wang, thanks
+        cls_tokens = self.cls_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
         x = x + self.pos_embed
         x = self.pos_drop(x)
@@ -202,13 +197,12 @@ class VisionTransformer(nn.Module):
         return x[:, 1:]  # Remove CLS token
 
     def forward(self, x):
-        x = self.forward_features(x)
-        # x = self.head(x) # Not used in TransUNet
-        return x
+        return self.forward_features(x)
 
 
-def trunc_normal_(tensor, mean=0.0, std=1.0):
-    # type: (torch.Tensor, float, float) -> torch.Tensor
+def trunc_normal_(
+    tensor: torch.Tensor, mean: float = 0.0, std: float = 1.0
+) -> torch.Tensor:
     size = tensor.shape
     tmp = tensor.new_empty(size + (4,)).normal_()
     valid = (tmp < 2) & (tmp > -2)
@@ -221,8 +215,7 @@ def trunc_normal_(tensor, mean=0.0, std=1.0):
 class TransUNet(nn.Module):
     def __init__(
         self,
-        in_channels,  # Number of input channels for the CNN
-        input_size,  # Tuple (H, W) of the input image for ViT dimension calculation
+        input_size,
         filter_num: List[int],
         n_labels: int,
         stack_num_down: int = 2,
@@ -245,13 +238,18 @@ class TransUNet(nn.Module):
     ):
         super().__init__()
 
+        # Extract in_channels from input_size
+        in_channels = input_size[2]
+        self.vit_input_size = input_size[
+            0:2
+        ]  # Tuple (H, W) of the input image for ViT dimension calculation
+
         self.depth = len(filter_num)
-        self.vit_input_size = input_size
         self.vit_patch_size = vit_patch_size
 
         # Initial convolution for CNN
         self.init_conv = ConvBlock(
-            in_channels,  # Use the explicit in_channels for the first conv layer
+            in_channels,
             filter_num[0],
             stack_num=stack_num_down,
             activation=activation.lower(),
@@ -275,17 +273,13 @@ class TransUNet(nn.Module):
 
         # Vision Transformer as bottleneck
         # Calculate the H, W of the feature map fed to ViT
-        # Total downsampling factor in CNN encoder part: 2 for each UNetLeft block
-        # If init_conv is considered the first level, then self.depth-1 UNetLeft blocks follow.
-        # So, spatial dimensions are divided by 2**(self.depth-1)
-        cnn_output_h = input_size[0] // (2 ** (self.depth - 1))
-        cnn_output_w = input_size[1] // (2 ** (self.depth - 1))
+        self.cnn_feat_dim = input_size[0] // (2 ** (self.depth - 1))
 
         self.vit = VisionTransformer(
-            img_size=(cnn_output_h, cnn_output_w),  # Size of feature map input to ViT
+            img_size=self.cnn_feat_dim,
             patch_size=vit_patch_size,
-            in_chans=filter_num[-1],  # Channels from CNN encoder output (e.g., 512)
-            embed_dim=embed_dim,  # ViT's own embedding dimension (e.g., 768)
+            in_chans=filter_num[-1],  # Channels from CNN encoder output
+            embed_dim=embed_dim,  # ViT's own embedding dimension
             num_layers=vit_num_layers,
             num_heads=vit_num_heads,
             mlp_ratio=vit_mlp_ratio,
@@ -323,10 +317,8 @@ class TransUNet(nn.Module):
         for i in range(self.depth - 1):
             self.up_path.append(
                 UNetRight(
-                    filter_num[
-                        -i - 1
-                    ],  # in_channels for UNetRight comes from the ViT projection or previous up_path layer
-                    filter_num[-i - 2],  # out_channels for UNetRight
+                    filter_num[-i - 1],
+                    filter_num[-i - 2],
                     stack_num=stack_num_up,
                     activation=activation.lower(),
                     unpool=unpool,
@@ -337,12 +329,7 @@ class TransUNet(nn.Module):
         # Output layer
         self.output_conv = nn.Conv2d(filter_num[0], n_labels, 1)
         self.output_activation_fn = None
-        if output_activation == "Softmax":
-            self.output_activation_fn = partial(F.softmax, dim=1)
-        elif output_activation == "Sigmoid":
-            self.output_activation_fn = torch.sigmoid
-        elif output_activation is not None and output_activation != "None":
-            raise ValueError(f"Unsupported output_activation: {output_activation}")
+        self.output_activation = output_activation
 
     def forward(self, x):
         # Initial convolution
@@ -352,55 +339,36 @@ class TransUNet(nn.Module):
         # Downsampling path (CNN Encoder)
         for i, down_layer in enumerate(self.down_path):
             x = down_layer(x)
-            if (
-                i < len(self.down_path) - 1
-            ):  # Don't store the deepest skip for ViT processing
-                skip_connections.append(x)
+            skip_connections.append(x)
+
+        # Remove last skip connection as it's not needed
+        skip_connections.pop()
 
         # Bottleneck (Vision Transformer)
-        # x is now the feature map from the deepest CNN encoder layer
-        # Expected shape for ViT: (B, C, H, W)
-        vit_input = x
-        # print(f"Shape before ViT: {vit_input.shape}")
-
-        # Pass through ViT
-        # ViT expects (B, num_patches, embed_dim) after patch embedding.
-        # Our ViT's forward_features returns (B, num_patches, embed_dim)
-        x_vit_embedded = self.vit.forward_features(
-            vit_input
-        )  # (B, num_patches, embed_dim)
-        # print(f"Shape after ViT features: {x_vit_embedded.shape}")
+        x_vit_embedded = self.vit.forward_features(x)  # (B, num_patches, embed_dim)
 
         # Reshape ViT output to be image-like for the decoder
-        # (B, num_patches, embed_dim) -> (B, embed_dim, H_feat, W_feat)
         B, N, E = x_vit_embedded.shape
-        # N = H_feat * W_feat
-        # We need to ensure H_feat and W_feat are correctly derived.
-        # H_feat = W_feat = int(N**0.5) # Assuming square feature map from patches
-        # This was set as self.vit_feat_dim_h and self.vit_feat_dim_w
+
         x_vit_reshaped = x_vit_embedded.transpose(1, 2).reshape(
-            B, E, self.vit_feat_dim_h, self.vit_feat_dim_w
-        )
-        # print(f"Shape after ViT reshape: {x_vit_reshaped.shape}")
+            B, E, self.cnn_feat_dim, self.cnn_feat_dim
+        )  # (B, embed_dim, H_feat, W_feat)
 
         # Project ViT output to match decoder's expected channels
         x = self.vit_to_cnn_projection(x_vit_reshaped)
-        # print(f"Shape after ViT projection: {x.shape}")
 
         # Upsampling path (CNN Decoder)
-        # skip_connections are ordered from shallowest to deepest (excluding the one fed to ViT)
-        for i, up_layer in enumerate(self.up_path):
-            skip = skip_connections[-(i + 1)]  # Get corresponding skip connection
-            # print(f"Upsampling stage {i}: x shape: {x.shape}, skip shape: {skip.shape}")
-            x = up_layer(x, skip)
-            # print(f"Upsampling stage {i} output: {x.shape}")
+        for up, skip in zip(self.up_path, reversed(skip_connections)):
+            x = up(x, skip)
 
         # Output layer
         x = self.output_conv(x)
 
         # Apply output activation
-        if self.output_activation_fn:
-            x = self.output_activation_fn(x)
+        if self.output_activation == "Softmax":
+            x = F.softmax(x, dim=1)
+        elif self.output_activation == "Sigmoid":
+            x = torch.sigmoid(x)
 
         return x
 
