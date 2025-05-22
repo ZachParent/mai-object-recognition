@@ -1,5 +1,5 @@
 # Adapted from https://github.com/Akhilesh64/ResUnet-a/blob/main/model.py
-from typing import Tuple, Union
+from typing import Tuple
 
 import einops
 import torch
@@ -43,23 +43,12 @@ class ConvBlock(nn.Module):
         return self.conv_stack(x)
 
 
-class InstanceNorm(nn.Module):
-    """PyTorch implementation of Instance Normalization"""
-
-    def __init__(self, num_features):
-        super().__init__()
-        self.instance_norm = nn.InstanceNorm2d(num_features, affine=True)
-
-    def forward(self, x):
-        return self.instance_norm(x)
-
-
 def create_normalization_layer(num_features, layer_norm="batch"):
     """Helper function to create appropriate normalization layer"""
     if layer_norm == "batch":
         return nn.BatchNorm2d(num_features)
     else:
-        return InstanceNorm(num_features)
+        return nn.InstanceNorm2d(num_features, affine=True)
 
 
 class ResUnetA(nn.Module):
@@ -67,7 +56,7 @@ class ResUnetA(nn.Module):
 
     def __init__(
         self,
-        input_size: Union[Tuple[int, int, int], int],
+        input_size: Tuple[int, int, int],
         n_labels: int,
         layer_norm: str = "batch",
         output_activation: str = "Softmax",
@@ -75,12 +64,8 @@ class ResUnetA(nn.Module):
         super().__init__()
 
         # Extract input channels from input_size
-        if isinstance(input_size, tuple):
-            self.height, self.width = input_size[0], input_size[1]
-            self.channels = input_size[2] if len(input_size) == 3 else input_size[0]
-        else:
-            self.channels = input_size
-            self.height, self.width = None, None
+        self.height, self.width = input_size[0], input_size[1]
+        self.channels = input_size[2]
 
         self.num_classes = n_labels
         self.layer_norm = layer_norm
@@ -125,9 +110,6 @@ class ResUnetA(nn.Module):
 
         # Layer 12: Sixth residual block
         self.res_block6 = self._residual_block(1024, 1024, [1])
-
-        # PSP Pooling (Pyramid Scene Parsing)
-        self.psp_pooling = self._psp_pooling(1024, 1024)
 
         # Additional layers for deeper model variant
         self.down6 = nn.Conv2d(1024, 2048, 1, stride=2, padding=0)
@@ -194,7 +176,7 @@ class ResUnetA(nn.Module):
         if self.layer_norm == "batch":
             return nn.BatchNorm2d(num_features)
         else:
-            return InstanceNorm(num_features)
+            return nn.InstanceNorm2d(num_features, affine=True)
 
     def _residual_block(self, in_channels, out_channels, dilation_rates):
         """Implement the residual block with dilated convolutions"""
@@ -223,16 +205,11 @@ class ResUnetA(nn.Module):
         x11 = self.down5(x10)  # Layer 11
         x12 = self.res_block6(x11)  # Layer 12
 
-        # Use different PSP modules based on input height
-        if self.height == 448:
-            # ResUnet-a d6 model
-            x = self.psp_pooling(x12)
-        else:
-            # ResUnet-a d7 model
-            x = self.down6(x12)
-            x = self.res_block7(x)
-            x = self.psp_pooling_deep(x)
-            x = self.combine1(x, x12)
+        # ResUnet-a d7 model
+        x = self.down6(x12)
+        x = self.res_block7(x)
+        x = self.psp_pooling_deep(x)
+        x = self.combine1(x, x12)
 
         # Decoder path
         x = self.combine2(x, x10)
