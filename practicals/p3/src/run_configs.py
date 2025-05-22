@@ -243,11 +243,6 @@ if __name__ == "__main__":
             continue
         new_df["run_set"] = run_set.title
         new_df["id"] = new_df["id"].astype(int)
-        if "unet2d_config" in new_df.columns:
-            new_df["unet2d_filter_num"] = new_df["unet2d_config"].apply(
-                lambda x: x["filter_num"]
-            )
-            new_df = new_df.drop(columns=["unet2d_config"])
         new_df["json"] = [run.model_dump_json() for run in run_set.configs]
         run_dfs.append(new_df)
     df = pd.concat(run_dfs, ignore_index=True)
