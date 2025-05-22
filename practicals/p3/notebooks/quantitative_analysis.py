@@ -14,19 +14,6 @@ sys.path.append(str(ROOT_DIR / "src"))
 
 from get_results import get_metrics_dfs, get_runs_df
 
-# %%
-# Get the metrics dataframes
-frame_metrics, video_metrics = get_metrics_dfs()
-
-# %%
-# Get the runs dataframe
-runs_df = get_runs_df()
-
-# %%
-# Set up the plotting style
-plt.style.use("seaborn-v0_8-whitegrid")  # Using a specific seaborn style
-sns.set_palette("husl")
-
 
 # %%
 # Plot distribution of metrics across all runs
@@ -42,25 +29,8 @@ def plot_metric_violin(df, metric_name, title=None):
 
 
 # %%
-# Get all metric columns (excluding run_id, video_id, frame_id)
-metric_columns = [
-    col
-    for col in frame_metrics.columns
-    if col not in ["run_id", "video_id", "frame_id"]
-]
-
-# %%
-# Plot distributions for each metric
-for metric in metric_columns:
-    plot_metric_violin(frame_metrics, metric, f"Frame-level {metric} Distribution")
-    plt.show()
-    plot_metric_violin(video_metrics, metric, f"Video-level {metric} Distribution")
-    plt.show()
-
-
-# %%
 # Plot correlation heatmap for metrics
-def plot_correlation_heatmap(df, title):
+def plot_correlation_heatmap(df, metric_columns, title):
     fig = plt.figure(figsize=(12, 10))
     # Ensure only numeric columns are used for correlation
     numeric_df = df[metric_columns].select_dtypes(include=np.number)
@@ -69,13 +39,6 @@ def plot_correlation_heatmap(df, title):
     plt.title(title)
     plt.tight_layout()
     return fig
-
-
-# %%
-plot_correlation_heatmap(frame_metrics, "Frame-level Metrics Correlation")
-plt.show()
-plot_correlation_heatmap(video_metrics, "Video-level Metrics Correlation")
-plt.show()
 
 
 # %%
@@ -108,13 +71,6 @@ def plot_combined_metric_distribution(frame_df, video_df, metric_name, title=Non
     plt.legend(title="Metric Level")
     plt.tight_layout()
     return fig
-
-
-# %%
-# Plot combined distributions for each metric
-for metric in metric_columns:
-    plot_combined_metric_distribution(frame_metrics, video_metrics, metric)
-    plt.show()
 
 
 # %%
@@ -251,19 +207,63 @@ def plot_training_curves(runs_df, metric_name, title=None):
 
 
 # %%
-# Get metrics available in runs_df for plotting training curves
-if not runs_df.empty:
-    run_metric_columns = [
+if __name__ == "__main__":
+    # %%
+    # Get the metrics dataframes
+    frame_metrics, video_metrics = get_metrics_dfs()
+
+    # %%
+    # Get the runs dataframe
+    runs_df = get_runs_df()
+
+    # %%
+    # Set up the plotting style
+    plt.style.use("seaborn-v0_8-whitegrid")  # Using a specific seaborn style
+    sns.set_palette("husl")
+    # %%
+    # Get all metric columns (excluding run_id, video_id, frame_id)
+    metric_columns = [
         col
-        for col in runs_df.columns
-        if col not in ["run_id", "epoch", "set"]  # Exclude identifiers
+        for col in frame_metrics.columns
+        if col not in ["run_id", "video_id", "frame_id"]
     ]
 
-    # Plot training curves for each relevant metric
-    for metric in run_metric_columns:
-        plot_training_curves(runs_df, metric)
+    # %%
+    # Plot distributions for each metric
+    for metric in metric_columns:
+        plot_metric_violin(frame_metrics, metric, f"Frame-level {metric} Distribution")
         plt.show()
-else:
-    print("runs_df is empty. Skipping training curve plots.")
+        plot_metric_violin(video_metrics, metric, f"Video-level {metric} Distribution")
+        plt.show()
 
-# %%
+    # %%
+    plot_correlation_heatmap(
+        frame_metrics, metric_columns, "Frame-level Metrics Correlation"
+    )
+    plt.show()
+    plot_correlation_heatmap(
+        video_metrics, metric_columns, "Video-level Metrics Correlation"
+    )
+    plt.show()
+
+    # %%
+    # Plot combined distributions for each metric
+    for metric in metric_columns:
+        plot_combined_metric_distribution(frame_metrics, video_metrics, metric)
+        plt.show()
+
+    # %%
+    # Get metrics available in runs_df for plotting training curves
+    if not runs_df.empty:
+        run_metric_columns = [
+            col
+            for col in runs_df.columns
+            if col not in ["run_id", "epoch", "set"]  # Exclude identifiers
+        ]
+
+        # Plot training curves for each relevant metric
+        for metric in run_metric_columns:
+            plot_training_curves(runs_df, metric)
+            plt.show()
+    else:
+        print("runs_df is empty. Skipping training curve plots.")

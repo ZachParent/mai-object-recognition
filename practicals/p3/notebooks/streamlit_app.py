@@ -273,7 +273,11 @@ def display_gif_creation():
 with tab2:
     display_gif_creation()
 
-with tab3:
+
+@st.fragment
+def display_quantitative_analysis():
+    st.header("Quantitative Analysis")
+
     # Load data
     try:
         frame_metrics, video_metrics = get_metrics_dfs_cached()
@@ -300,7 +304,7 @@ with tab3:
             with col_heatmap1:
                 st.markdown("##### Frame-level Metrics")
                 plot_correlation_heatmap(
-                    frame_metrics, "Frame-level Metrics Correlation"
+                    frame_metrics, metric_columns, "Frame-level Metrics Correlation"
                 )
                 st.pyplot(plt.gcf())
                 plt.clf()  # Clear the figure for the next plot
@@ -308,7 +312,7 @@ with tab3:
             with col_heatmap2:
                 st.markdown("##### Video-level Metrics")
                 plot_correlation_heatmap(
-                    video_metrics, "Video-level Metrics Correlation"
+                    video_metrics, metric_columns, "Video-level Metrics Correlation"
                 )
                 st.pyplot(plt.gcf())
                 plt.clf()  # Clear the figure
@@ -360,6 +364,10 @@ with tab3:
         )
     except Exception as e:
         st.error(f"An error occurred while loading or plotting data: {e}")
+
+
+with tab3:
+    display_quantitative_analysis()
 
 
 def display_training_results_df(runs_df):
