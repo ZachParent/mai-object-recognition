@@ -2,16 +2,7 @@
 
 import torch.nn as nn
 
-# Ensure correct relative import for run_configs
-# If models is a subfolder of src, and run_configs is in src:
 from ..run_configs import ModelName, RunConfig, UNet2DConfig, TransUNetModelConfig
-# If models and run_configs are siblings under a parent directory (e.g. project_root/src/models, project_root/src/run_configs.py)
-# then the import might be:
-# from ..run_configs import ModelName, RunConfig, UNet2DConfig, TransUNetModelConfig
-# Or if run_configs.py is at the same level as the folder containing 'models'
-# from ..run_configs import ... (adjust .. based on your exact structure)
-
-
 from .unet2d import UNet2D
 from .transunet import TransUNet # Import the TransUNet class
 
