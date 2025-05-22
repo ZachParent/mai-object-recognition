@@ -10,6 +10,8 @@ from .config import RESULTS_DIR
 
 class ModelName(str, Enum):
     UNET2D = "unet2d"
+    ATTENTION_UNET = "attention_unet"
+    RESUNET_A = "resunet_a"
     TRANSUNET = "transunet"
 
 
@@ -131,10 +133,53 @@ HYPERPARAM_RUN_SET = RunSet(
     ],
 )
 
-id_start += len(HYPERPARAM_RUN_SET.configs)
+id_start = 20
 
-# TODO: add vit runs
-VIT_RUN_SET = RunSet(title="VIT", configs=[])
+VIT_RUN_SET = RunSet(
+    title="Vision Transformer",
+    configs=[
+        RunConfig(
+            id=id_start + i,
+            name="Attention UNet",
+            model_name=ModelName.ATTENTION_UNET,
+            learning_rate=0.0001,
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 1 * len(SEEDS) + i,
+            name="ResUNet A",
+            model_name=ModelName.RESUNET_A,
+            learning_rate=0.0001,
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 2 * len(SEEDS) + i,
+            name="TransUNet (no pretraining)",
+            model_name=ModelName.TRANSUNET,
+            learning_rate=0.0001,
+            transunet_use_pretrained=False,
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ]
+    + [
+        RunConfig(
+            id=id_start + 3 * len(SEEDS) + i,
+            name="TransUNet (pretrained)",
+            model_name=ModelName.TRANSUNET,
+            learning_rate=0.0001,
+            transunet_use_pretrained=True,
+            seed=seed,
+        )
+        for i, seed in enumerate(SEEDS)
+    ],
+)
 
 # id_start += len(VIT_RUN_SET.configs)
 # this is fixed to reserve space for the vit runs

@@ -88,15 +88,15 @@ class AttentionUNet(nn.Module):
     def __init__(
         self,
         input_size,
-        filter_num,
-        n_labels,
+        filter_num=[64, 128, 256, 512, 1024],
+        n_labels=1,
         stack_num_down=2,
-        stack_num_up=2,
-        activation="ReLU",
-        output_activation="Softmax",
-        batch_norm=False,
+        stack_num_up=1,
+        activation="GELU",
+        output_activation="Sigmoid",
+        batch_norm=True,
         pool=True,
-        unpool=True,
+        unpool=False,
     ):
         super().__init__()
 
@@ -184,16 +184,7 @@ if __name__ == "__main__":
     from torchinfo import summary
 
     model = AttentionUNet(
-        input_size=(480, 640, 3),
-        filter_num=[64, 128, 256, 512, 1024],
-        n_labels=1,
-        stack_num_down=2,
-        stack_num_up=1,
-        activation="GELU",
-        output_activation="Sigmoid",
-        batch_norm=True,
-        pool=True,
-        unpool=False,
+        input_size=(256, 256, 3),
     )
 
     summary(model, (1, 3, 256, 256))

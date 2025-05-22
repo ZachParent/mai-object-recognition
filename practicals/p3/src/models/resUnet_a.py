@@ -322,9 +322,6 @@ if __name__ == "__main__":
 
     model = ResUnetA(
         input_size=(256, 256, 3),
-        n_labels=1,  # One channel for depth map
-        layer_norm="batch",
-        output_activation="Sigmoid",  # No activation for depth regression
     )
 
     summary(model, (1, 3, 256, 256))

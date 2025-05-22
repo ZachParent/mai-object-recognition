@@ -225,7 +225,7 @@ if __name__ == "__main__":
     from torchinfo import summary
 
     model = UNet2D(
-        input_size=(480, 640, 3),
+        input_size=(256, 256, 3),
         filter_num=[64, 128, 256, 512, 1024],
         n_labels=1,
         stack_num_down=2,
