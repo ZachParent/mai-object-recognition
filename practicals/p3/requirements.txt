@@ -3,6 +3,7 @@ matplotlib
 pandas
 pydantic
 requests
+scipy
 seaborn
 streamlit
 streamlit-image-comparison

@@ -10,6 +10,7 @@ from .config import RESULTS_DIR
 
 class ModelName(str, Enum):
     UNET2D = "unet2d"
+    TRANSUNET = "transunet"
 
 
 class UNet2DConfig(pydantic.BaseModel):
@@ -39,6 +40,7 @@ class RunConfig(pydantic.BaseModel):
     unet2d_config: Optional[UNet2DConfig] = None
     include_pose: bool = False
     seed: Optional[int] = None
+    transunet_use_pretrained: Optional[bool] = None
 
 
 class RunSet(pydantic.BaseModel):
