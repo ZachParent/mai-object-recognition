@@ -12,11 +12,6 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from notebooks.get_results import get_metrics_dfs, get_runs_df
-from notebooks.quantitative_analysis import (
-    plot_combined_metric_distribution,
-    plot_correlation_heatmap,
-    plot_metric_violin,
-)
 from src.config import CHECKPOINTS_DIR, RESULTS_DIR, VISUALIZATIONS_DIR
 from src.datasets.cloth3d import Cloth3dDataset
 from src.inferrer import get_run_config, load_model
@@ -148,7 +143,6 @@ def display_single_frame_depth_visualization():
 
         # Display the plot in Streamlit
         st.pyplot(fig)
-        plt.close()
 
         # Add image comparison widget
         st.subheader("Compare Predicted Depth with Ground Truth")
@@ -261,98 +255,6 @@ def display_gif_creation():
         st.image(output_path, caption=f"Video {gif_video_id} Animation")
 
 
-@st.fragment
-def display_quantitative_analysis():
-    st.header("Quantitative Analysis")
-
-    # Load data
-    try:
-        frame_metrics, video_metrics = get_metrics_dfs_cached()
-
-        if frame_metrics.empty or video_metrics.empty:
-            st.warning(
-                "Metrics files are empty. Please ensure 'frame_metrics.csv' and 'video_metrics.csv' contain data."
-            )
-        else:
-            # Get metric columns
-            metric_columns = [
-                col
-                for col in frame_metrics.columns
-                if col not in ["run_id", "video_id", "frame_id"]
-            ]
-            if not metric_columns:
-                st.warning(
-                    "No metric columns found in the data (excluding id columns)."
-                )
-
-            st.subheader("Metric Correlation Heatmaps")
-
-            col_heatmap1, col_heatmap2 = st.columns(2)
-            with col_heatmap1:
-                st.markdown("##### Frame-level Metrics")
-                plot_correlation_heatmap(
-                    frame_metrics, metric_columns, "Frame-level Metrics Correlation"
-                )
-                st.pyplot(plt.gcf())
-                plt.clf()  # Clear the figure for the next plot
-
-            with col_heatmap2:
-                st.markdown("##### Video-level Metrics")
-                plot_correlation_heatmap(
-                    video_metrics, metric_columns, "Video-level Metrics Correlation"
-                )
-                st.pyplot(plt.gcf())
-                plt.clf()  # Clear the figure
-
-            if metric_columns:
-                st.subheader("Metric Distributions per Run")
-                for metric in metric_columns:  # Iterate through all metrics
-                    st.markdown(
-                        f"---"
-                    )  # Add a visual separator for each metric's section
-                    st.markdown(f"### Distributions for: `{metric}`")
-
-                    # Combined split violin plot
-                    plot_combined_metric_distribution(
-                        frame_metrics, video_metrics, metric
-                    )
-                    st.pyplot(plt.gcf())
-                    plt.clf()
-
-                    # Individual violin plots side-by-side
-                    with st.expander("Individual Violin Plots"):
-                        col_dist_violin1, col_dist_violin2 = st.columns(2)
-                        with col_dist_violin1:
-                            st.markdown(f"##### Frame-level: `{metric}`")
-                            plot_metric_violin(
-                                frame_metrics,
-                                metric,
-                                f"Frame-level: {metric} Distribution",  # Simplified title
-                            )
-                            st.pyplot(plt.gcf())
-                            plt.clf()
-
-                        with col_dist_violin2:
-                            st.markdown(f"##### Video-level: `{metric}`")
-                            plot_metric_violin(
-                                video_metrics,
-                                metric,
-                                f"Video-level: {metric} Distribution",  # Simplified title
-                            )
-                            st.pyplot(plt.gcf())
-                            plt.clf()
-            else:
-                st.info("No metrics available to display distributions.")
-
-    except FileNotFoundError:
-        st.error(
-            "Metrics files (frame_metrics.csv or video_metrics.csv) not found in the results directory. "
-            "Please run the `get_individual_metrics.py` script first to generate them."
-        )
-    except Exception as e:
-        st.error(f"An error occurred while loading or plotting data: {e}")
-
-
 def display_training_results_df(runs_df):
     runs_by_group_df = (
         runs_df.groupby(["name", "set", "epoch"])["mse"]
@@ -420,9 +322,7 @@ def display_model_performance():
 
 
 # Create tabs for different visualization modes
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["Model Performance", "Single Frame", "GIF Creation", "Quantitative Analysis"]
-)
+tab1, tab2, tab3 = st.tabs(["Model Performance", "Single Frame", "GIF Creation"])
 
 
 with tab1:
@@ -433,6 +333,3 @@ with tab2:
 
 with tab3:
     display_gif_creation()
-
-with tab4:
-    display_quantitative_analysis()
