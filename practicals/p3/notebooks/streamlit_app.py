@@ -53,7 +53,6 @@ def load_model_cached(model_id: int):
 
 
 model_id = st.sidebar.selectbox("Model", model_ids, index=0)
-inferrer = load_model_cached(model_id)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
@@ -83,6 +82,11 @@ def display_single_frame_depth_visualization():
     )
     # Load metrics data
     df = get_metrics_df_cached()
+    try:
+        inferrer = load_model_cached(model_id)
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return
 
     # Add filters
     st.subheader("Filters")
@@ -222,6 +226,12 @@ def display_gif_creation():
             value=10,
             help="Frames per second in the GIF",
         )
+
+    try:
+        inferrer = load_model_cached(model_id)
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return
 
     if st.button("Create GIF", type="primary"):
         # Create frame list
