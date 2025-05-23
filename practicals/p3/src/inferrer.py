@@ -15,8 +15,12 @@ from .run_configs import ModelName, RunConfig, UNet2DConfig
 
 def get_run_config(id: int) -> RunConfig:
     run_confgs = pd.read_csv(RESULTS_DIR / "run_configs.csv")
-    run_config = run_confgs[run_confgs["id"] == id].to_dict(orient="records")[0]
-    return RunConfig.model_validate_json(run_config["json"])
+    matching_run_configs = run_confgs[run_confgs["id"] == id].to_dict(orient="records")
+    if len(matching_run_configs) == 0:
+        raise ValueError(f"No run config found for id {id}")
+    if len(matching_run_configs) > 1:
+        raise ValueError(f"Multiple run configs found for id {id}")
+    return RunConfig.model_validate_json(matching_run_configs[0]["json"])
 
 
 class Inferrer:
