@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import List, Literal
 
 # Add src to Python path
 ROOT_DIR = Path(__file__).parent.parent
@@ -285,10 +286,19 @@ def display_training_results_df(runs_df):
     )
 
 
-def plot_training_curves(runs_df, metric_name: str = "mse"):
-    train_and_val_df = runs_df[runs_df["set"].isin(["train", "val"])]
+def plot_training_curves(
+    runs_df, metric_name: str, sets: List[Literal["train", "val"]], run_sets: List[str]
+):
+    color_discrete_map = {
+        name: px.colors.qualitative.Alphabet[i % len(px.colors.qualitative.Alphabet)]
+        for i, name in enumerate(runs_df["name"].unique())
+    }
+    # st.write(color_discrete_map)
+    train_and_val_df = runs_df[
+        runs_df["set"].isin(sets) & runs_df["run_set"].isin(run_sets)
+    ]
     train_and_val_by_group_df = (
-        train_and_val_df.groupby(["name", "set", "epoch"])[metric_name]
+        train_and_val_df.groupby(["run_set", "name", "set", "epoch"])[metric_name]
         .agg(median="median", min="min", max="max")
         .reset_index()
     )
@@ -308,6 +318,8 @@ def plot_training_curves(runs_df, metric_name: str = "mse"):
         facet_col="set",
         error_y_minus="error_y_minus",
         error_y="error_y",
+        color_discrete_map=color_discrete_map,
+        height=600,
     )
     return plot
 
@@ -322,10 +334,24 @@ def display_model_performance():
     st.header("Model Performance")
     runs_df = get_runs_df_cached()
 
-    metric_name = st.selectbox(
-        "Metric", ["mse", "mae", "perceptual_l1", "perceptual_l2"], index=0
+    run_sets = runs_df["run_set"].unique()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        metric_name = st.selectbox(
+            "Metric", ["mse", "mae", "perceptual_l1", "perceptual_l2"], index=0
+        )
+    with col2:
+        enabled_sets: List[Literal["train", "val"]] = st.multiselect(
+            "Sets", ["train", "val"], default=["val"]
+        )
+    enabled_run_sets = st.pills(
+        "Run Sets",
+        run_sets,
+        selection_mode="multi",
+        default=run_sets,
     )
-    plot = plot_training_curves(runs_df, metric_name)
+    plot = plot_training_curves(runs_df, metric_name, enabled_sets, enabled_run_sets)
     st.plotly_chart(plot)
 
     display_training_results_df(runs_df)
