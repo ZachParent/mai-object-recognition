@@ -17,7 +17,7 @@ from .metrics import (
     get_metric_collection,
 )
 from .models import get_model
-from .run_configs import ModelName, RunConfig, UNet2DConfig
+from .run_configs import ModelName, RunConfig
 
 
 class TrainingProgress:
@@ -275,12 +275,12 @@ if __name__ == "__main__":
     # Example usage
     config = RunConfig(
         id=1000,
-        name="SMPL",
-        model_name=ModelName.UNET2D,
+        name="TransUNet SMPL Test",
+        model_name=ModelName.TRANSUNET,
         learning_rate=0.0001,
-        unet2d_config=UNet2DConfig(),
         seed=0,
         batch_size=1,
+        transunet_use_pretrained=True,
         include_pose=True,
         input_size=(256, 256, 6),
     )
