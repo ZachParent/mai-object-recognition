@@ -25,25 +25,6 @@ st.set_page_config(
 
 # Title and description
 st.title("P3 Depth Estimation")
-st.sidebar.markdown("---")
-
-# Sidebar for model selection
-st.sidebar.title("Model Selection")
-model_ids = sorted(
-    int(path.stem.split("_")[1]) for path in CHECKPOINTS_DIR.glob("run_*.pt")
-)
-
-st.sidebar.markdown("---")
-st.sidebar.header("Instructions")
-st.sidebar.markdown(
-    """
-1. Select a frame from the Single Frame tab
-2. View the predicted depth map and the ground truth depth map
-3. Compare the prediction and ground truth with the image comparison widget
-4. Use the GIF Creation tab to create animations
-5. View the model performance in the Model Performance tab
-"""
-)
 
 
 @st.cache_data
@@ -53,7 +34,6 @@ def load_model_cached(model_id: int):
     return load_model(model_path, config)
 
 
-model_id = st.sidebar.selectbox("Model", model_ids, index=0)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
@@ -81,16 +61,14 @@ def display_single_frame_depth_visualization():
     Select a video ID and frame ID to see the model's predictions.
     """
     )
+    model_ids = sorted(
+        int(path.stem.split("_")[1]) for path in CHECKPOINTS_DIR.glob("run_*.pt")
+    )
+
     # Load metrics data
     df = get_metrics_df_cached()
-    try:
-        inferrer = load_model_cached(model_id)
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return
 
     # Add filters
-    st.subheader("Filters")
     col1, col2 = st.columns(2)
 
     with col1:
@@ -99,6 +77,14 @@ def display_single_frame_depth_visualization():
             options=sorted(df["video_id"].unique()),
             default=[],
         )
+    with col2:
+        model_id = st.selectbox("Model", model_ids, index=0)
+
+    try:
+        inferrer = load_model_cached(model_id)
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return
 
     # Apply filters
     filtered_df = df.copy()
@@ -181,6 +167,11 @@ def display_single_frame_depth_visualization():
 @st.fragment
 def display_gif_creation():
     st.header("Create GIF Animation")
+
+    model_ids = sorted(
+        int(path.stem.split("_")[1]) for path in CHECKPOINTS_DIR.glob("run_*.pt")
+    )
+    model_id = st.selectbox("Model", model_ids, index=0)
 
     # GIF creation controls
     col1, col2, col3 = st.columns(3)
