@@ -62,11 +62,6 @@ inferrer = load_model_cached(model_id)
 raw_dataset = Cloth3dDataset(start_idx=0, enable_normalization=False)
 normalized_dataset = Cloth3dDataset(start_idx=0, enable_normalization=True)
 
-# Create tabs for different visualization modes
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["Single Frame", "GIF Creation", "Quantitative Analysis", "Model Performance"]
-)
-
 
 @st.cache_data
 def get_metrics_df_cached():
@@ -184,10 +179,6 @@ def display_single_frame_depth_visualization():
         st.warning("Please select a row to visualize.")
 
 
-with tab1:
-    display_single_frame_depth_visualization()
-
-
 @st.fragment
 def display_gif_creation():
     st.header("Create GIF Animation")
@@ -268,10 +259,6 @@ def display_gif_creation():
 
         # Display the GIF
         st.image(output_path, caption=f"Video {gif_video_id} Animation")
-
-
-with tab2:
-    display_gif_creation()
 
 
 @st.fragment
@@ -366,10 +353,6 @@ def display_quantitative_analysis():
         st.error(f"An error occurred while loading or plotting data: {e}")
 
 
-with tab3:
-    display_quantitative_analysis()
-
-
 def display_training_results_df(runs_df):
     runs_by_group_df = (
         runs_df.groupby(["name", "set", "epoch"])["mse"]
@@ -436,5 +419,20 @@ def display_model_performance():
     display_training_results_df(runs_df)
 
 
-with tab4:
+# Create tabs for different visualization modes
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["Model Performance", "Single Frame", "GIF Creation", "Quantitative Analysis"]
+)
+
+
+with tab1:
     display_model_performance()
+
+with tab2:
+    display_single_frame_depth_visualization()
+
+with tab3:
+    display_gif_creation()
+
+with tab4:
+    display_quantitative_analysis()
