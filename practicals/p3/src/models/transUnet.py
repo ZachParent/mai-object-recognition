@@ -737,26 +737,43 @@ class TransUNet(nn.Module):
                     )
                     hybrid_model = self.transformer.embeddings.hybrid_model
 
-                    # ResNet Root
+                    # ResNet Root Convolutional Layer
+                    # This layer is already initialized with self.in_channels.
+                    # We only load pretrained weights for it if self.in_channels == 3.
                     if self.in_channels == 3:
                         if "conv_root/kernel" in weights_np:
                             hybrid_model.root.conv.weight.copy_(
                                 np2th(weights_np["conv_root/kernel"], conv=True)
                             )
-                            hybrid_model.root.gn.weight.copy_(
-                                np2th(weights_np["gn_root/scale"]).view(-1)
-                            )
-                            hybrid_model.root.gn.bias.copy_(
-                                np2th(weights_np["gn_root/bias"]).view(-1)
-                            )
-                            print("ResNet root weights loaded.")
+                            print("ResNet root conv (3ch) weights loaded.")
                         else:
                             print(
-                                "WARNING: Skipping ResNet root: 'conv_root/kernel' not in weights_np (possibly dummy file)."
+                                "WARNING: 'conv_root/kernel' not found in weights_np. ResNet root conv (3ch) weights not loaded."
                             )
+                    else:  # self.in_channels != 3
+                        # The hybrid_model.root.conv is already initialized for self.in_channels.
+                        # We simply don't load the 3-channel pretrained weights into it.
+                        # It will use its initial random weights.
+                        print(
+                            f"NOTE: Model in_channels is {self.in_channels} (not 3). "
+                            "Pretrained 'conv_root/kernel' (for 3 channels) will not be loaded. "
+                        )
+
+                    # ResNet Root GroupNorm (gn_root)
+                    # These weights depend on the output channels of conv_root, so they can be loaded
+                    # independently of whether conv_root weights were loaded or self.in_channels.
+                    if "gn_root/scale" in weights_np and "gn_root/bias" in weights_np:
+                        hybrid_model.root.gn.weight.copy_(
+                            np2th(weights_np["gn_root/scale"]).view(-1)
+                        )
+                        hybrid_model.root.gn.bias.copy_(
+                            np2th(weights_np["gn_root/bias"]).view(-1)
+                        )
+                        print("ResNet root GroupNorm (gn_root) weights loaded.")
                     else:
                         print(
-                            f"WARNING: Skipping ResNet root loading: model in_channels ({self.in_channels}) != 3. Pretrained ResNet root expects 3 input channels."
+                            "WARNING: 'gn_root/scale' or 'gn_root/bias' not found in weights_np. "
+                            "ResNet root GroupNorm (gn_root) weights not loaded."
                         )
 
                     # ResNet Body
@@ -913,5 +930,10 @@ class TransUNet(nn.Module):
 if __name__ == "__main__":
     from torchinfo import summary
 
-    model = TransUNet(load_resnet_weights=True)
-    summary(model, (1, 3, 256, 256))
+    input_size = (1, 3, 256, 256)
+    model = TransUNet(
+        img_size=input_size[2],
+        in_channels=input_size[1],
+        load_resnet_weights=True,
+    )
+    summary(model, input_size)
