@@ -181,16 +181,14 @@ VIT_RUN_SET = RunSet(
     ],
 )
 
-# id_start += len(VIT_RUN_SET.configs)
-# this is fixed to reserve space for the vit runs
 id_start = 40
 
-PERCEPTUAL_LOSS_RUN_SET = RunSet(
-    title="Perceptual Loss",
+UNET2D_PERCEPTUAL_LOSS_RUN_SET = RunSet(
+    title="Perceptual Loss UNet2D",
     configs=[
         RunConfig(
             id=id_start + i,
-            name=f"{weight} {l1_l2} perceptual {1 - weight} MSE",
+            name=f"UNet2D {weight} {l1_l2} perceptual {1 - weight} MSE",
             epochs=12,
             # TODO: use the best network config
             model_name=ModelName.UNET2D,
@@ -206,31 +204,53 @@ PERCEPTUAL_LOSS_RUN_SET = RunSet(
     ],
 )
 
-# id_start += len(PERCEPTUAL_LOSS_RUN_SET.configs)
-
 id_start = 60
+
+TRANSUNET_PERCEPTUAL_LOSS_RUN_SET = RunSet(
+    title="Perceptual Loss TransUNet",
+    configs=[
+        RunConfig(
+            id=id_start + i,
+            name=f"TransUNet {0.5} {l1_l2} perceptual {0.5} MSE",
+            epochs=12,
+            # TODO: use the best network config
+            model_name=ModelName.TRANSUNET,
+            transunet_use_pretrained=True,
+            learning_rate=0.0001,
+            perceptual_loss_weight=0.5,
+            perceptual_loss=l1_l2,  # type: ignore
+            seed=seed,
+        )
+        for i, (l1_l2, seed) in enumerate(itertools.product(["L1", "L2"], SEEDS))
+    ],
+)
+
+id_start = 80
 
 SMPL_RUN_SET = RunSet(
     title="SMPL",
     configs=[
         RunConfig(
             id=id_start + i,
-            name="SMPL",
-            model_name=ModelName.UNET2D,
+            name=f"TransUNet {'0.5 L2 perceptual 0.5 MSE ' if weight is not None else ''}with SMPL",
+            model_name=ModelName.TRANSUNET,
             learning_rate=0.0001,
             input_size=(256, 256, 6),
-            unet2d_config=UNet2DConfig(),
-            seed=seed,
+            transunet_use_pretrained=True,
+            perceptual_loss="L2",
+            perceptual_loss_weight=weight,
             include_pose=True,
+            seed=seed,
         )
-        for i, seed in enumerate(SEEDS)
+        for i, (weight, seed) in enumerate(itertools.product([None, 0.5], SEEDS))
     ],
 )
 
 ALL_RUNS_SETS = [
     HYPERPARAM_RUN_SET,
     VIT_RUN_SET,
-    PERCEPTUAL_LOSS_RUN_SET,
+    UNET2D_PERCEPTUAL_LOSS_RUN_SET,
+    TRANSUNET_PERCEPTUAL_LOSS_RUN_SET,
     SMPL_RUN_SET,
 ]
 
