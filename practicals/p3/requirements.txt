@@ -1,6 +1,7 @@
 einops
 matplotlib
 pandas
+plotly[express]
 pydantic
 requests
 scipy
