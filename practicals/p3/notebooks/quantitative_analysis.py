@@ -208,19 +208,15 @@ def plot_training_curves(runs_df, metric_name, title=None):
 
 # %%
 if __name__ == "__main__":
-    # %%
     # Get the metrics dataframes
     frame_metrics, video_metrics = get_metrics_dfs()
 
-    # %%
     # Get the runs dataframe
     runs_df = get_runs_df()
 
-    # %%
     # Set up the plotting style
     plt.style.use("seaborn-v0_8-whitegrid")  # Using a specific seaborn style
     sns.set_palette("husl")
-    # %%
     # Get all metric columns (excluding run_id, video_id, frame_id)
     metric_columns = [
         col
@@ -228,7 +224,6 @@ if __name__ == "__main__":
         if col not in ["run_id", "video_id", "frame_id"]
     ]
 
-    # %%
     # Plot distributions for each metric
     for metric in metric_columns:
         plot_metric_violin(frame_metrics, metric, f"Frame-level {metric} Distribution")
@@ -236,7 +231,6 @@ if __name__ == "__main__":
         plot_metric_violin(video_metrics, metric, f"Video-level {metric} Distribution")
         plt.show()
 
-    # %%
     plot_correlation_heatmap(
         frame_metrics, metric_columns, "Frame-level Metrics Correlation"
     )
@@ -246,13 +240,11 @@ if __name__ == "__main__":
     )
     plt.show()
 
-    # %%
     # Plot combined distributions for each metric
     for metric in metric_columns:
         plot_combined_metric_distribution(frame_metrics, video_metrics, metric)
         plt.show()
 
-    # %%
     # Get metrics available in runs_df for plotting training curves
     if not runs_df.empty:
         run_metric_columns = [
