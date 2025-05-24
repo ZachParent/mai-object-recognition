@@ -157,8 +157,9 @@ def display_single_frame_depth_visualization():
         image_comparison(
             img1=predicted_rgb,
             img2=ground_truth_rgb,
-            label1="Predicted Depth",
+            label1=f"Predicted Depth (model {model_id})",
             label2="Ground Truth",
+            in_memory=True,
         )
     else:
         st.warning("Please select a row to visualize.")
