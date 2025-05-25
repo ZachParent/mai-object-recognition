@@ -282,7 +282,7 @@ def plot_training_curves(
     runs_df, metric_name: str, sets: List[Literal["train", "val"]], run_sets: List[str]
 ):
     color_discrete_map = {
-        name: px.colors.qualitative.Alphabet[i % len(px.colors.qualitative.Alphabet)]
+        name: px.colors.qualitative.Dark24[i % len(px.colors.qualitative.Dark24)]
         for i, name in enumerate(runs_df["name"].unique())
     }
     # st.write(color_discrete_map)
