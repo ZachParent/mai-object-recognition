@@ -55,11 +55,11 @@ preprocessed_dataset/
 
 ```bash
 # Process all data types
-python -m practicals.p3.scripts.unified_preprocessing.preprocessing
+python -m scripts.unified_preprocessing.preprocessing
 
 # Process only RGB and pose data
-python -m practicals.p3.scripts.unified_preprocessing.preprocessing --no-depth
+python -m scripts.unified_preprocessing.preprocessing --no-depth
 
 # Process only RGB and depth data
-python -m practicals.p3.scripts.unified_preprocessing.preprocessing --no-pose
+python -m scripts.unified_preprocessing.preprocessing --no-pose
 ```
