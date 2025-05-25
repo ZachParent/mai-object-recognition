@@ -16,8 +16,17 @@ EXCLUDE_PATTERNS = [
     "*venv/",  # Python virtual environments (common names)
     ".DS_Store",  # macOS metadata
     "*.zip",  # Don't include zip files (avoids self-inclusion)
-    "data/",  # Data directory
+    ".tmp/",
+    "temp/",
+    "data/02_checkpoints/",  # Data directory
+    "data/03_logs/",
+    "data/cloth3d++_subset/",
+    "data/model_weights/",
+    "data/preprocessed_dataset/",
+    "demo/",
     "report/",  # Report directory
+    "TODO.md",  # TODO file
+    "launcher*.sh",  # Launcher scripts
 ]
 
 
