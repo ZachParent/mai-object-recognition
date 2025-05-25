@@ -12,9 +12,8 @@ sys.path.append(str(ROOT_DIR / "src"))
 
 from src.config import CHECKPOINTS_DIR, RESULTS_DIR
 from src.datasets.cloth3d import Cloth3dDataset
-from src.inferrer import load_model
+from src.inferrer import get_run_config, load_model
 from src.metrics import get_metric_collection
-from src.run_configs import ModelName, RunConfig
 
 
 def get_metrics_for_run(run_id: int):
@@ -28,21 +27,11 @@ def get_metrics_for_run(run_id: int):
     """
     # Load the trained model
     model_path = str(CHECKPOINTS_DIR / f"run_{run_id:03d}.pt")
-    inferrer = load_model(model_path)
+    run_config = get_run_config(run_id)
+    inferrer = load_model(model_path, run_config)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     inferrer.model.to(device)
 
-    # Create a RunConfig for metrics
-    run_config = RunConfig(
-        id=run_id,
-        name="quant_eval",
-        model_name=ModelName.UNET2D,
-        learning_rate=0.001,
-        batch_size=1,
-        epochs=1,
-        perceptual_loss="L2",
-        perceptual_loss_weight=0.5,
-    )
     video_metric_collection = get_metric_collection(run_config)
     frame_metric_collection = get_metric_collection(run_config)
 
@@ -109,16 +98,8 @@ def get_metrics_for_run(run_id: int):
 
 
 def main():
-    # Find all run IDs by looking at checkpoint files
-    run_ids = []
-    for checkpoint_file in CHECKPOINTS_DIR.glob("run_*.pt"):
-        try:
-            run_id = int(checkpoint_file.stem.split("_")[1])
-            run_ids.append(run_id)
-        except (ValueError, IndexError):
-            continue
 
-    run_ids.sort()
+    run_ids = [29, 2, 16]
 
     # Process each run
     all_frame_results = []
