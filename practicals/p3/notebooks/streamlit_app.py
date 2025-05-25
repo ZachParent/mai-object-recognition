@@ -97,7 +97,7 @@ def display_single_frame_depth_visualization():
             default=[],
         )
     with col2:
-        model_id = st.selectbox("Model", model_ids, index=0)
+        model_id = st.selectbox("Model", sorted(df["run_id"].unique()), index=0)
 
     try:
         inferrer = load_model_cached(model_id)
@@ -107,6 +107,7 @@ def display_single_frame_depth_visualization():
 
     # Apply filters
     filtered_df = df.copy()
+    filtered_df = filtered_df[filtered_df["run_id"] == model_id]
     if video_filter:
         filtered_df = filtered_df[filtered_df["video_id"].isin(video_filter)]
 
