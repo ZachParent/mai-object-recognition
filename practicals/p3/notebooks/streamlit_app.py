@@ -7,12 +7,13 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 sys.path.append(str(ROOT_DIR / "src"))
 
-import matplotlib.pyplot as plt
-import numpy as np
+import io
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from notebooks.get_results import get_metrics_dfs, get_runs_df
+from PIL import Image
 from src.config import CHECKPOINTS_DIR, RESULTS_DIR, VISUALIZATIONS_DIR
 from src.datasets.cloth3d import Cloth3dDataset
 from src.inferrer import get_run_config, load_model
@@ -119,44 +120,52 @@ def display_single_frame_depth_visualization():
         )
 
         # Move tensors to CPU and convert to numpy
-        raw_input_image = raw_input_image.cpu().numpy()
-        normalized_input_image = normalized_input_image.cpu().numpy()
-        predicted_depth = predicted_depth.cpu().numpy()
-        ground_truth = ground_truth.cpu().numpy()
+        raw_input_image = raw_input_image.cpu().numpy().transpose(1, 2, 0)
+        normalized_input_image = normalized_input_image.cpu().numpy().transpose(1, 2, 0)
+        predicted_depth = predicted_depth.cpu()[0].numpy()
+        ground_truth = ground_truth.cpu()[0].numpy()
 
-        # Create the visualization
-        fig = inferrer.visualize_prediction(
-            video_id=video_id,
-            frame_id=frame_id,
-            raw_dataset=raw_dataset,
-            normalized_dataset=normalized_dataset,
-        )
-
-        # Display the plot in Streamlit
-        st.pyplot(fig)
+        figs = [
+            px.imshow(raw_input_image),
+            px.imshow(normalized_input_image, zmin=0, zmax=1),
+            px.imshow(predicted_depth, color_continuous_scale="tempo", zmin=0, zmax=1),
+            px.imshow(ground_truth, color_continuous_scale="tempo", zmin=0, zmax=1),
+        ]
+        imgs = []
+        cols = st.columns(len(figs))
+        for i, fig in enumerate(figs):
+            with cols[i]:
+                fig.update_layout(
+                    coloraxis_showscale=False,
+                    xaxis_visible=False,
+                    yaxis_visible=False,
+                )
+                st.plotly_chart(fig)
+                st.markdown(
+                    f"**{['Raw Input Image', 'Normalized Input Image', 'Predicted Depth', 'Ground Truth'][i]}**"
+                )
+                imgs.append(fig.to_image(format="png"))
 
         # Add image comparison widget
         st.subheader("Compare Predicted Depth with Ground Truth")
 
-        # Convert depth maps to RGB for comparison
-        def depth_to_rgb(depth_map):
-            # Convert to RGB using viridis colormap
-            depth_rgb = np.clip(depth_map, 0, 1)
-            depth_rgb = plt.get_cmap("viridis")(depth_map)[
-                ..., :3
-            ]  # Remove alpha channel
-            # Convert to uint8 (0-255)
-            depth_rgb = (depth_rgb * 255).astype(np.uint8)
-            return depth_rgb
-
-        # Convert depth maps to RGB
-        predicted_rgb = depth_to_rgb(predicted_depth[0])
-        ground_truth_rgb = depth_to_rgb(ground_truth[0])
-
-        # Create image comparison
+        # Update layout to remove axes and colorbar
+        imgs = []
+        for fig in [figs[2], figs[3]]:
+            fig.update_layout(
+                coloraxis_showscale=False,
+                xaxis_visible=False,
+                yaxis_visible=False,
+                margin=dict(l=0, r=0, t=0, b=0),
+            )
+            fig_bytes = fig.to_image(format="png")
+            buf = io.BytesIO(fig_bytes)
+            img = Image.open(buf)
+            imgs.append(img)
+        # Create image comparison using Plotly figures
         image_comparison(
-            img1=predicted_rgb,
-            img2=ground_truth_rgb,
+            img1=imgs[0],
+            img2=imgs[1],
             label1=f"Predicted Depth (model {model_id})",
             label2="Ground Truth",
             in_memory=True,
