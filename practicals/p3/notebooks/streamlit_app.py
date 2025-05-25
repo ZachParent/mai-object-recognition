@@ -53,6 +53,24 @@ def get_metrics_dfs_cached():
     return get_metrics_dfs()
 
 
+def save_image(fig, path):
+    fig_bytes = fig.to_image(format="png")
+    buf = io.BytesIO(fig_bytes)
+    img = Image.open(buf)
+    img.save(path)
+
+
+def save_images(figs, run_id, video_id, frame_id):
+    fig_labels = ["raw_input", "normalized_input", "predicted_depth", "ground_truth"]
+    for i, fig in enumerate(figs):
+        save_image(
+            fig,
+            Path(VISUALIZATIONS_DIR)
+            / f"run_{run_id:03d}_video_{video_id}_frame_{frame_id}_{fig_labels[i]}.png",
+        )
+    st.toast("Images saved")
+
+
 @st.fragment
 def display_single_frame_depth_visualization():
     st.header("Single Frame Depth Visualization")
@@ -131,7 +149,6 @@ def display_single_frame_depth_visualization():
             px.imshow(predicted_depth, color_continuous_scale="tempo", zmin=0, zmax=1),
             px.imshow(ground_truth, color_continuous_scale="tempo", zmin=0, zmax=1),
         ]
-        imgs = []
         cols = st.columns(len(figs))
         for i, fig in enumerate(figs):
             with cols[i]:
@@ -139,12 +156,17 @@ def display_single_frame_depth_visualization():
                     coloraxis_showscale=False,
                     xaxis_visible=False,
                     yaxis_visible=False,
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    width=700,
+                    height=700,
+                    autosize=False,
                 )
                 st.plotly_chart(fig)
                 st.markdown(
                     f"**{['Raw Input Image', 'Normalized Input Image', 'Predicted Depth', 'Ground Truth'][i]}**"
                 )
-                imgs.append(fig.to_image(format="png"))
+        if st.button("Save Images", type="primary"):
+            save_images(figs, model_id, video_id, frame_id)
 
         # Add image comparison widget
         st.subheader("Compare Predicted Depth with Ground Truth")
@@ -152,12 +174,6 @@ def display_single_frame_depth_visualization():
         # Update layout to remove axes and colorbar
         imgs = []
         for fig in [figs[2], figs[3]]:
-            fig.update_layout(
-                coloraxis_showscale=False,
-                xaxis_visible=False,
-                yaxis_visible=False,
-                margin=dict(l=0, r=0, t=0, b=0),
-            )
             fig_bytes = fig.to_image(format="png")
             buf = io.BytesIO(fig_bytes)
             img = Image.open(buf)
