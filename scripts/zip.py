@@ -25,8 +25,10 @@ EXCLUDE_PATTERNS = [
     "data/preprocessed_dataset/",
     "demo/",
     "report/",  # Report directory
+    "notes/",
     "TODO.md",  # TODO file
     "launcher*.sh",  # Launcher scripts
+    "remove-oof-pose-frames.sh",
 ]
 
 

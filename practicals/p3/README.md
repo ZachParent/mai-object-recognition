@@ -72,6 +72,7 @@ Full functionality requires the large dataset locally.
 - `src/main.py` - main script to run the experiments
 - `src/trainer.py` - script to train the model
 - `src/run_configs.py` - configuration for the experiments
+- `src/datasets/cloth3d.py` - dataset class for the cloth3d++ dataset
 - `src/models/unet2d.py` - UNet model
 - `src/models/transUnet.py` - TransUNet model
 - `notebooks/streamlit_app.py` - streamlit app to visualize the results

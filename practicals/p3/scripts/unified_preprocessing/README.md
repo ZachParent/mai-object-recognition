@@ -30,7 +30,7 @@ These paths can be modified in the `config.py` file to match your local setup if
 **Important:** Run this script from the project's root directory, not from within the scripts folder.
 
 ```bash
-python -m practicals.p3.scripts.unified_preprocessing.preprocessing [options]
+python -m scripts.unified_preprocessing.preprocessing [options]
 ```
 
 ### Options
