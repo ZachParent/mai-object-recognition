@@ -191,99 +191,6 @@ def display_single_frame_depth_visualization():
         st.warning("Please select a row to visualize.")
 
 
-@st.fragment
-def display_gif_creation():
-    st.header("Create GIF Animation")
-
-    model_ids = sorted(
-        int(path.stem.split("_")[1]) for path in CHECKPOINTS_DIR.glob("run_*.pt")
-    )
-    model_id = st.selectbox("Model", model_ids, index=0)
-
-    # GIF creation controls
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        gif_video_id = st.number_input(
-            "Video ID for GIF",
-            min_value=0,
-            max_value=100,
-            value=0,
-            help="Select the video ID for the GIF",
-        )
-
-    with col2:
-        start_frame = st.number_input(
-            "Start Frame",
-            min_value=0,
-            max_value=100,
-            value=0,
-            help="Starting frame number",
-        )
-
-        end_frame = st.number_input(
-            "End Frame",
-            min_value=0,
-            max_value=100,
-            value=100,
-            help="Ending frame number",
-        )
-
-    with col3:
-        frame_step = st.number_input(
-            "Frame Step",
-            min_value=1,
-            max_value=20,
-            value=5,
-            help="Step between frames (e.g., 5 means every 5th frame)",
-        )
-
-        fps = st.number_input(
-            "FPS",
-            min_value=1,
-            max_value=30,
-            value=10,
-            help="Frames per second in the GIF",
-        )
-
-    try:
-        inferrer = load_model_cached(model_id)
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return
-
-    if st.button("Create GIF", type="primary"):
-        # Create frame list
-        frame_ids = list(range(start_frame, end_frame + 1, frame_step))
-
-        # Create output path
-        output_path = str(VISUALIZATIONS_DIR / f"video_{gif_video_id}_animation.gif")
-
-        # Show progress
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-
-        # Create GIF
-        status_text.text("Creating GIF...")
-        inferrer.create_prediction_gif(
-            video_id=gif_video_id,
-            frame_ids=frame_ids,
-            output_path=output_path,
-            fps=fps,
-            dpi=100,
-            raw_dataset=raw_dataset,
-            normalized_dataset=normalized_dataset,
-        )
-
-        # Show success message
-        status_text.text("GIF created successfully!")
-        st.success(f"GIF saved to: {output_path}")
-        st.warning("GIFS cannot be played in the app. Please view it in the repo.")
-
-        # Display the GIF
-        st.image(output_path, caption=f"Video {gif_video_id} Animation")
-
-
 def display_training_results_df(runs_df):
     runs_by_group_df = (
         runs_df.groupby(["name", "set", "epoch"])["mse"]
@@ -376,7 +283,7 @@ def display_model_performance():
 
 
 # Create tabs for different visualization modes
-tab1, tab2, tab3 = st.tabs(["Model Performance", "Single Frame", "GIF Creation"])
+tab1, tab2 = st.tabs(["Model Performance", "Single Frame"])
 
 
 with tab1:
@@ -384,6 +291,3 @@ with tab1:
 
 with tab2:
     display_single_frame_depth_visualization()
-
-with tab3:
-    display_gif_creation()
