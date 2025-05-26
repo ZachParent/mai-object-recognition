@@ -1,5 +1,6 @@
 einops
 matplotlib
+opencv-python
 pandas
 plotly[express]
 pydantic
@@ -9,6 +10,7 @@ seaborn
 streamlit
 streamlit-image-comparison
 tensorboard
+tensorflow
 torch==2.6.0
 torchinfo
 torchvision==0.21.0

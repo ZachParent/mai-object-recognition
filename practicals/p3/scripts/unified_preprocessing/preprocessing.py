@@ -6,12 +6,12 @@ from PIL import Image # For merging RGB and Alpha frames
 import argparse # For command-line options
 
 # Ensure DataReader and its dependencies are in the Python path
-sys.path.append(os.path.join('practicals', 'p3', 'scripts', 'unified_preprocessing', 'starter-kit'))
-sys.path.append(os.path.join('practicals', 'p3', 'scripts', 'unified_preprocessing', 'reader'))
-sys.path.append(os.path.join('practicals', 'p3', 'src'))
+sys.path.append(os.path.join('scripts', 'unified_preprocessing', 'starter-kit'))
+sys.path.append(os.path.join('scripts', 'unified_preprocessing', 'reader'))
+sys.path.append(os.path.join('src'))
 
 from config import RAW_DATA_DIR, SMPL_DIR, PREPROCESSED_DATA_DIR
-from reader.read import DataReader
+from read import DataReader
 from depth_render import Render
 from util import intrinsic, extrinsic
 
